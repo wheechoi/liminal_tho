@@ -53,3 +53,28 @@ crashlytics-buildid.txt
 # OS
 .DS_Store
 Thumbs.db
+
+# Third-party asset demos (kept locally only, too big for LFS quota)
+/Assets/Feel/FeelDemos/
+/Assets/Feel/FeelDemos.meta
+/Assets/Feel/FeelDemosHDRP/
+/Assets/Feel/FeelDemosHDRP.meta
+/Assets/Feel/MMFeedbacks/Demos/
+/Assets/Feel/MMFeedbacks/Demos.meta
+/Assets/Feel/MMTools/Demos/
+/Assets/Feel/MMTools/Demos.meta
+/Assets/Feel/NiceVibrations/Demo/
+/Assets/Feel/NiceVibrations/Demo.meta
+/Assets/Plugins/AllIn13DShader/Demo/
+/Assets/Plugins/AllIn13DShader/Demo.meta
+/Assets/Plugins/AllIn1SpriteShader/Demo/
+/Assets/Plugins/AllIn1SpriteShader/Demo.meta
+/Assets/Plugins/Pixel Crushers/Dialogue System/Demo/
+/Assets/Plugins/Pixel Crushers/Dialogue System/Demo.meta
+/Assets/Plugins/Pixel Crushers/Dialogue System/Wrappers/Demo/
+/Assets/Plugins/Pixel Crushers/Dialogue System/Wrappers/Demo.meta
+/Assets/Plugins/Sirenix/Demos/
+/Assets/Plugins/Sirenix/Demos.meta
+/Assets/TextMesh Pro/Examples & Extras/
+/Assets/TextMesh Pro/Examples & Extras.meta
+/Packages/com.febucci.text-animator-unity/Samples~/

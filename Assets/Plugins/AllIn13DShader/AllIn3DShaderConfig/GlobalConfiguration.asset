@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 592122c0ab3d6c04d85891bcd2f332bc, type: 3}
+  m_Name: GlobalConfiguration
+  m_EditorClassIdentifier: AllIn13DShaderAssemebly.Editor::AllIn13DShader.GlobalConfiguration
+  projectType: 2
+  standardBasicMaterial: {fileID: 0}
+  standardPBRMaterial: {fileID: 0}
+  toonMaterial: {fileID: 0}
+  allIn13dDShaderLookMaterial: {fileID: 0}
+  defaultPreset: {fileID: 0}
+  rootPluginPath: Assets\Plugins\AllIn13DShader
+  globalConfigFolderPath: Assets\Plugins\AllIn13DShader\AllIn3DShaderConfig
+  exportFolderPath: Assets\Plugins\AllIn13DShader\AllIn3DShaderConfig\Export
+  materialSavePath: Assets\Plugins\AllIn13DShader\AllIn3DShaderConfig\Export\Materials
+  renderImageSavePath: Assets\Plugins\AllIn13DShader\AllIn3DShaderConfig\Export\Images
+  normalMapSavePath: Assets\Plugins\AllIn13DShader\AllIn3DShaderConfig\Export\Normal Maps
+  gradientSavePath: Assets\Plugins\AllIn13DShader\AllIn3DShaderConfig\Export\Gradients
+  atlasesSavePath: Assets\Plugins\AllIn13DShader\AllIn3DShaderConfig\Export\Atlases
+  noiseSavePath: Assets\Plugins\AllIn13DShader\AllIn3DShaderConfig\Export\Noises
+  bakedShaderSavePath: Assets\Plugins\AllIn13DShader\AllIn3DShaderConfig\Export\Baked Shaders
+  renderImageScale: 0
+  projectConfiguredFirstTime: 1
+  urpConfiguredFirstTime: 0
+  lastPipelineConfiguredGUID: 
+  shStandard: {fileID: 0}
+  shStandardNoShadowCaster: {fileID: 0}
+  shOutline: {fileID: 0}
+  shOutlineNoShadowCaster: {fileID: 0}
+  effectsProfileCollection: {fileID: 0}
+  shaderPassCollection: {fileID: 0}
+  urpSettingsUserPref: {fileID: 0}

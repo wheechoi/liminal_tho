@@ -1,5 +1,11 @@
 {
   "dependencies": {
+    "com.febucci.text-animator-unity": {
+      "version": "file:com.febucci.text-animator-unity",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.ivanmurzak.unity.mcp": {
       "version": "0.93.2",
       "depth": 0,
