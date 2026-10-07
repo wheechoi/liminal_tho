@@ -8,12 +8,13 @@
 |---|---|---|
 | `.gitignore` (Unity용) | ✅ 완료 | Library/Temp/Logs/UserSettings, csproj/slnx 제외 |
 | `.gitattributes` | ✅ 완료 | 이미지·모델·오디오·폰트 → Git LFS, 씬/프리팹 줄바꿈 LF |
-| GitHub 저장소 | ✅ 생성됨 | `wheechoi/liminal_tho` (private), **아직 비어 있음** |
+| GitHub 저장소 | ✅ 생성됨 | `wheechoi/liminal_tho` (private) |
 | Unity-MCP 패키지 등록 | ✅ manifest 반영 | `com.ivanmurzak.unity.mcp` 0.93.2 + OpenUPM 레지스트리 |
 | Unity-MCP 실제 설치 | ✅ 완료 | 에디터에 설치됨 |
 | Claude Code ↔ 유니티 MCP 연결 | ✅ 확인 (2026-10-07) | 씬 목록·콘솔 로그 조회 성공 |
 | `CLAUDE.md` | ✅ 완료 | 프로젝트 루트. Claude Code가 자동으로 읽음 |
-| 첫 push | ❌ 미완 | 아래 2-2 참고 |
+| Git 설치 | ✅ 완료 | Git 2.55 + LFS (winget) |
+| 첫 push | ✅ 완료 (2026-10-07) | `main` 브랜치, 커밋 `966e78b` |
 
 ### 프로젝트 현황
 - Unity 6000.6.4f1, URP 17.6, Input System 1.20
