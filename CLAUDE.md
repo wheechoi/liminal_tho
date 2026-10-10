@@ -7,9 +7,12 @@ Claude Code가 이 저장소에서 작업할 때 따르는 지침입니다.
 - **엔진**: Unity 6000.6.4f1 (Unity 6)
 - **렌더 파이프라인**: URP 17.6 (PC / Mobile 렌더러 둘 다 있음, `Assets/Settings/`)
 - **입력**: New Input System 1.20 (`Assets/InputSystem_Actions.inputactions`)
-- **현재 상태**: URP 기본 템플릿 직후. 게임 코드는 아직 없음.
-  - `Assets/Scenes/SampleScene.unity` — 유일한 씬
-  - `Assets/TutorialInfo/` — 템플릿 안내용, 삭제해도 됨
+- **게임**: **Surplus Person (잉여인간)** — 공포 게임. 빌드 이름도 Surplus Person. (폴더·저장소 이름 `Liminal_tho`는 MCP 경로 때문에 유지)
+- **현재 상태**:
+  - `Assets/_Project/Scenes/SP_1-1_Wake.unity` — 씬 1-1 목업 (소희 기상). 메뉴 `Surplus Person > Build Scene 1-1`로 생성. 메모: `Docs/SurplusPerson/SP_1-1_NOTES.md`
+  - `Assets/_Project/Scenes/B58.unity` — 이전 버티컬 슬라이스 「지하 58층」. 메모: `Docs/B58/`
+  - 그래픽 레퍼런스: `Docs/SurplusPerson/refs/` (단면 저택 일러스트, 픽셀 어드벤처, 잉크·디더링 톤)
+  - `Assets/Scenes/SampleScene.unity`, `Assets/TutorialInfo/` — 템플릿 잔재, 삭제해도 됨
 - **저장소**: https://github.com/wheechoi/liminal_tho (private)
 - **로컬 경로**: `C:\Users\user\Desktop\Liminal_tho` (경로에 공백 금지 — Unity-MCP 요구사항)
 

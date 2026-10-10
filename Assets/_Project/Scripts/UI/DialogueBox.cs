@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Febucci.TextAnimatorForUnity;
 using Liminal.Core;
 using TMPro;
@@ -7,7 +9,7 @@ namespace Liminal.UI
 {
     /// <summary>
     /// 하단 대사창. Text Animator 타이핑(초당 38자), 조사 키를 누르면 즉시 완성,
-    /// 완성 후 한 번 더 누르면 닫힌다. 완성되면 ▼ 표시.
+    /// 완성 후 한 번 더 누르면 다음 줄, 마지막 줄이면 닫힌다. 완성되면 ▼ 표시.
     /// 대사 안에 Text Animator 태그를 쓸 수 있다: &lt;shake&gt; &lt;wiggle&gt; &lt;wave&gt; &lt;dangle&gt; 등 (계속 움직임),
     /// &lt;waitfor=0.6&gt; (잠깐 멈춤), &lt;speed=0.5&gt; (타이핑 속도 배율).
     /// </summary>
@@ -23,7 +25,11 @@ namespace Liminal.UI
 
         public bool IsOpen => panel && panel.activeSelf;
 
+        /// <summary>마지막 줄까지 보고 대사창이 닫혔을 때.</summary>
+        public event Action Closed;
+
         bool typing;
+        readonly Queue<string> pending = new();
 
         void Awake()
         {
@@ -51,7 +57,16 @@ namespace Liminal.UI
             if (B58Game.Instance) B58Game.Instance.CaughtStarted -= Close;
         }
 
-        public void Show(string line)
+        /// <summary>여러 줄을 넘기면 조사 키로 한 줄씩 넘어간다.</summary>
+        public void Show(params string[] lines)
+        {
+            pending.Clear();
+            if (lines == null || lines.Length == 0) return;
+            for (int i = 1; i < lines.Length; i++) pending.Enqueue(lines[i]);
+            ShowLine(lines[0]);
+        }
+
+        void ShowLine(string line)
         {
             panel.SetActive(true);
             if (moreIndicator) moreIndicator.SetActive(false);
@@ -62,7 +77,7 @@ namespace Liminal.UI
             if (!typewriter) OnTextShowed();
         }
 
-        /// <summary>타이핑 중이면 즉시 완성, 완성됐으면 닫기.</summary>
+        /// <summary>타이핑 중이면 즉시 완성, 완성됐으면 다음 줄 또는 닫기.</summary>
         public void Advance()
         {
             if (typing && typewriter && typewriter.IsShowingText)
@@ -71,14 +86,18 @@ namespace Liminal.UI
                 OnTextShowed();
                 return;
             }
+            if (pending.Count > 0) { ShowLine(pending.Dequeue()); return; }
             Close();
         }
 
         public void Close()
         {
+            bool wasOpen = IsOpen;
             typing = false;
+            pending.Clear();
             if (panel) panel.SetActive(false);
             if (B58Game.Instance) B58Game.Instance.DialogueOpen = false;
+            if (wasOpen) Closed?.Invoke();
         }
 
         void OnTextShowed()

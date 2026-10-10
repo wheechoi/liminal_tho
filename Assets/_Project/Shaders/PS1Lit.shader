@@ -10,6 +10,7 @@ Shader "Liminal/PS1Lit"
         _BaseMap ("Texture", 2D) = "white" {}
         _BaseColor ("Color", Color) = (1,1,1,1)
         [Toggle] _Unlit ("Unlit (glow)", Float) = 0
+        _Cutoff ("Alpha Cutoff (0 = 끔)", Range(0,1)) = 0
         _SnapRes ("Vertex Snap Grid", Vector) = (160, 120, 0, 0)
         [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 2
     }
@@ -39,6 +40,7 @@ Shader "Liminal/PS1Lit"
                 float4 _BaseMap_ST;
                 half4 _BaseColor;
                 half _Unlit;
+                half _Cutoff;
                 float4 _SnapRes;
                 float _Cull;
             CBUFFER_END
@@ -73,12 +75,17 @@ Shader "Liminal/PS1Lit"
             half4 frag(Varyings i) : SV_Target
             {
                 half4 albedo = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv) * _BaseColor;
+                clip(albedo.a - _Cutoff + 1e-4); // 타원 러그처럼 모양을 오려낼 때
                 half3 color = albedo.rgb;
 
                 if (_Unlit < 0.5)
                 {
                     half3 n = normalize(i.normalWS);
                     half3 light = _LiminalAmbient.rgb;
+
+                    // 해 (Directional). 씬에 없으면 URP가 색을 0으로 넘겨서 영향 없음 (B58)
+                    Light sun = GetMainLight();
+                    light += sun.color * saturate(dot(n, sun.direction));
 
                     InputData inputData = (InputData)0;
                     inputData.positionWS = i.positionWS;
@@ -123,6 +130,7 @@ Shader "Liminal/PS1Lit"
                 float4 _BaseMap_ST;
                 half4 _BaseColor;
                 half _Unlit;
+                half _Cutoff;
                 float4 _SnapRes;
                 float _Cull;
             CBUFFER_END

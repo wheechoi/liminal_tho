@@ -25,8 +25,11 @@ namespace Liminal.Player
         float phase, stepTimer, time;
         float leftShoulderZ, rightShoulderZ;
 
+        Vector3 bodyBase;
+
         void Start()
         {
+            if (body) bodyBase = body.localPosition;
             if (leftShoulder) leftShoulderZ = leftShoulder.localEulerAngles.z;
             if (rightShoulder) rightShoulderZ = rightShoulder.localEulerAngles.z;
         }
@@ -62,7 +65,7 @@ namespace Liminal.Player
             if (body)
             {
                 float y = moving > 0f ? Mathf.Abs(Mathf.Cos(phase)) * 0.025f : Mathf.Sin(time * 2f) * 0.004f;
-                body.localPosition = new Vector3(0f, y, 0f);
+                body.localPosition = bodyBase + new Vector3(0f, y, 0f);
             }
         }
 

@@ -65,7 +65,7 @@ namespace Liminal.Player
         void Update()
         {
             var game = B58Game.Instance;
-            bool canAct = game == null || game.PlayerCanAct;
+            bool canAct = (game == null || game.PlayerCanAct) && !(dialogue && dialogue.IsOpen);
             float dt = Time.deltaTime;
 
             if (interact != null && interact.action.WasPressedThisFrame() && (game == null || !game.Caught))
@@ -114,7 +114,9 @@ namespace Liminal.Player
             if (dialogue == null) return;
             if (dialogue.IsOpen) { dialogue.Advance(); return; }
             var spot = InspectPoint.FindNearest(transform.position);
-            if (spot != null) dialogue.Show(spot.line);
+            if (spot == null) return;
+            dialogue.Show(spot.GetLines());
+            spot.OnInspected();
         }
 
         void OnRespawned()

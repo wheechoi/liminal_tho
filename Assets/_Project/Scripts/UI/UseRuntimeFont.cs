@@ -7,14 +7,19 @@ namespace Liminal.UI
     [RequireComponent(typeof(TMP_Text))]
     public class UseRuntimeFont : MonoBehaviour
     {
-        public enum Kind { Korean, Mono }
+        public enum Kind { Korean, Mono, Serif }
         public Kind kind = Kind.Korean;
 
         void Awake()
         {
             var t = GetComponent<TMP_Text>();
-            if (kind == Kind.Mono) _ = RuntimeFonts.Korean; // 모노 폰트의 한글 대체용
-            t.font = kind == Kind.Korean ? RuntimeFonts.Korean : RuntimeFonts.Mono;
+            if (kind != Kind.Korean) _ = RuntimeFonts.Korean; // 다른 폰트의 한글 대체용
+            t.font = kind switch
+            {
+                Kind.Mono => RuntimeFonts.Mono,
+                Kind.Serif => RuntimeFonts.Serif,
+                _ => RuntimeFonts.Korean,
+            };
         }
     }
 }

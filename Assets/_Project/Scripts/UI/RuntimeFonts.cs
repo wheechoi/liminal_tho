@@ -9,10 +9,12 @@ namespace Liminal.UI
     /// </summary>
     public static class RuntimeFonts
     {
-        static TMP_FontAsset korean, mono;
+        static TMP_FontAsset korean, mono, serif;
 
         public static TMP_FontAsset Korean => korean ??= Create(("Malgun Gothic", "Regular"), ("Gulim", "Regular"));
         public static TMP_FontAsset Mono => mono ??= Create(("Consolas", "Regular"), ("Courier New", "Regular"));
+        /// <summary>Surplus Person 대사용 명조 (바탕).</summary>
+        public static TMP_FontAsset Serif => serif ??= Create(("Batang", "Regular"), ("BatangChe", "Regular"), ("Malgun Gothic", "Regular"));
 
         static TMP_FontAsset Create(params (string family, string style)[] candidates)
         {

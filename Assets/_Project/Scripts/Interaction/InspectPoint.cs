@@ -14,8 +14,14 @@ namespace Liminal.Interaction
         [TextArea(2, 4)] public string line;
         public float radius = 1f;
 
-        void OnEnable() => All.Add(this);
-        void OnDisable() => All.Remove(this);
+        protected virtual void OnEnable() => All.Add(this);
+        protected virtual void OnDisable() => All.Remove(this);
+
+        /// <summary>이번 조사에서 보여줄 대사 (여러 줄 가능).</summary>
+        public virtual string[] GetLines() => new[] { line };
+
+        /// <summary>대사를 띄운 직후 호출된다.</summary>
+        public virtual void OnInspected() { }
 
         public static InspectPoint FindNearest(Vector3 pos)
         {
