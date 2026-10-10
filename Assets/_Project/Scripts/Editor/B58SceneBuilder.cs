@@ -586,17 +586,19 @@ namespace Liminal.Editor
             var parent = Group("InspectPoints", Vector3.zero);
             (float x, float z, float r, string name, string t)[] spots =
             {
-                (0.4f, 3.0f, 1.0f, "01_Milk", "식탁 위에 우유 한 잔. 아직 미지근하다. 나는 이걸 따른 기억이 없다."),
-                (-3.4f, 1.2f, 0.9f, "02_Fridge", "냉장고는 비어 있다. 문 안쪽에 손톱으로 긁어 새긴 숫자 — 58."),
-                (-3.0f, 3.0f, 0.8f, "03_Cupboard", "찬장의 그릇은 전부 두 개씩이다. 이 집에 사는 사람은 나 하나인데."),
-                (0f, 7.4f, 0.8f, "04_CorridorDoor", "문 너머로 젖은 나무 냄새가 올라온다. 여기서부터는 소리를 내지 않는 게 좋겠다."),
-                (0.7f, 11.2f, 1.0f, "05_Sign58", "「-58」. 엘리베이터 버튼은 B3까지밖에 없었다."),
-                (-0.7f, 13.8f, 0.8f, "06_FakeDoorway", "문틀 안쪽은 그냥 벽이다. 누군가 문을 그려 넣은 것뿐이었다."),
-                (0f, 20.6f, 1.1f, "07_HangingSign", "「비상 통로」. 화살표는 아래를 가리키고 있다. 여기보다 더 아래가 있다는 뜻일까."),
-                (0f, 28.4f, 1.2f, "08_EyeRug", "카펫의 눈이 깜빡였다. …아니, 그렇게 보였을 뿐이다."),
-                (3.1f, 30.8f, 1.1f, "09_EyeWall", "벽의 눈들이 일제히 나를 따라 굴러간다. 하나도 빠짐없이."),
-                (-3.0f, 29.4f, 1.0f, "10_Mannequins", "인형의 관절마다 이름표가 붙어 있다. 전부 내 이름이다."),
-                (0.2f, 33.3f, 0.9f, "11_LockedDoor", "잠겨 있다. 문 너머에서 누군가 내 목소리로 숨을 쉰다."),
+                // 대사 연출 (Text Animator 태그): <shake> 떨림, <wiggle> 꿈틀, <wave> 물결, <dangle> 매달림,
+                // <waitfor=초> 멈칫, <speed=배율> 타이핑 속도. 모든 글자는 기본으로 {fade} 등장.
+                (0.4f, 3.0f, 1.0f, "01_Milk", "식탁 위에 우유 한 잔. 아직 미지근하다.<waitfor=0.5> 나는 이걸 <wiggle>따른 기억이 없다</wiggle>."),
+                (-3.4f, 1.2f, 0.9f, "02_Fridge", "냉장고는 비어 있다. 문 안쪽에 손톱으로 긁어 새긴 숫자 —<waitfor=0.6> <shake>58</shake>."),
+                (-3.0f, 3.0f, 0.8f, "03_Cupboard", "찬장의 그릇은 전부 <wave>두 개씩</wave>이다.<waitfor=0.5> 이 집에 사는 사람은 <shake>나 하나</shake>인데."),
+                (0f, 7.4f, 0.8f, "04_CorridorDoor", "문 너머로 젖은 나무 냄새가 올라온다.<waitfor=0.4> <speed=0.6><size=90%><color=#8f8b7c>여기서부터는 소리를 내지 않는 게 좋겠다.</color></size></speed>"),
+                (0.7f, 11.2f, 1.0f, "05_Sign58", "「<shake>-58</shake>」.<waitfor=0.4> 엘리베이터 버튼은 B3까지밖에 없었다."),
+                (-0.7f, 13.8f, 0.8f, "06_FakeDoorway", "문틀 안쪽은 그냥 벽이다.<waitfor=0.4> 누군가 문을 <wiggle>그려 넣은</wiggle> 것뿐이었다."),
+                (0f, 20.6f, 1.1f, "07_HangingSign", "「비상 통로」. 화살표는 <dangle>아래를</dangle> 가리키고 있다.<waitfor=0.5> 여기보다 더 아래가 있다는 뜻일까."),
+                (0f, 28.4f, 1.2f, "08_EyeRug", "카펫의 눈이 <shake>깜빡였다</shake>.<waitfor=0.8> …아니, <speed=0.7>그렇게 보였을 뿐이다.</speed>"),
+                (3.1f, 30.8f, 1.1f, "09_EyeWall", "벽의 눈들이 <wave>일제히</wave> 나를 따라 굴러간다.<waitfor=0.5> <speed=0.5>하나도 빠짐없이.</speed>"),
+                (-3.0f, 29.4f, 1.0f, "10_Mannequins", "인형의 관절마다 이름표가 붙어 있다.<waitfor=0.7> 전부 <shake><color=#c4453c>내 이름</color></shake>이다."),
+                (0.2f, 33.3f, 0.9f, "11_LockedDoor", "잠겨 있다.<waitfor=0.8> <speed=0.6>문 너머에서 누군가 <wiggle><color=#c4453c>내 목소리로</color></wiggle> 숨을 쉰다.</speed>"),
             };
             foreach (var s in spots)
             {
@@ -784,6 +786,14 @@ namespace Liminal.Editor
             dt.lineSpacing = 25;
             dt.gameObject.AddComponent<TextAnimator_TMP>();
             var tw = dt.gameObject.AddComponent<TypewriterComponent>();
+            // <waitfor>, <speed> 같은 타이핑 동작용 데이터베이스 (Text Animator 기본 묶음)
+            var actions = AssetDatabase.LoadAssetAtPath<ScriptableObject>("Assets/Plugins/Febucci/Text Animator for Unity/Actions/Actions Database.asset");
+            if (actions)
+            {
+                var so = new SerializedObject(tw);
+                so.FindProperty("actionsDatabase").objectReferenceValue = actions;
+                so.ApplyModifiedPropertiesWithoutUndo();
+            }
             var more = Label("More", inner.transform, "▼", 33, amber, TextAlignmentOptions.BottomRight, UseRuntimeFont.Kind.Korean);
             Rect(more.gameObject, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-23, 10), new Vector2(40, 40));
             var dlg = dlgRoot.AddComponent<DialogueBox>();

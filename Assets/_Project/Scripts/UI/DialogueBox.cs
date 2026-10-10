@@ -8,6 +8,8 @@ namespace Liminal.UI
     /// <summary>
     /// 하단 대사창. Text Animator 타이핑(초당 38자), 조사 키를 누르면 즉시 완성,
     /// 완성 후 한 번 더 누르면 닫힌다. 완성되면 ▼ 표시.
+    /// 대사 안에 Text Animator 태그를 쓸 수 있다: &lt;shake&gt; &lt;wiggle&gt; &lt;wave&gt; &lt;dangle&gt; 등 (계속 움직임),
+    /// &lt;waitfor=0.6&gt; (잠깐 멈춤), &lt;speed=0.5&gt; (타이핑 속도 배율).
     /// </summary>
     public class DialogueBox : MonoBehaviour
     {
@@ -16,6 +18,8 @@ namespace Liminal.UI
         public TypewriterComponent typewriter;
         public GameObject moreIndicator;
         public float charsPerSecond = 38f;
+        [Tooltip("모든 글자가 나타날 때 기본으로 쓰는 등장 효과 (Text Animator 태그 ID)")]
+        public string[] defaultAppearance = { "fade" };
 
         public bool IsOpen => panel && panel.activeSelf;
 
@@ -30,6 +34,8 @@ namespace Liminal.UI
                 timings.waitMiddle = 1f / charsPerSecond;
                 timings.waitLong = 1f / charsPerSecond;
                 typewriter.TimingSettings = timings;
+                if (typewriter.TryGetComponent(out TextAnimatorComponentBase anim))
+                    anim.localSettings.defaultAppearanceTags = defaultAppearance;
                 typewriter.onTextShowed.AddListener(OnTextShowed);
             }
             if (panel) panel.SetActive(false);
