@@ -94,6 +94,7 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
   </div>
   <div class="dlg" id="dlg" hidden><span class="who" id="who"></span><span id="dlgText"></span><i id="dlgMore">▼</i></div>
   <div class="badge" id="badge" hidden>카메라 편집 중 · C로 끄기</div>
+  <div class="badge" id="toast" hidden style="top:auto;bottom:3cqh"></div>
   <div class="fade" id="fade"></div>
   <button class="title" id="title" type="button">
     <span class="kicker">PLAYABLE MOCKUP · SCENE 1-1</span>
@@ -132,6 +133,7 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
     <button id="ceResetAll" type="button">전체 원래대로</button>
   </div>
   <div class="sl" id="ceSliders"></div>
+  <div><kbd>Ctrl</kbd>+<kbd>Z</kbd> 한 단계 되돌리기 · <kbd>Ctrl</kbd>+<kbd>Y</kbd> 다시 실행</div>
   <div>화면 드래그: 방향 · 휠: 화각 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 앞뒤좌우 이동 · <kbd>Q</kbd>/<kbd>E</kbd> 아래/위 · <kbd>Shift</kbd> 빠르게. 바꾼 값은 이 브라우저에 자동 저장돼요(새로고침해도 유지).</div>
   <div class="row"><button id="ceCopy" type="button">값 복사</button><span id="ceMsg"></span></div>
   <textarea id="ceOut" rows="4" readonly aria-label="카메라 값"></textarea>
@@ -143,6 +145,7 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
     <button id="oeResetAll" type="button">전체 원래대로</button>
   </div>
   <div class="sl" id="oeSliders"></div>
+  <div><kbd>Ctrl</kbd>+<kbd>Z</kbd> 한 단계 되돌리기 · <kbd>Ctrl</kbd>+<kbd>Y</kbd> 다시 실행</div>
   <div>화면에서 물건 <b>클릭</b>: 고르기 · 고른 물건 <b>드래그</b>: 바닥 위에서 옮기기 · 휠: 크기 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 화면 기준 이동 · <kbd>Q</kbd>/<kbd>E</kbd> 회전 · <kbd>R</kbd>/<kbd>F</kbd> 위/아래 · <kbd>Shift</kbd> 빠르게. 부딪히는 범위와 조사 지점도 같이 움직여요. 자동 저장.</div>
   <div class="row"><button id="oeCopy" type="button">값 복사</button><span id="oeMsg"></span></div>
   <textarea id="oeOut" rows="4" readonly aria-label="바뀐 물건 값"></textarea>
@@ -633,8 +636,8 @@ function camSync(){const c=CAMS[sel].ref,a=camAng(c),v={x:c.p[0],y:c.p[1],z:c.p[
   $('#ceOut').value=CAMS.map(c=>`${c.name}: p:[${c.ref.p.map(r2)}], t:[${c.ref.t.map(r2)}], fov:${Math.round(c.ref.fov)}`).join('\n');}
 let saveT=0;function camChanged(){camSync();clearTimeout(saveT);saveT=setTimeout(saveCams,200);}
 ceSel.addEventListener('change',()=>{sel=+ceSel.value;camSync();});
-$('#ceReset').addEventListener('click',()=>{const c=CAMS[sel];Object.assign(c.ref,JSON.parse(JSON.stringify(c.def)));camChanged();});
-$('#ceResetAll').addEventListener('click',()=>{for(const c of CAMS)Object.assign(c.ref,JSON.parse(JSON.stringify(c.def)));camChanged();});
+$('#ceReset').addEventListener('click',()=>{pushUndo();const c=CAMS[sel];Object.assign(c.ref,JSON.parse(JSON.stringify(c.def)));camChanged();});
+$('#ceResetAll').addEventListener('click',()=>{pushUndo();for(const c of CAMS)Object.assign(c.ref,JSON.parse(JSON.stringify(c.def)));camChanged();});
 $('#ceCopy').addEventListener('click',async()=>{const t=$('#ceOut');t.select();let ok=false;
   try{await navigator.clipboard.writeText(t.value);ok=true;}catch(e){try{ok=document.execCommand('copy');}catch(e2){}}
   $('#ceMsg').textContent=ok?'복사했어요. 채팅에 붙여 주세요.':'아래 칸을 직접 복사해 주세요 (Ctrl+C).';});
@@ -649,11 +652,11 @@ function editMove(dt){const c=CAMS[sel].ref,a=camAng(c),sp=(EK.ShiftLeft||EK.Shi
   if(!mx&&!my&&!mz)return;const d=[(fx*my+rx*mx)*sp,mz*sp,(fz*my+rz*mx)*sp];
   for(let i=0;i<3;i++){c.p[i]+=d[i];c.t[i]+=d[i];}camChanged();}
 const scrEl=$('#screen');let ceDrag=null;
-scrEl.addEventListener('pointerdown',e=>{if(!editing)return;ceDrag={id:e.pointerId,x:e.clientX,y:e.clientY};scrEl.setPointerCapture(e.pointerId);});
+scrEl.addEventListener('pointerdown',e=>{if(!editing)return;pushUndo();ceDrag={id:e.pointerId,x:e.clientX,y:e.clientY};scrEl.setPointerCapture(e.pointerId);});
 scrEl.addEventListener('pointermove',e=>{if(!ceDrag||e.pointerId!==ceDrag.id)return;const c=CAMS[sel].ref,a=camAng(c);
   camSetAng(c,a.yaw-(e.clientX-ceDrag.x)*.005,a.pitch-(e.clientY-ceDrag.y)*.005);ceDrag.x=e.clientX;ceDrag.y=e.clientY;camChanged();});
 ['pointerup','pointercancel'].forEach(ev=>scrEl.addEventListener(ev,e=>{if(ceDrag&&e.pointerId===ceDrag.id)ceDrag=null;}));
-scrEl.addEventListener('wheel',e=>{if(!editing)return;e.preventDefault();const c=CAMS[sel].ref;c.fov=clamp(c.fov*Math.exp(e.deltaY*.0006),20,110);camChanged();},{passive:false});
+scrEl.addEventListener('wheel',e=>{if(!editing)return;e.preventDefault();wheelUndo();const c=CAMS[sel].ref;c.fov=clamp(c.fov*Math.exp(e.deltaY*.0006),20,110);camChanged();},{passive:false});
 
 /* ================= 물건 편집 (개발용: 가구 위치·회전·크기 조정) ================= */
 let oEditing=false,oSel=null;const oBox=new THREE.BoxHelper(new THREE.Object3D(),0xffd27f);oBox.visible=false;S.add(oBox);
@@ -677,8 +680,8 @@ function saveObjs(){try{const s={};for(const o of OBJS){const g=o.g;s[o.name]={p
 let oSaveT=0;function objChanged(){rebuildSol();if(oSel)oBox.setFromObject(oSel.g);objSync();clearTimeout(oSaveT);oSaveT=setTimeout(saveObjs,200);}
 oeSel.addEventListener('change',()=>objSel(OBJS[+oeSel.value]));
 function objReset(o){o.g.position.set(...o.def.p);o.g.rotation.y=0;o.g.scale.set(1,1,1);}
-$('#oeReset').addEventListener('click',()=>{if(oSel){objReset(oSel);objChanged();}});
-$('#oeResetAll').addEventListener('click',()=>{for(const o of OBJS)objReset(o);objChanged();});
+$('#oeReset').addEventListener('click',()=>{if(oSel){pushUndo();objReset(oSel);objChanged();}});
+$('#oeResetAll').addEventListener('click',()=>{pushUndo();for(const o of OBJS)objReset(o);objChanged();});
 $('#oeCopy').addEventListener('click',async()=>{const t=$('#oeOut');t.select();let ok=false;
   try{await navigator.clipboard.writeText(t.value);ok=true;}catch(e){try{ok=document.execCommand('copy');}catch(e2){}}
   $('#oeMsg').textContent=ok?'복사했어요. 채팅에 붙여 주세요.':'아래 칸을 직접 복사해 주세요 (Ctrl+C).';});
@@ -698,11 +701,26 @@ const ray=new THREE.Raycaster();let oDrag=null;
 function pickObj(e){const rc=$('#game').getBoundingClientRect(),nd=new THREE.Vector2((e.clientX-rc.left)/rc.width*2-1,-((e.clientY-rc.top)/rc.height)*2+1);
   ray.setFromCamera(nd,cam);const hits=ray.intersectObjects(OBJS.map(o=>o.g),true);
   for(const h of hits){let n=h.object;while(n&&!OBJS.some(o=>o.g===n))n=n.parent;if(n)return OBJS.find(o=>o.g===n);}return null;}
-scrEl.addEventListener('pointerdown',e=>{if(!oEditing)return;const o=pickObj(e);if(o){objSel(o);oDrag={id:e.pointerId,x:e.clientX,y:e.clientY};scrEl.setPointerCapture(e.pointerId);}});
+scrEl.addEventListener('pointerdown',e=>{if(!oEditing)return;const o=pickObj(e);if(o){objSel(o);pushUndo();oDrag={id:e.pointerId,x:e.clientX,y:e.clientY};scrEl.setPointerCapture(e.pointerId);}});
 scrEl.addEventListener('pointermove',e=>{if(!oDrag||e.pointerId!==oDrag.id||!oSel)return;const{f,r}=screenAxes(),k=.012,dx=e.clientX-oDrag.x,dy=e.clientY-oDrag.y;
   oDrag.x=e.clientX;oDrag.y=e.clientY;oSel.g.position.x+=(r.x*dx-f.x*dy)*k;oSel.g.position.z+=(r.z*dx-f.z*dy)*k;objChanged();});
 ['pointerup','pointercancel'].forEach(ev=>scrEl.addEventListener(ev,e=>{if(oDrag&&e.pointerId===oDrag.id)oDrag=null;}));
-scrEl.addEventListener('wheel',e=>{if(!oEditing||!oSel)return;e.preventDefault();oSel.g.scale.multiplyScalar(Math.exp(-e.deltaY*.0006));objChanged();},{passive:false});
+scrEl.addEventListener('wheel',e=>{if(!oEditing||!oSel)return;e.preventDefault();wheelUndo();oSel.g.scale.multiplyScalar(Math.exp(-e.deltaY*.0006));objChanged();},{passive:false});
+
+/* ================= 되돌리기 (Ctrl+Z) / 다시 실행 (Ctrl+Y) — 물건·카메라 편집 ================= */
+// 편집 '행동' 하나(드래그 한 번, 키를 누르고 있던 이동 한 번, 슬라이더 한 번, 원래대로 버튼)를 하기 직전 상태를 저장해 둔다
+const UNDO=[],REDO=[];
+function snapState(){return{o:OBJS.map(o=>[o.g.position.x,o.g.position.y,o.g.position.z,o.g.rotation.y,o.g.scale.x,o.g.scale.y,o.g.scale.z]),
+  c:CAMS.map(c=>({p:c.ref.p.slice(),t:c.ref.t.slice(),fov:c.ref.fov}))};}
+function applyState(s){OBJS.forEach((o,i)=>{const v=s.o[i];o.g.position.set(v[0],v[1],v[2]);o.g.rotation.y=v[3];o.g.scale.set(v[4],v[5],v[6]);});
+  CAMS.forEach((c,i)=>Object.assign(c.ref,{p:s.c[i].p.slice(),t:s.c[i].t.slice(),fov:s.c[i].fov}));objChanged();camChanged();}
+function pushUndo(){UNDO.push(snapState());if(UNDO.length>200)UNDO.shift();REDO.length=0;}
+let lastWheel=0;function wheelUndo(){const now=performance.now();if(now-lastWheel>500)pushUndo();lastWheel=now;} // 휠을 연달아 굴린 건 한 번으로
+const toastEl=$('#toast');let toastT=0;function toast(msg){toastEl.textContent=msg;toastEl.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>toastEl.hidden=true,1200);}
+function undo(){if(!UNDO.length){toast('더 되돌릴 게 없어요');return;}REDO.push(snapState());applyState(UNDO.pop());toast(`되돌림 (남은 단계 ${UNDO.length})`);}
+function redo(){if(!REDO.length){toast('다시 실행할 게 없어요');return;}UNDO.push(snapState());applyState(REDO.pop());toast('다시 실행');}
+document.querySelectorAll('#ceSliders input,#oeSliders input').forEach(i=>{
+  i.addEventListener('pointerdown',pushUndo);i.addEventListener('keydown',e=>{if(!e.repeat&&/Arrow|Page|Home|End/.test(e.key))pushUndo();});});
 
 /* ================= 숫자키로 구역 이동 (개발용) ================= */
 const JUMPS=[{x:-3.1,y:0,z:2.4},{x:6,y:0,z:1},{x:14.5,y:0,z:1.5},{x:13,y:Y1,z:-9.5},{x:3,y:Y1,z:-8},{x:9,y:Y1,z:-13.3},{x:17,y:Y1,z:-13.3}]; // 1 소희방 … 7 손님방
@@ -833,7 +851,11 @@ let gradLevel=0;
 function cycleGrad(){gradLevel=(gradLevel+1)%3;post.uniforms.grad.value=[0,.5,1][gradLevel];}
 addEventListener('keydown',e=>{
   if(!started){if(e.code==='Enter'||e.code==='Space'){e.preventDefault();start();}return;}
+  if((e.ctrlKey||e.metaKey)&&(e.code==='KeyZ'||e.code==='KeyY')){ // 되돌리기 / 다시 실행
+    if(e.target&&e.target.tagName==='TEXTAREA')return;e.preventDefault();if(e.code==='KeyY'||e.shiftKey)redo();else undo();return;}
   if(e.code==='KeyC'&&!e.repeat){toggleEdit();return;}
+  // 편집 중 이동 키를 '처음' 누르는 순간 = 행동 하나 시작
+  if((editing||oEditing)&&!e.repeat&&/^Key[WASDQERF]$/.test(e.code)&&!Object.keys(EK).some(k=>EK[k]&&/^Key/.test(k))&&!(e.target&&/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)&&e.target.type!=='range'))pushUndo();
   if(e.code==='KeyO'&&!e.repeat){toggleObjEdit();return;}
   if(/^Digit[1-7]$/.test(e.code)&&!e.repeat&&!(e.target&&/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))){jumpTo(+e.code.slice(5)-1);return;}
   if(oEditing){ // 물건 편집 중에는 키가 고른 물건을 움직인다 (소희는 멈춤)
