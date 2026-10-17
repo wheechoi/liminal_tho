@@ -330,8 +330,10 @@ const SH={
 };
 const VIEWS=['돌하우스','구석 고정 카메라','3인칭'];
 let view=0,override=null;const tp=new THREE.Vector3();let tpSnap=true;
+let camCut=0,lastShot=null; // 구도가 바뀔 때마다 1씩 증가 (이동 방향 잠금용)
 function place(s){cam.position.set(...s.p);cam.lookAt(...s.t);cam.fov=s.fov;cam.updateProjectionMatrix();}
 function updateCam(dt){
+  const shot=override||view;if(shot!==lastShot){lastShot=shot;camCut++;}
   const cut=!override&&view===0;hide.visible=ext.visible=!cut;S.background=cut?DARK:SKY;
   if(override){place(override);return;}
   if(view===0)place(SH.doll);else if(view===1)place(SH.corner);
@@ -486,15 +488,20 @@ $('#restart').addEventListener('click',()=>{if(!started){start();return;}restart
 function start(){if(started)return;started=true;$('#title').hidden=true;audioInit();if(AC&&AC.state==='suspended')AC.resume();opening();}
 function restart(){seq=null;dlg=null;$('#dlg').hidden=true;snd.reset();for(const s of spots)s.seen=0;FLAG.trueEndClock=false;setClock('10:34');updateDev();setView(0);opening();}
 
-// 화면 기준 이동: 키를 누르기 시작한 순간의 카메라 방향을 기억해 두고, 손을 떼기 전까지는 그 기준으로 움직인다
-// (고정 카메라가 바뀌는 순간 방향이 뒤집히지 않게 하는 고전 호러 방식)
-const basis={f:new THREE.Vector3(),r:new THREE.Vector3(),held:false};
+// 화면 기준 이동: 평소엔 지금 카메라 방향을 그대로 따른다 (W를 누른 채 A/D로 바로 방향 전환).
+// 단, 카메라가 '컷'으로 바뀌는 순간 키를 누르고 있었다면 컷 직전 방향을 잠깐 유지한다
+// (고정 카메라 전환 때 방향이 갑자기 뒤집히지 않게). 누르는 키 조합이 바뀌거나 손을 떼면 다시 현재 카메라 기준.
+const basis={f:new THREE.Vector3(),r:new THREE.Vector3(),frozen:false,combo:'',cut:0};
 function free(x,z){const rr=.22;if(x<-4+rr||x>4-rr||z<rr||z>6-rr)return false;
   for(const b of solids)if(x>b[0]-rr&&x<b[2]+rr&&z>b[1]-rr&&z<b[3]+rr)return false;return true;}
 function move(dt){
   const mx=(K.right?1:0)-(K.left?1:0),my=(K.up?1:0)-(K.down?1:0);
-  if(!mx&&!my){basis.held=false;return 0;}
-  if(!basis.held){cam.getWorldDirection(basis.f);basis.f.y=0;basis.f.normalize();basis.r.setFromMatrixColumn(cam.matrixWorld,0);basis.r.y=0;basis.r.normalize();basis.held=true;}
+  const combo=mx+','+my;
+  if(!mx&&!my){basis.frozen=false;basis.combo='';basis.cut=camCut;return 0;}
+  if(combo!==basis.combo){basis.frozen=false;basis.combo=combo;}        // 키 조합이 바뀌면 잠금 해제
+  else if(basis.cut!==camCut)basis.frozen=true;                          // 같은 키를 누른 채 컷이 바뀌면 잠금
+  basis.cut=camCut;
+  if(!basis.frozen){cam.getWorldDirection(basis.f);basis.f.y=0;basis.f.normalize();basis.r.setFromMatrixColumn(cam.matrixWorld,0);basis.r.y=0;basis.r.normalize();}
   const dx=basis.f.x*my+basis.r.x*mx,dz=basis.f.z*my+basis.r.z*mx,l=Math.hypot(dx,dz)||1;
   const ux=dx/l,uz=dz/l;
   // 몸을 이동 방향으로 부드럽게 돌림
@@ -508,7 +515,7 @@ const clock=new THREE.Clock();let T0=0,stepT=0;
 function tick(){requestAnimationFrame(tick);const dt=Math.min(clock.getDelta(),.05);T0+=dt;
   stepSeq(dt);
   let speed=0;
-  if(control&&!dlg)speed=move(dt);else basis.held=false;
+  if(control&&!dlg)speed=move(dt);else{basis.frozen=false;basis.combo='';}
   let sw=0;
   if(control){
     if(speed){P.phase+=dt*speed*5.2;stepT-=dt;if(stepT<=0){stepT=speed>2?.3:.45;snd.step(speed>2);}}
