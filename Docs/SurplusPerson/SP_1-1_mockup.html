@@ -163,7 +163,8 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
   </div>
   <div class="tool" data-tool="obj" hidden>
     <div class="row"><b>물건</b><span>선택: <span id="objName"></span></span></div>
-    <div>화면에서 가구를 <b>클릭</b>해서 고르면 옆에 조작 버튼이 떠요 · 드래그: 옮기기 · 휠: 크기 · <kbd>Q</kbd>/<kbd>E</kbd> 회전 · <kbd>R</kbd>/<kbd>F</kbd> 위/아래 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 화면 기준 이동 · <kbd>Esc</kbd>/빈 곳 클릭: 선택 해제 · <kbd>1</kbd>~<kbd>7</kbd> 구역 이동. 부딪히는 범위와 조사 지점도 같이 움직여요.</div>
+    <div><b>둘러보기</b> (게임 카메라와 별개): <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 자유 이동 · <kbd>Q</kbd>/<kbd>E</kbd> 아래/위 · <kbd>Shift</kbd> 빠르게 · 빈 곳 드래그: 시선 돌리기 · <kbd>1</kbd>~<kbd>7</kbd> 그 구역으로</div>
+    <div><b>가구</b>: <b>클릭</b>하면 골라지고 옆에 조작 버튼이 떠요 · 가구 드래그: 옮기기 · 휠: 크기 · <kbd>Z</kbd>/<kbd>X</kbd> 회전 · <kbd>R</kbd>/<kbd>F</kbd> 위/아래 · <kbd>Esc</kbd>/빈 곳 클릭: 선택 해제. 부딪히는 범위와 조사 지점도 같이 움직여요.</div>
   </div>
   <div class="tool" data-tool="tone" hidden>
     <div class="row"><b>톤</b><button id="toneReset" type="button">톤 원래대로</button></div>
@@ -582,27 +583,60 @@ const OBJ_LS='sp11_objs_v1';
 try{const s=JSON.parse(localStorage.getItem(OBJ_LS)||'{}');for(const o of OBJS){const v=s[o.name];if(!v)continue;o.g.position.set(...v.p);o.g.rotation.y=v.ry*D2R;o.g.scale.set(...v.s);}}catch(e){}
 rebuildSol();
 
-/* ================= 소희 (기본 도형, 잠옷, 긴 흑발) ================= */
-// 계층: girl(위치·방향) → pose(엉덩이 높이 회전축: 눕기/앉기) → body → 부위
+/* ================= 소희 (곡면 모델: 무릎 길이 잠옷 원피스, 허리까지 오는 흑발, 맨발, 창백한 얼굴) ================= */
+// 도형을 이어 붙이는 대신, 옆모습 윤곽선을 돌려 깎아(Lathe) 몸통·팔다리·머리카락을 매끈한 한 덩어리 곡면으로 만든다.
+// 윤곽 = [[반지름, 높이], ...] 아래→위 순서. 머리카락 끝은 가닥마다 길이를 다르게 해서 들쭉날쭉하게.
+// 계층: girl(위치·방향) → pose(엉덩이 높이 회전축: 눕기/앉기) → body → 엉덩이/어깨 → 무릎/팔꿈치
 const girl=group();const pose=group(0,.56,0,girl);const body=group(0,-.56,0,pose);
-const skin=col(0xead6c8),hair=col(0x1d1716),pj=col(0xe6c0bf),pjD=col(0xc78f93),eye=col(0x1b1414);
-const hips=[],shoulders=[];
+const cm=hex=>lam({color:hex,side:THREE.DoubleSide},'d'+hex);
+const skin=cm(0xeee2d9),hair=cm(0x161112),gown=cm(0xe6cfc6),trim=cm(0xb27e86),eye=col(0x1b1414),lip=col(0xb98587);
+function lathe(m,pts,p,{seg=14,phi0=0,phiL=Math.PI*2,x=0,y=0,z=0,sz=1,ragged=0,seed=1}={}){
+  const g=new THREE.LatheGeometry(pts.map(a=>new THREE.Vector2(a[0],a[1])),seg,phi0,phiL);
+  if(ragged){const pa=g.attributes.position,n=pts.length,yt=pts[n-1][1];
+    for(let k=0;k<pa.count;k++){const i=Math.floor(k/n),f=1-k%n/(n-1);pa.setY(k,yt+(pa.getY(k)-yt)*(1+(noise(i,7,seed)-.5)*ragged*f*f));}
+    g.computeVertexNormals();}
+  const me=new THREE.Mesh(g,m);me.position.set(x,y,z);me.scale.z=sz;p.add(me);return me;}
+function torus(m,x,y,z,r,t,sz,p){const me=new THREE.Mesh(new THREE.TorusGeometry(r,t,5,18),m);me.position.set(x,y,z);me.rotation.x=Math.PI/2;me.scale.y=sz;p.add(me);return me;}
+// 몸통 + 원피스 (가슴 아래에서 A라인으로 퍼짐), 목둘레·밑단 장식, 가슴 리본
+lathe(gown,[[.2,.33],[.19,.42],[.165,.56],[.14,.7],[.12,.83],[.112,.9],[.124,.97],[.135,1.03],[.14,1.07],[.13,1.105],[.1,1.135],[.06,1.16],[.034,1.175]],body,{seg:18,sz:.8});
+torus(trim,0,.335,0,.198,.012,.8,body);torus(trim,0,1.158,0,.064,.012,.8,body);torus(trim,0,.9,0,.113,.007,.8,body);
+ball(trim,-.022,1.13,.094,.035,.024,.014,body);ball(trim,.022,1.13,.094,.035,.024,.014,body);
+lathe(skin,[[.036,1.12],[.032,1.19],[.036,1.24]],body,{seg:10}); // 목
+// 머리: 구를 갸름하게 (턱 쪽을 좁힘). 얼굴은 +z
+const hg=new THREE.SphereGeometry(.105,20,16),hp=hg.attributes.position;
+for(let k=0;k<hp.count;k++){const y=hp.getY(k),t=y<0?-y/.105:0;hp.setXYZ(k,hp.getX(k)*(1-.26*Math.pow(t,1.6)),y*1.12,hp.getZ(k)*(1-.12*t*t));}
+hg.computeVertexNormals();const head=new THREE.Mesh(hg,skin);head.position.set(0,1.33,0);body.add(head);
+for(const s of[-1,1])ball(eye,s*.036,1.332,.099,.03,.017,.012,body); // 가늘고 긴 눈
+ball(skin,0,1.307,.102,.012,.02,.014,body);ball(lip,0,1.282,.095,.022,.006,.008,body);
+// 머리카락: 정수리 덮개 + 일자 앞머리(눈썹을 가릴 만큼) + 등 뒤로 내려오는 긴 머리 + 얼굴 옆으로 흘러내린 두 가닥
+{const cap=new THREE.Mesh(new THREE.SphereGeometry(.116,16,10,0,Math.PI*2,0,.42*Math.PI),hair);cap.position.set(0,1.34,-.006);cap.scale.y=1.1;body.add(cap);
+ const bang=new THREE.Mesh(new THREE.SphereGeometry(.121,14,5,.1*Math.PI,.8*Math.PI,.28*Math.PI,.18*Math.PI),hair);bang.position.set(0,1.34,0);bang.scale.y=1.1;body.add(bang);}
+lathe(hair,[[.115,.8],[.125,.9],[.135,1.0],[.142,1.08],[.135,1.17],[.125,1.25],[.12,1.31],[.117,1.37]],body,{seg:16,phi0:.4*Math.PI,phiL:1.2*Math.PI,z:-.02,ragged:.35,seed:3});
+for(const s of[-1,1])lathe(hair,[[.15,1.0],[.152,1.07],[.14,1.16],[.126,1.25],[.12,1.31],[.118,1.37]],body,{seg:5,phi0:s>0?.15*Math.PI:1.67*Math.PI,phiL:.18*Math.PI,ragged:.5,seed:s>0?5:6});
+// 팔다리: 관절마다 그룹 (엉덩이→무릎→발, 어깨→팔꿈치→손)
+const hips=[],knees=[],shoulders=[],elbows=[];
 for(const s of[-1,1]){
-  const hp=group(s*.075,.56,0,body);boxMM(pj,-.045,-.48,-.045,.045,0,.045,hp);boxMM(pjD,-.047,-.5,-.047,.047,-.46,.047,hp);boxMM(skin,-.04,-.56,-.04,.04,-.5,.1,hp);hips.push(hp);
-  const sh=group(s*.19,1.12,0,body);boxMM(pj,-.037,-.25,-.037,.037,.01,.037,sh);boxMM(skin,-.03,-.42,-.03,.03,-.25,.03,sh);shoulders.push(sh);
+  const hp=group(s*.075,.56,0,body);lathe(skin,[[.04,-.27],[.046,-.2],[.058,-.08],[.06,0]],hp,{seg:10});
+  const kn=group(0,-.27,0,hp);lathe(skin,[[.025,-.25],[.03,-.21],[.044,-.12],[.04,-.03],[.038,0]],kn,{seg:10});ball(skin,0,-.262,.032,.05,.04,.125,kn);
+  hips.push(hp);knees.push(kn);
+  const sh=group(s*.15,1.09,0,body);lathe(skin,[[.029,-.26],[.033,-.18],[.038,-.1]],sh,{seg:10});
+  lathe(gown,[[.034,-.14],[.048,-.11],[.056,-.05],[.05,0],[.03,.025]],sh,{seg:12});torus(trim,0,-.14,0,.036,.007,1,sh);
+  const el=group(0,-.26,0,sh);lathe(skin,[[.021,-.21],[.025,-.15],[.03,-.06],[.029,0]],el,{seg:10});ball(skin,0,-.255,.004,.024,.085,.044,el);
+  shoulders.push(sh);elbows.push(el);
 }
-cyl(pj,0,.64,0,.17,.22,body);cyl(pj,0,.95,0,.155,.4,body);
-boxMM(pjD,-.08,1.12,.1,.08,1.16,.15,body);boxMM(pjD,-.012,.8,.152,.012,1.1,.158,body);
-boxMM(skin,-.03,1.15,-.03,.03,1.22,.03,body);ball(skin,0,1.32,0,.25,.25,.25,body);ball(hair,0,1.35,-.025,.28,.28,.28,body);
-boxMM(hair,-.145,.92,-.13,.145,1.36,0,body);boxMM(hair,-.125,1.39,.07,.125,1.45,.12,body);
-for(const s of[-1,1]){boxMM(hair,s*.125-.025,1.0,0,s*.125+.025,1.36,.08,body);boxMM(eye,s*.045-.0125,1.32,.118,s*.045+.0125,1.34,.128,body);}
-const REST=.08;
+// 발밑 그림자 (서 있을 때만)
+const blob=new THREE.Mesh(new THREE.CircleGeometry(.24,16),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.28,depthWrite:false}));blob.rotation.x=-Math.PI/2;girl.add(blob);
+const REST=.12;
 // 상태: 위치/방향(a: 라디안, 0=+z), 자세
 const P={x:-2.95,y:.14,z:3.65,a:Math.PI/2,tilt:-Math.PI/2,hip:0,armL:-REST,armR:REST,phase:0,fy:0}; // fy = 지금 서 있는 바닥 높이
 function applyPose(walkSw){
+  const w=walkSw||0;
   girl.position.set(P.x,P.y,P.z);girl.rotation.y=P.a;pose.rotation.x=P.tilt;
-  hips[0].rotation.set(P.hip+(walkSw||0)*.7,0,0);hips[1].rotation.set(P.hip-(walkSw||0)*.7,0,0);
-  shoulders[0].rotation.set(-(walkSw||0)*.5,0,P.armL);shoulders[1].rotation.set((walkSw||0)*.5,0,P.armR);}
+  body.rotation.z=w*.035;body.rotation.x=Math.abs(w)*.04; // 걸을 때 골반이 살짝 흔들리고 몸이 앞으로 기욺
+  for(let k=0;k<2;k++){const s=k?-1:1,lg=s*w*.6,ar=-s*w*.45;
+    hips[k].rotation.set(P.hip+lg,0,0);knees[k].rotation.x=(P.knee||0)+.04+Math.max(0,lg)*1.1; // 뒤로 간 다리는 무릎을 굽혀 끌어옴
+    shoulders[k].rotation.set(ar,0,k?P.armR:P.armL);elbows[k].rotation.x=-.12-Math.max(0,-ar)*.6;}
+  blob.visible=Math.abs(P.tilt)<.3;blob.position.y=P.fy-P.y+.012;}
 
 /* ================= 카메라 구도 ================= */
 const SH={
@@ -623,7 +657,8 @@ function curZone(){
     break;}
   return zoneNow;}
 function updateCam(dt){
-  if(editing){hide.visible=ext.visible=true;S.background=SKY;place(CAMS[sel].ref);return;} // 카메라 편집 중: 고른 카메라로 보기
+  if(editing){hide.visible=ext.visible=true;S.background=SKY;place(CAMS[sel].ref);return;} // 카메라 도구: 고른 카메라로 보기
+  if(oEditing){hide.visible=ext.visible=true;S.background=SKY;place(FLY);return;}       // 물건 도구: 자유 카메라 (게임 카메라와 별개)
   const shot=override||(view===1?curZone():view);if(shot!==lastShot){lastShot=shot;camCut++;}
   const cut=!override&&view===0;hide.visible=ext.visible=!cut;S.background=cut?DARK:SKY;
   if(override){place(override);return;}
@@ -674,10 +709,18 @@ let oSel=null;const oBox=new THREE.BoxHelper(new THREE.Object3D(),0xffd27f);oBox
 function objSel(o){oSel=o;if(o){oBox.setFromObject(o.g);$('#chipName').textContent=o.name.split('/').pop();$('#objName').textContent=o.name;}else $('#objName').textContent='(없음 — 화면에서 가구를 클릭하세요)';oBox.visible=oEditing&&!!o;}
 function objReset(o){o.g.position.set(...o.def.p);o.g.rotation.y=0;o.g.scale.set(1,1,1);}
 function screenAxes(){const f=new THREE.Vector3();cam.getWorldDirection(f);f.y=0;f.normalize();const r=new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,0);r.y=0;r.normalize();return{f,r};}
-function objMove(dt){if(!oSel)return;const g=oSel.g,fast=EK.ShiftLeft||EK.ShiftRight?3:1,{f,r}=screenAxes();
-  const my=(EK.KeyW?1:0)-(EK.KeyS?1:0),mx=(EK.KeyD?1:0)-(EK.KeyA?1:0),rot=(EK.KeyE?1:0)-(EK.KeyQ?1:0),up=(EK.KeyR?1:0)-(EK.KeyF?1:0);
-  if(!mx&&!my&&!rot&&!up)return;const sp=1.2*fast*dt;
-  g.position.x+=(f.x*my+r.x*mx)*sp;g.position.z+=(f.z*my+r.z*mx)*sp;g.position.y+=up*sp*.5;g.rotation.y-=rot*fast*dt*1.5;changed();}
+// 물건 도구: 고른 물건 회전(Z/X)·높이(R/F). W/A/S/D/Q/E는 자유 카메라 이동에 쓴다
+function objMove(dt){if(!oSel)return;const g=oSel.g,fast=EK.ShiftLeft||EK.ShiftRight?3:1;
+  const rot=(EK.KeyX?1:0)-(EK.KeyZ?1:0),up=(EK.KeyR?1:0)-(EK.KeyF?1:0);if(!rot&&!up)return;
+  g.position.y+=up*.6*fast*dt;g.rotation.y-=rot*fast*dt*1.5;changed();}
+// 물건 도구 전용 자유 카메라 (게임 카메라 구도와 별개): W/A/S/D 보는 방향으로 이동, Q/E 아래/위, Shift 빠르게, 빈 곳 드래그로 둘러보기
+const FLY={p:[0,2,0],t:[0,1,5],fov:66};
+function flyFrom(src){FLY.p=src.p.slice();FLY.t=src.t.slice();FLY.fov=src.fov;}
+function flyFromCam(){const d=new THREE.Vector3();cam.getWorldDirection(d);FLY.p=[cam.position.x,cam.position.y,cam.position.z];FLY.t=[cam.position.x+d.x*5,cam.position.y+d.y*5,cam.position.z+d.z*5];FLY.fov=cam.fov;}
+function flyMove(dt){const a=camAng(FLY),sp=(EK.ShiftLeft||EK.ShiftRight?6:2.5)*dt;
+  const fx=Math.sin(a.yaw)*Math.cos(a.pitch),fy=Math.sin(a.pitch),fz=Math.cos(a.yaw)*Math.cos(a.pitch),rx=-Math.cos(a.yaw),rz=Math.sin(a.yaw);
+  const my=(EK.KeyW?1:0)-(EK.KeyS?1:0),mx=(EK.KeyD?1:0)-(EK.KeyA?1:0),mz=(EK.KeyE?1:0)-(EK.KeyQ?1:0);if(!mx&&!my&&!mz)return;
+  const d=[(fx*my+rx*mx)*sp,(fy*my+mz)*sp,(fz*my+rz*mx)*sp];for(let i=0;i<3;i++){FLY.p[i]+=d[i];FLY.t[i]+=d[i];}}
 // 물건 옆에 뜨는 작은 조작 버튼
 document.querySelectorAll('#chip button').forEach(b=>b.addEventListener('click',()=>{if(!oSel)return;pushUndo();const g=oSel.g;
   ({rotL:()=>g.rotation.y+=15*D2R,rotR:()=>g.rotation.y-=15*D2R,smaller:()=>g.scale.multiplyScalar(1/1.1),bigger:()=>g.scale.multiplyScalar(1.1),
@@ -744,7 +787,8 @@ $('#edExport').addEventListener('click',async()=>{const t=$('#edOut');t.value=ex
   $('#edMsg').textContent=ok?'복사했어요. 채팅에 붙여 주시면 파일에 확정할게요.':'아래 칸을 직접 복사해 주세요 (Ctrl+C).';});
 
 // ---- 모드 / 도구 전환 ----
-function setTool(t){tool=t;editing=mode==='edit'&&t==='cam';oEditing=mode==='edit'&&t==='obj';
+function setTool(t){const wasObj=oEditing;tool=t;editing=mode==='edit'&&t==='cam';oEditing=mode==='edit'&&t==='obj';
+  if(oEditing&&!wasObj)flyFromCam(); // 물건 도구로 들어오면 지금 보던 화면에서 자유 카메라 시작
   document.querySelectorAll('.edbar [data-tool]').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));
   document.querySelectorAll('#edPanel .tool').forEach(p=>p.hidden=p.dataset.tool!==t);
   if(editing){const cur=override||(curZone()&&(curZone().cam||SH.corner))||SH.corner;const i=CAMS.findIndex(c=>c.ref===cur);if(i>=0)sel=i;camSync();}
@@ -756,23 +800,32 @@ function setMode(m){if(m==='edit'&&!started)start();mode=m;const ed=m==='edit';
 document.querySelectorAll('.edbar [data-tool]').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
 $('#modeBtn').addEventListener('click',()=>setMode(mode==='edit'?'play':'edit'));
 
-// ---- 화면 마우스: 카메라 도구 = 드래그로 방향·휠로 화각 / 물건 도구 = 클릭으로 고르고 드래그로 옮기기·휠로 크기 ----
+// ---- 화면 마우스 ----
+//  카메라 도구: 드래그 = 방향, 휠 = 화각
+//  물건 도구: 가구 클릭 = 고르기, 가구 드래그 = 옮기기, 빈 곳 드래그 = 둘러보기(자유 카메라), 빈 곳 클릭 = 선택 해제, 휠 = 고른 가구 크기 (없으면 앞뒤 이동)
 let drag=null;
 scrEl.addEventListener('pointerdown',e=>{if(mode!=='edit'||onUI(e))return;
   if(editing){pushUndo();drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'cam'};scrEl.setPointerCapture(e.pointerId);}
-  else if(oEditing){const o=pickObj(e);objSel(o);if(o){pushUndo();drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'obj'};scrEl.setPointerCapture(e.pointerId);}}});
+  else if(oEditing){const o=pickObj(e);
+    if(o){objSel(o);pushUndo();drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'obj'};}
+    else drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'fly',moved:0};
+    scrEl.setPointerCapture(e.pointerId);}});
 scrEl.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
-  if(drag.k==='cam'){const c=CAMS[sel].ref,a=camAng(c);camSetAng(c,a.yaw-dx*.005,a.pitch-dy*.005);}
-  else if(oSel){const{f,r}=screenAxes(),k=.012;oSel.g.position.x+=(r.x*dx-f.x*dy)*k;oSel.g.position.z+=(r.z*dx-f.z*dy)*k;}changed();});
-['pointerup','pointercancel'].forEach(ev=>scrEl.addEventListener(ev,e=>{if(drag&&e.pointerId===drag.id)drag=null;}));
+  if(drag.k==='cam'){const c=CAMS[sel].ref,a=camAng(c);camSetAng(c,a.yaw-dx*.005,a.pitch-dy*.005);changed();}
+  else if(drag.k==='fly'){drag.moved+=Math.abs(dx)+Math.abs(dy);const a=camAng(FLY);camSetAng(FLY,a.yaw-dx*.005,a.pitch-dy*.005);}
+  else if(oSel){const{f,r}=screenAxes(),k=.012;oSel.g.position.x+=(r.x*dx-f.x*dy)*k;oSel.g.position.z+=(r.z*dx-f.z*dy)*k;changed();}});
+['pointerup','pointercancel'].forEach(ev=>scrEl.addEventListener(ev,e=>{if(drag&&e.pointerId===drag.id){if(drag.k==='fly'&&drag.moved<4)objSel(null);drag=null;}}));
 scrEl.addEventListener('wheel',e=>{if(mode!=='edit'||onUI(e))return;
   if(editing){e.preventDefault();wheelUndo();const c=CAMS[sel].ref;c.fov=clamp(c.fov*Math.exp(e.deltaY*.0006),20,110);changed();}
-  else if(oEditing&&oSel){e.preventDefault();wheelUndo();oSel.g.scale.multiplyScalar(Math.exp(-e.deltaY*.0006));changed();}},{passive:false});
+  else if(oEditing&&oSel){e.preventDefault();wheelUndo();oSel.g.scale.multiplyScalar(Math.exp(-e.deltaY*.0006));changed();}
+  else if(oEditing){e.preventDefault();const a=camAng(FLY),s=-e.deltaY*.004,d=[Math.sin(a.yaw)*Math.cos(a.pitch)*s,Math.sin(a.pitch)*s,Math.cos(a.yaw)*Math.cos(a.pitch)*s];for(let i=0;i<3;i++){FLY.p[i]+=d[i];FLY.t[i]+=d[i];}}},{passive:false});
 
 /* ================= 숫자키로 구역 이동 (플레이·편집 둘 다) ================= */
 const JUMPS=[{x:-3.1,y:0,z:2.4},{x:6,y:0,z:1},{x:14.5,y:0,z:1.5},{x:13,y:Y1,z:-9.5},{x:3,y:Y1,z:-8},{x:9,y:Y1,z:-13.3},{x:17,y:Y1,z:-13.3}]; // 1 소희방 … 7 손님방
 function jumpTo(i){
-  if(editing){const n=['소희의 방','2층 복도','2층 로비','거실','서재','식당','손님방'][i],k=CAMS.findIndex(c=>c.name===n);if(k>=0){sel=k;camSync();}return;} // 카메라 도구: 그 카메라 고르기
+  const n=['소희의 방','2층 복도','2층 로비','거실','서재','식당','손님방'][i],k=CAMS.findIndex(c=>c.name===n);
+  if(editing){if(k>=0){sel=k;camSync();}return;}            // 카메라 도구: 그 카메라 고르기
+  if(oEditing){if(k>=0)flyFrom(CAMS[k].ref);return;}         // 물건 도구: 자유 카메라를 그 구역 카메라 자리로
   if(!started)return;if(seq)skipSeq();if(dlg){dlg=null;$('#dlg').hidden=true;control=true;}
   override=null;const j=JUMPS[i];Object.assign(P,{x:j.x,z:j.z,fy:j.y,y:j.y});}
 
@@ -908,8 +961,10 @@ addEventListener('keydown',e=>{
   const toolKey={KeyC:'cam',KeyO:'obj',KeyT:'tone'}[e.code];
   if(toolKey&&!e.repeat){if(mode!=='edit')setMode('edit');setTool(toolKey);return;}
   if(mode==='edit'){ // 편집 모드: 키는 고른 카메라/물건을 움직인다 (소희는 멈춤)
-    if(/^Key[WASDQERF]$|^Shift/.test(e.code)){
-      if(!e.repeat&&/^Key/.test(e.code)&&(editing||oEditing)&&!Object.keys(EK).some(k=>EK[k]&&/^Key/.test(k)))pushUndo(); // 이동 키를 처음 누르는 순간 = 행동 하나
+    if(/^Key[WASDQERFZX]$|^Shift/.test(e.code)){
+      // 카메라·물건을 바꾸는 키를 처음 누르는 순간 = 되돌리기 한 단계 (물건 도구의 W/A/S/D/Q/E는 자유 카메라 이동이라 제외)
+      const editKey=editing?/^Key[WASDQE]$/:oEditing?/^Key[RFZX]$/:null;
+      if(editKey&&!e.repeat&&editKey.test(e.code)&&!Object.keys(EK).some(k=>EK[k]&&editKey.test(k)))pushUndo();
       EK[e.code]=true;e.preventDefault();}
     if(e.code==='Escape'&&oEditing)objSel(null);
     return;}
@@ -970,7 +1025,7 @@ function frame(dt){T0+=dt;
   stepSeq(dt);
   let speed=0;
   if(editing)editMove(dt);  // 편집 모드: 카메라 도구
-  else if(oEditing)objMove(dt); // 편집 모드: 물건 도구
+  else if(oEditing){flyMove(dt);objMove(dt);} // 편집 모드: 물건 도구 (자유 카메라 + 고른 물건)
   else if(mode==='play'&&control&&!dlg)speed=move(dt);else{basis.frozen=false;basis.combo='';}
   let sw=0;
   if(control){
