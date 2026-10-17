@@ -68,6 +68,21 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
 .pad button{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;font:inherit;font-size:14px;min-height:52px}
 .pad button.on{background:#3a2c2a}
 @media (pointer:coarse){.pad{display:flex}}
+
+/* 카메라 편집 (개발용) */
+.badge{position:absolute;left:50%;top:2cqh;transform:translateX(-50%);background:#b98f8a;color:#141010;font-size:1.9cqw;padding:.3cqh 1.4cqw;letter-spacing:.1em;pointer-events:none}
+.screen.editing{cursor:move}
+.cedit{width:min(100%,960px);box-sizing:border-box;background:var(--panel);border:1px solid var(--line);padding:12px 14px;display:flex;flex-direction:column;gap:10px;font-size:12px;color:var(--dim)}
+.cedit .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.cedit b{color:var(--ink);font-size:13px}
+.cedit select,.cedit button{font-family:var(--f-text);font-size:12px;background:#141010;color:var(--ink);border:1px solid var(--line);padding:4px 8px;border-radius:3px}
+.cedit button{cursor:pointer}
+.cedit select:focus-visible,.cedit button:focus-visible,.cedit input:focus-visible,.cedit textarea:focus-visible{outline:2px solid var(--rose)}
+.cedit .sl{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 18px}
+.cedit label{display:grid;grid-template-columns:110px 1fr 52px;align-items:center;gap:8px}
+.cedit input[type=range]{width:100%;accent-color:var(--rose)}
+.cedit output{color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
+.cedit textarea{width:100%;box-sizing:border-box;background:#141010;color:var(--ink);border:1px solid var(--line);font-family:var(--f-text);font-size:11px;padding:6px;resize:vertical}
 </style></head><body>
 
 <div class="screen" id="screen">
@@ -78,6 +93,7 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
     <div class="prompt" id="prompt" hidden>[E] 조사</div>
   </div>
   <div class="dlg" id="dlg" hidden><span class="who" id="who"></span><span id="dlgText"></span><i id="dlgMore">▼</i></div>
+  <div class="badge" id="badge" hidden>카메라 편집 중 · C로 끄기</div>
   <div class="fade" id="fade"></div>
   <button class="title" id="title" type="button">
     <span class="kicker">PLAYABLE MOCKUP · SCENE 1-1</span>
@@ -106,7 +122,18 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
     <span><kbd>E</kbd><kbd>Space</kbd><kbd>Enter</kbd> 조사·대사 넘기기</span>
     <span><kbd>G</kbd> 공포 톤 미리보기</span>
   </div>
-  <div class="btns"><button id="restart" type="button">처음부터</button><button id="mute" type="button">소리 끄기</button></div>
+  <div class="btns"><button id="camEdit" type="button">카메라 편집 (C)</button><button id="restart" type="button">처음부터</button><button id="mute" type="button">소리 끄기</button></div>
+</div>
+<div class="cedit" id="cedit" hidden>
+  <div class="row"><b>카메라 편집 (개발용)</b>
+    <select id="ceSel" aria-label="편집할 카메라"></select>
+    <button id="ceReset" type="button">이 카메라 원래대로</button>
+    <button id="ceResetAll" type="button">전체 원래대로</button>
+  </div>
+  <div class="sl" id="ceSliders"></div>
+  <div>화면 드래그: 방향 · 휠: 화각 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 앞뒤좌우 이동 · <kbd>Q</kbd>/<kbd>E</kbd> 아래/위 · <kbd>Shift</kbd> 빠르게. 바꾼 값은 이 브라우저에 자동 저장돼요(새로고침해도 유지).</div>
+  <div class="row"><button id="ceCopy" type="button">값 복사</button><span id="ceMsg"></span></div>
+  <textarea id="ceOut" rows="4" readonly aria-label="카메라 값"></textarea>
 </div>
 <div class="ref">480×360 렌더 → 잉크선·디더링·색 제한 화면 효과. 레퍼런스: 단면 저택 일러스트, 픽셀 어드벤처, 1비트 만화, PS2 인형의 방. 오프닝 중 E = 건너뛰기(개발용).</div>
 
@@ -519,6 +546,7 @@ function curZone(){
     break;}
   return zoneNow;}
 function updateCam(dt){
+  if(editing){hide.visible=ext.visible=true;S.background=SKY;place(CAMS[sel].ref);return;} // 카메라 편집 중: 고른 카메라로 보기
   const shot=override||(view===1?curZone():view);if(shot!==lastShot){lastShot=shot;camCut++;}
   const cut=!override&&view===0;hide.visible=ext.visible=!cut;S.background=cut?DARK:SKY;
   if(override){place(override);return;}
@@ -528,6 +556,54 @@ function updateCam(dt){
     if(tpSnap){tp.copy(want);tpSnap=false;}else tp.lerp(want,1-Math.exp(-8*dt));
     cam.position.copy(tp);cam.lookAt(P.x+fx*.8,1.0,P.z+fz*.8);cam.fov=58;cam.updateProjectionMatrix();}}
 function setView(v){view=v;tpSnap=true;$('#viewName').textContent='[V] 시점: '+VIEWS[v];}
+
+/* ================= 카메라 편집 (개발용: 구도 잡는 도구, 게임 플레이용 아님) ================= */
+const CAMS=[{name:'소희의 방',ref:SH.corner},...ZONES.filter(z=>z.cam).map(z=>({name:z.name.replace(' (임시)',''),ref:z.cam})),
+  {name:'오프닝: 창밖 컷',ref:SH.anchor},{name:'시계 클로즈업',ref:SH.clock}];
+for(const c of CAMS)c.def=JSON.parse(JSON.stringify(c.ref));
+const CAM_LS='sp11_cams_v1';
+function saveCams(){try{const s={};for(const c of CAMS)s[c.name]={p:c.ref.p,t:c.ref.t,fov:c.ref.fov};localStorage.setItem(CAM_LS,JSON.stringify(s));}catch(e){}}
+try{const s=JSON.parse(localStorage.getItem(CAM_LS)||'{}');for(const c of CAMS)if(s[c.name])Object.assign(c.ref,{p:s[c.name].p.slice(),t:s[c.name].t.slice(),fov:s[c.name].fov});}catch(e){}
+let editing=false,sel=0;const EK={};
+const camAng=c=>{const d=[c.t[0]-c.p[0],c.t[1]-c.p[1],c.t[2]-c.p[2]],l=Math.hypot(...d)||1;return{yaw:Math.atan2(d[0],d[2]),pitch:Math.asin(clamp(d[1]/l,-1,1))};};
+function camSetAng(c,yaw,pitch){pitch=clamp(pitch,-1.5,.6);c.t=[c.p[0]+Math.sin(yaw)*Math.cos(pitch)*5,c.p[1]+Math.sin(pitch)*5,c.p[2]+Math.cos(yaw)*Math.cos(pitch)*5];}
+const r2=v=>Math.round(v*100)/100;
+const FIELDS=[['x','위치 X (서 ↔ 동)',-6,22,.05],['y','높이',-4,4,.05],['z','위치 Z (남 ↔ 북)',-20,10,.05],['yaw','좌우 방향 (°)',-180,180,1],['pitch','위아래 각도 (°)',-85,30,1],['fov','화각 (°)',20,110,1]];
+const ceSel=$('#ceSel'),ceSl=$('#ceSliders');
+CAMS.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name;ceSel.appendChild(o);});
+const ceIn={};
+for(const[k,label,mn,mx,st]of FIELDS){const l=document.createElement('label');l.innerHTML=`<span>${label}</span><input type="range" min="${mn}" max="${mx}" step="${st}"><output></output>`;
+  const inp=l.querySelector('input');inp.addEventListener('input',()=>{const c=CAMS[sel].ref,v=+inp.value,a=camAng(c);
+    if(k==='x'||k==='y'||k==='z'){const i='xyz'.indexOf(k),dv=v-c.p[i];c.p[i]=v;c.t[i]+=dv;}
+    else if(k==='yaw')camSetAng(c,v*D2R,a.pitch);else if(k==='pitch')camSetAng(c,a.yaw,v*D2R);else c.fov=v;
+    camChanged();});
+  ceIn[k]={inp,out:l.querySelector('output')};ceSl.appendChild(l);}
+function camSync(){const c=CAMS[sel].ref,a=camAng(c),v={x:c.p[0],y:c.p[1],z:c.p[2],yaw:a.yaw/D2R,pitch:a.pitch/D2R,fov:c.fov};
+  for(const k in ceIn){if(document.activeElement!==ceIn[k].inp)ceIn[k].inp.value=v[k];ceIn[k].out.textContent=k==='yaw'||k==='pitch'||k==='fov'?Math.round(v[k]):r2(v[k]).toFixed(2);}
+  $('#ceOut').value=CAMS.map(c=>`${c.name}: p:[${c.ref.p.map(r2)}], t:[${c.ref.t.map(r2)}], fov:${Math.round(c.ref.fov)}`).join('\n');}
+let saveT=0;function camChanged(){camSync();clearTimeout(saveT);saveT=setTimeout(saveCams,200);}
+ceSel.addEventListener('change',()=>{sel=+ceSel.value;camSync();});
+$('#ceReset').addEventListener('click',()=>{const c=CAMS[sel];Object.assign(c.ref,JSON.parse(JSON.stringify(c.def)));camChanged();});
+$('#ceResetAll').addEventListener('click',()=>{for(const c of CAMS)Object.assign(c.ref,JSON.parse(JSON.stringify(c.def)));camChanged();});
+$('#ceCopy').addEventListener('click',async()=>{const t=$('#ceOut');t.select();let ok=false;
+  try{await navigator.clipboard.writeText(t.value);ok=true;}catch(e){try{ok=document.execCommand('copy');}catch(e2){}}
+  $('#ceMsg').textContent=ok?'복사했어요. 채팅에 붙여 주세요.':'아래 칸을 직접 복사해 주세요 (Ctrl+C).';});
+function toggleEdit(){editing=!editing;$('#cedit').hidden=!editing;$('#badge').hidden=!editing;$('#screen').classList.toggle('editing',editing);
+  if(editing){ // 지금 보고 있는 카메라부터 편집
+    const cur=override||(curZone()&&(curZone().cam||SH.corner))||SH.corner;const i=CAMS.findIndex(c=>c.ref===cur);sel=i<0?0:i;ceSel.value=sel;camSync();}
+  for(const k in K)K[k]=false;}
+$('#camEdit').addEventListener('click',()=>{if(!started)start();toggleEdit();});
+function editMove(dt){const c=CAMS[sel].ref,a=camAng(c),sp=(EK.ShiftLeft||EK.ShiftRight?4:1.5)*dt;
+  const fx=Math.sin(a.yaw),fz=Math.cos(a.yaw),rx=-fz,rz=fx; // three.js 화면 오른쪽 = (-cos, 0, sin)
+  const my=(EK.KeyW?1:0)-(EK.KeyS?1:0),mx=(EK.KeyD?1:0)-(EK.KeyA?1:0),mz=(EK.KeyE?1:0)-(EK.KeyQ?1:0);
+  if(!mx&&!my&&!mz)return;const d=[(fx*my+rx*mx)*sp,mz*sp,(fz*my+rz*mx)*sp];
+  for(let i=0;i<3;i++){c.p[i]+=d[i];c.t[i]+=d[i];}camChanged();}
+const scrEl=$('#screen');let ceDrag=null;
+scrEl.addEventListener('pointerdown',e=>{if(!editing)return;ceDrag={id:e.pointerId,x:e.clientX,y:e.clientY};scrEl.setPointerCapture(e.pointerId);});
+scrEl.addEventListener('pointermove',e=>{if(!ceDrag||e.pointerId!==ceDrag.id)return;const c=CAMS[sel].ref,a=camAng(c);
+  camSetAng(c,a.yaw-(e.clientX-ceDrag.x)*.005,a.pitch-(e.clientY-ceDrag.y)*.005);ceDrag.x=e.clientX;ceDrag.y=e.clientY;camChanged();});
+['pointerup','pointercancel'].forEach(ev=>scrEl.addEventListener(ev,e=>{if(ceDrag&&e.pointerId===ceDrag.id)ceDrag=null;}));
+scrEl.addEventListener('wheel',e=>{if(!editing)return;e.preventDefault();const c=CAMS[sel].ref;c.fov=clamp(c.fov*Math.exp(e.deltaY*.0006),20,110);camChanged();},{passive:false});
 
 /* ================= 사운드 (WebAudio 합성) ================= */
 let AC=null,master=null,alarmLP=null,birdsLP=null,birdsGain=null,alarmSrc=null,morning=false,muted=false;
@@ -638,6 +714,7 @@ function opening(){
 const K={};
 const keyMap={KeyW:'up',ArrowUp:'up',KeyS:'down',ArrowDown:'down',KeyA:'left',ArrowLeft:'left',KeyD:'right',ArrowRight:'right',ShiftLeft:'run',ShiftRight:'run'};
 function action(){
+  if(editing)return;
   if(seq){skipSeq();return;}
   if(dlg){advance();return;}
   if(!control)return;const s=nearSpot();if(s)inspect(s);}
@@ -646,14 +723,18 @@ let gradLevel=0;
 function cycleGrad(){gradLevel=(gradLevel+1)%3;post.uniforms.grad.value=[0,.5,1][gradLevel];}
 addEventListener('keydown',e=>{
   if(!started){if(e.code==='Enter'||e.code==='Space'){e.preventDefault();start();}return;}
+  if(e.code==='KeyC'&&!e.repeat){toggleEdit();return;}
+  if(editing){ // 카메라 편집 중에는 키가 카메라를 움직인다 (소희는 멈춤)
+    const t=e.target;if(t&&(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA')&&!/^Key[WASDQE]$|^Shift/.test(e.code))return;
+    if(/^Key[WASDQE]$|^Shift/.test(e.code)){EK[e.code]=true;e.preventDefault();}return;}
   if(keyMap[e.code]){K[keyMap[e.code]]=true;e.preventDefault();}
   if(e.repeat)return;
   if(e.code==='KeyE'||e.code==='Space'||e.code==='Enter'){e.preventDefault();action();}
 
   if(e.code==='KeyG')cycleGrad();
   if(e.code==='KeyM')$('#mute').click();});
-addEventListener('keyup',e=>{if(keyMap[e.code])K[keyMap[e.code]]=false;});
-addEventListener('blur',()=>{for(const k in K)K[k]=false;});
+addEventListener('keyup',e=>{if(keyMap[e.code])K[keyMap[e.code]]=false;EK[e.code]=false;});
+addEventListener('blur',()=>{for(const k in K)K[k]=false;for(const k in EK)EK[k]=false;});
 document.querySelectorAll('#pad button').forEach(b=>{const k=b.dataset.k;
   const on=e=>{e.preventDefault();b.classList.add('on');if(!started){start();return;}
     if(k==='act')action();else if(k==='skip')skipSeq();else K[k]=true;};
@@ -702,7 +783,8 @@ function tick(){requestAnimationFrame(tick);frame(Math.min(clock.getDelta(),.05)
 function frame(dt){T0+=dt;
   stepSeq(dt);
   let speed=0;
-  if(control&&!dlg)speed=move(dt);else{basis.frozen=false;basis.combo='';}
+  if(editing)editMove(dt);
+  else if(control&&!dlg)speed=move(dt);else{basis.frozen=false;basis.combo='';}
   let sw=0;
   if(control){
     if(speed){P.phase+=dt*speed*5.2;stepT-=dt;if(stepT<=0){stepT=speed>2?.3:.45;snd.step(speed>2);}}
@@ -720,7 +802,7 @@ function frame(dt){T0+=dt;
 
 // 첫 화면: 타이틀 뒤로 돌하우스가 보이게
 applyPose(0);setView(1);updateDev();tick(); // 시점 확정: 구석 고정 카메라 (플레이어 조작 불가)
-window.__sp={P,spots,FLAG,DOORS,curZone,cam,free,floorAt,solids,WALK,frame,skip:skipSeq,action,setView,get dlg(){return dlg},get control(){return control},K};
+window.__sp={P,spots,FLAG,DOORS,curZone,cam,free,floorAt,solids,WALK,frame,CAMS,toggleEdit,get editing(){return editing},skip:skipSeq,action,setView,get dlg(){return dlg},get control(){return control},K};
 })();
 </script>
 </body></html>
