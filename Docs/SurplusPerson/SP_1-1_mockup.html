@@ -802,19 +802,24 @@ $('#modeBtn').addEventListener('click',()=>setMode(mode==='edit'?'play':'edit'))
 
 // ---- 화면 마우스 ----
 //  카메라 도구: 드래그 = 방향, 휠 = 화각
-//  물건 도구: 가구 클릭 = 고르기, 가구 드래그 = 옮기기, 빈 곳 드래그 = 둘러보기(자유 카메라), 빈 곳 클릭 = 선택 해제, 휠 = 고른 가구 크기 (없으면 앞뒤 이동)
+//  물건 도구: 클릭(누르고 그대로 떼기) = 그 가구 고르기 / 빈 곳이면 선택 해제
+//             끌기 = 둘러보기(자유 카메라). 단, '이미 고른 가구' 위에서 끌면 그 가구를 옮긴다
+//             휠 = 고른 가구 크기 (없으면 앞뒤 이동)
 let drag=null;
 scrEl.addEventListener('pointerdown',e=>{if(mode!=='edit'||onUI(e))return;
-  if(editing){pushUndo();drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'cam'};scrEl.setPointerCapture(e.pointerId);}
+  if(editing){pushUndo();drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'cam'};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}
   else if(oEditing){const o=pickObj(e);
-    if(o){objSel(o);pushUndo();drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'obj'};}
-    else drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'fly',moved:0};
-    scrEl.setPointerCapture(e.pointerId);}});
+    drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:o&&o===oSel?'obj':'fly',moved:0,pick:o,undone:false};
+    try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}});
 scrEl.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
-  if(drag.k==='cam'){const c=CAMS[sel].ref,a=camAng(c);camSetAng(c,a.yaw-dx*.005,a.pitch-dy*.005);changed();}
-  else if(drag.k==='fly'){drag.moved+=Math.abs(dx)+Math.abs(dy);const a=camAng(FLY);camSetAng(FLY,a.yaw-dx*.005,a.pitch-dy*.005);}
-  else if(oSel){const{f,r}=screenAxes(),k=.012;oSel.g.position.x+=(r.x*dx-f.x*dy)*k;oSel.g.position.z+=(r.z*dx-f.z*dy)*k;changed();}});
-['pointerup','pointercancel'].forEach(ev=>scrEl.addEventListener(ev,e=>{if(drag&&e.pointerId===drag.id){if(drag.k==='fly'&&drag.moved<4)objSel(null);drag=null;}}));
+  if(drag.k==='cam'){const c=CAMS[sel].ref,a=camAng(c);camSetAng(c,a.yaw-dx*.005,a.pitch-dy*.005);changed();return;}
+  drag.moved+=Math.abs(dx)+Math.abs(dy);if(drag.moved<4)return; // 살짝 흔들린 건 클릭으로 본다
+  if(drag.k==='fly'){const a=camAng(FLY);camSetAng(FLY,a.yaw-dx*.005,a.pitch-dy*.005);}
+  else if(oSel){if(!drag.undone){pushUndo();drag.undone=true;} // 실제로 옮기기 시작할 때만 되돌리기 한 단계
+    const{f,r}=screenAxes(),k=.012;oSel.g.position.x+=(r.x*dx-f.x*dy)*k;oSel.g.position.z+=(r.z*dx-f.z*dy)*k;changed();}});
+['pointerup','pointercancel'].forEach(ev=>scrEl.addEventListener(ev,e=>{if(!drag||e.pointerId!==drag.id)return;
+  if(ev==='pointerup'&&drag.k!=='cam'&&drag.moved<4)objSel(drag.pick); // 클릭 = 고르기 (빈 곳이면 해제)
+  drag=null;}));
 scrEl.addEventListener('wheel',e=>{if(mode!=='edit'||onUI(e))return;
   if(editing){e.preventDefault();wheelUndo();const c=CAMS[sel].ref;c.fov=clamp(c.fov*Math.exp(e.deltaY*.0006),20,110);changed();}
   else if(oEditing&&oSel){e.preventDefault();wheelUndo();oSel.g.scale.multiplyScalar(Math.exp(-e.deltaY*.0006));changed();}
