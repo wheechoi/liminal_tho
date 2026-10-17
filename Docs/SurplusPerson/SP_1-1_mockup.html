@@ -424,35 +424,21 @@ function stepSeq(dt){if(!seq)return;
 function skipSeq(){if(!seq||skipping)return;skipping=true;snd.skip();ringing=false;
   while(seq){const s=seq.steps[seq.i];if(s.f)s.f(1);seq.i++;if(seq.i>=seq.steps.length)seq=null;}skipping=false;}
 const fadeEl=$('#fade');const setFade=v=>fadeEl.style.opacity=v;
-const BED={x:-2.95,y:.14,z:3.65,a:Math.PI/2},EDGE={x:-3.0,y:.14,z:3.05},STAND={x:-3.1,y:0,z:2.4,a:Math.PI};
+const BED={x:-2.95,y:.14,z:3.65,a:Math.PI/2},STAND={x:-3.1,y:0,z:2.4,a:Math.PI};
 function opening(){
   Object.assign(P,{x:BED.x,y:BED.y,z:BED.z,a:BED.a,tilt:-Math.PI/2,hip:0,armL:-REST,armR:REST});
   duvet.scale.set(1,1,1);duvet.position.set(duvet0.x,duvet0.y,duvet.position.z);
   override=SH.anchor;control=false;$('#hud').classList.add('off');setFade(1);snd.outside(true);
-  const st=k=>smooth(k);
   runSeq([
     {d:3.95,once:()=>snd.intro()},                                          // ① 암전, 소리부터
     {d:.3,once:()=>{snd.alarm();ringing=true;}},
-    {d:1.6,once:()=>snd.birds(.7),f:k=>setFade(1-k)},                       // ② 앵커 컷 (카메라 고정)
-    {d:2.2},
-    {d:.8,f:k=>{P.armL=lerp(-REST,-80*D2R,st(k));}},                         // ③ 알람을 끈다
-    {d:.25,once:()=>{snd.stopAlarm();ringing=false;}},
-    {d:.6,f:k=>{P.armL=lerp(-80*D2R,-REST,st(k));}},
-    {d:.6},
-    {d:2.0,f:k=>{P.tilt=lerp(-Math.PI/2,0,st(k));P.hip=lerp(0,-Math.PI/2,st(k));}}, // 천천히 일어나 앉음
-    {d:.4},
-    {d:.9,f:k=>{const s=st(k);P.a=lerp(BED.a,STAND.a,s);P.x=lerp(BED.x,EDGE.x,s);P.z=lerp(BED.z,EDGE.z,s);
-      duvet.scale.set(lerp(1,.41,s),lerp(1,1.4,s),1);duvet.position.x=lerp(duvet0.x,duvet0.x+.45,s);duvet.position.y=lerp(duvet0.y,duvet0.y+.03,s);}},
-    {d:.2},
-    {d:1.0,f:k=>{const s=st(k);P.x=lerp(EDGE.x,STAND.x,s);P.y=lerp(EDGE.y,0,s);P.z=lerp(EDGE.z,STAND.z,s);P.hip=lerp(-Math.PI/2,0,s);}},
-    {d:.2},
-    {d:1.2,f:k=>{const s=st(k);P.armL=lerp(-REST,-168*D2R,s);P.armR=lerp(REST,168*D2R,s);P.tilt=lerp(0,-.14,s);}}, // 기지개
-    {d:.5},
-    {d:.8,f:k=>{const s=st(k);P.armL=lerp(-168*D2R,-REST,s);P.armR=lerp(168*D2R,REST,s);P.tilt=lerp(-.14,0,s);}},
-    {d:.3},
-    {d:0,f:()=>{ // 실내 시점으로 컷 → 첫 독백 → 조작 시작
+    {d:1.6,once:()=>snd.birds(.7),f:k=>setFade(1-k)},                       // ② 앵커 컷: 누워 있는 소희 (카메라 고정)
+    {d:2.5},
+    {d:.8,once:()=>{snd.stopAlarm();ringing=false;}},                       // 알람이 꺼진다 (소리만)
+    {d:0,f:()=>{ // 실내 시점으로 컷 → 첫 독백 → 조작 시작 (기상 동작은 생략, 이미 침대 옆에 서 있음)
       setFade(0);override=null;tpSnap=true;snd.outside(false);snd.birds(.45);ringing=false;
       Object.assign(P,{x:STAND.x,y:0,z:STAND.z,a:STAND.a,tilt:0,hip:0,armL:-REST,armR:REST});
+      duvet.scale.set(.41,1.4,1);duvet.position.x=duvet0.x+.45;duvet.position.y=duvet0.y+.03; // 걷어 둔 이불
       $('#hud').classList.remove('off');
       say([{who:'소희',t:'“…이상한 꿈 꿨는데. 뭐였더라.”'},{who:'소희',t:'“뭐, 됐어.”'}],()=>{control=true;});}},
   ]);}
