@@ -598,8 +598,8 @@ function lathe(m,pts,p,{seg=14,phi0=0,phiL=Math.PI*2,x=0,y=0,z=0,sz=1,ragged=0,s
   const me=new THREE.Mesh(g,m);me.position.set(x,y,z);me.scale.z=sz;p.add(me);return me;}
 function torus(m,x,y,z,r,t,sz,p){const me=new THREE.Mesh(new THREE.TorusGeometry(r,t,5,18),m);me.position.set(x,y,z);me.rotation.x=Math.PI/2;me.scale.y=sz;p.add(me);return me;}
 // 몸통 + 원피스 (가슴 아래에서 A라인으로 퍼짐), 목둘레·밑단 장식, 가슴 리본
-lathe(gown,[[.2,.33],[.19,.42],[.165,.56],[.14,.7],[.12,.83],[.112,.9],[.124,.97],[.135,1.03],[.14,1.07],[.13,1.105],[.1,1.135],[.06,1.16],[.034,1.175]],body,{seg:18,sz:.8});
-torus(trim,0,.335,0,.198,.012,.8,body);torus(trim,0,1.158,0,.064,.012,.8,body);torus(trim,0,.9,0,.113,.007,.8,body);
+lathe(gown,[[.2,.33],[.19,.42],[.165,.56],[.14,.7],[.12,.83],[.112,.9],[.124,.97],[.135,1.03],[.14,1.07],[.13,1.11],[.1,1.145],[.06,1.172],[.036,1.188]],body,{seg:18,sz:.8});
+torus(trim,0,.335,0,.198,.012,.8,body);torus(trim,0,1.17,0,.062,.012,.8,body);torus(trim,0,.9,0,.113,.007,.8,body);
 ball(trim,-.022,1.13,.094,.035,.024,.014,body);ball(trim,.022,1.13,.094,.035,.024,.014,body);
 lathe(skin,[[.036,1.12],[.032,1.19],[.036,1.24]],body,{seg:10}); // 목
 // 머리: 구를 갸름하게 (턱 쪽을 좁힘). 얼굴은 +z
