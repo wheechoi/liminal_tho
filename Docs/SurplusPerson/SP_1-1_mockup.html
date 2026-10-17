@@ -74,7 +74,7 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
   <canvas id="game" width="480" height="360" aria-label="게임 화면"></canvas>
   <div class="hud off" id="hud">
     <div class="place"><small>SURPLUS PERSON</small><b>1-1 · 소희의 방, 아침</b></div>
-    <div class="view"><div id="viewName">[V] 시점: 돌하우스</div><div class="dev" id="dev">조사 0/4 · 진엔딩 조건(6:56) 미확인</div></div>
+    <div class="view"><div id="viewName" hidden></div><div class="dev" id="dev">조사 0/4 · 진엔딩 조건(6:56) 미확인</div></div>
     <div class="prompt" id="prompt" hidden>[E] 조사</div>
   </div>
   <div class="dlg" id="dlg" hidden><span class="who" id="who"></span><span id="dlgText"></span><i id="dlgMore">▼</i></div>
@@ -94,7 +94,7 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
     <button data-k="left" aria-label="화면 왼쪽">◀</button><button data-k="down" aria-label="화면 아래쪽">▼</button><button data-k="right" aria-label="화면 오른쪽">▶</button>
   </div>
   <div class="act">
-    <button data-k="act">조사</button><button data-k="view">시점</button>
+    <button data-k="act">조사</button>
     <button data-k="run">달리기</button><button data-k="skip">건너뛰기</button>
   </div>
 </div>
@@ -104,7 +104,6 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
     <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / 방향키: 화면 기준 위·왼쪽·아래·오른쪽</span>
     <span><kbd>Shift</kbd> 달리기</span>
     <span><kbd>E</kbd><kbd>Space</kbd><kbd>Enter</kbd> 조사·대사 넘기기</span>
-    <span><kbd>V</kbd> 시점 바꾸기</span>
     <span><kbd>G</kbd> 공포 톤 미리보기</span>
   </div>
   <div class="btns"><button id="restart" type="button">처음부터</button><button id="mute" type="button">소리 끄기</button></div>
@@ -450,7 +449,7 @@ function action(){
   if(seq){skipSeq();return;}
   if(dlg){advance();return;}
   if(!control)return;const s=nearSpot();if(s)inspect(s);}
-function cycleView(){if(!started||seq)return;setView((view+1)%3);}
+// 시점은 구석 고정 카메라로 확정 (2026-10-17). 비교용 시점 전환(V)은 제거, setView는 테스트용으로만 남김
 let gradLevel=0;
 function cycleGrad(){gradLevel=(gradLevel+1)%3;post.uniforms.grad.value=[0,.5,1][gradLevel];}
 addEventListener('keydown',e=>{
@@ -458,21 +457,21 @@ addEventListener('keydown',e=>{
   if(keyMap[e.code]){K[keyMap[e.code]]=true;e.preventDefault();}
   if(e.repeat)return;
   if(e.code==='KeyE'||e.code==='Space'||e.code==='Enter'){e.preventDefault();action();}
-  if(e.code==='KeyV')cycleView();
+
   if(e.code==='KeyG')cycleGrad();
   if(e.code==='KeyM')$('#mute').click();});
 addEventListener('keyup',e=>{if(keyMap[e.code])K[keyMap[e.code]]=false;});
 addEventListener('blur',()=>{for(const k in K)K[k]=false;});
 document.querySelectorAll('#pad button').forEach(b=>{const k=b.dataset.k;
   const on=e=>{e.preventDefault();b.classList.add('on');if(!started){start();return;}
-    if(k==='act')action();else if(k==='view')cycleView();else if(k==='skip')skipSeq();else K[k]=true;};
+    if(k==='act')action();else if(k==='skip')skipSeq();else K[k]=true;};
   const off=()=>{b.classList.remove('on');if(['up','down','left','right','run'].includes(k))K[k]=false;};
   b.addEventListener('pointerdown',on);['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,off));});
 $('#title').addEventListener('click',start);
 $('#restart').addEventListener('click',()=>{if(!started){start();return;}restart();});
 
 function start(){if(started)return;started=true;$('#title').hidden=true;audioInit();if(AC&&AC.state==='suspended')AC.resume();opening();}
-function restart(){seq=null;dlg=null;$('#dlg').hidden=true;snd.reset();for(const s of spots)s.seen=0;FLAG.trueEndClock=false;setClock('10:34');updateDev();setView(0);opening();}
+function restart(){seq=null;dlg=null;$('#dlg').hidden=true;snd.reset();for(const s of spots)s.seen=0;FLAG.trueEndClock=false;setClock('10:34');updateDev();setView(1);opening();}
 
 // 화면 기준 이동: 평소엔 지금 카메라 방향을 그대로 따른다 (W를 누른 채 A/D로 바로 방향 전환).
 // 단, 카메라가 '컷'으로 바뀌는 순간 키를 누르고 있었다면 컷 직전 방향을 잠깐 유지한다
@@ -516,7 +515,7 @@ function tick(){requestAnimationFrame(tick);const dt=Math.min(clock.getDelta(),.
   R.setRenderTarget(RT);R.render(S,cam);R.setRenderTarget(null);R.render(postScene,postCam);}
 
 // 첫 화면: 타이틀 뒤로 돌하우스가 보이게
-applyPose(0);setView(0);updateDev();tick();
+applyPose(0);setView(1);updateDev();tick(); // 시점 확정: 구석 고정 카메라 (플레이어 조작 불가)
 window.__sp={P,spots,FLAG,skip:skipSeq,action,setView,get dlg(){return dlg},get control(){return control},K};
 })();
 </script>
