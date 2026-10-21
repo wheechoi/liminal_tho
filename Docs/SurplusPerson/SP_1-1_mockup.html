@@ -1323,7 +1323,16 @@ function action(){
 // 시점은 구석 고정 카메라로 확정 (2026-10-17). 비교용 시점 전환(V)은 제거, setView는 테스트용으로만 남김
 let gradLevel=0;
 function cycleGrad(){gradLevel=(gradLevel+1)%3;gradPreview=gradLevel?[0,.5,1][gradLevel]:null;applyTone();} // 플레이 중 공포 톤 미리보기 (저장 안 됨)
+// 키 이름: 한글 입력 상태에서는 키 정보가 'ㅈ'처럼 들어오거나 code가 비는 경우가 있어서 실제 자판 위치(KeyW 등)로 맞춘다
+const HANGUL_KEY={'ㅈ':'KeyW','ㅉ':'KeyW','ㅁ':'KeyA','ㄴ':'KeyS','ㅇ':'KeyD','ㅂ':'KeyQ','ㅃ':'KeyQ','ㄷ':'KeyE','ㄸ':'KeyE','ㄱ':'KeyR','ㄲ':'KeyR','ㄹ':'KeyF','ㅋ':'KeyZ','ㅌ':'KeyX'};
+const keyCodeOf=e=>e.code||HANGUL_KEY[e.key]||(e.keyCode>=65&&e.keyCode<=90?'Key'+String.fromCharCode(e.keyCode):'');
+// 눌린 키 전부 놓기: 키를 뗀 신호(keyup)가 빠지면 카메라·소희가 멈추지 않고 계속 가던 문제 대비
+function releaseKeys(){for(const k in K)K[k]=false;for(const k in EK)EK[k]=false;for(const k in imeT)delete imeT[k];}
+const imeT={}; // 한글 입력기를 거쳐 들어온 키 → 마지막으로 눌린 시각 (이 경우 keyup이 안 올 수 있어서, 눌림 신호가 끊기면 놓은 것으로 본다)
+function keyWatch(){if(!document.hasFocus()){if(Object.values(EK).some(Boolean)||Object.values(K).some(Boolean))releaseKeys();return;}
+  const now=performance.now();for(const k in imeT)if(now-imeT[k]>650){EK[k]=false;if(keyMap[k])K[keyMap[k]]=false;delete imeT[k];}}
 addEventListener('keydown',e=>{
+  const kc=keyCodeOf(e);if(kc&&(e.keyCode===229||e.key==='Process'||HANGUL_KEY[e.key]))imeT[kc]=performance.now();else delete imeT[kc];
   const t=e.target,inField=t&&(/SELECT|TEXTAREA/.test(t.tagName)||(t.tagName==='INPUT'&&t.type!=='range'));
   if(!started){if(e.code==='Enter'||e.code==='Space'){e.preventDefault();start();}return;}
   if(e.code==='Tab'&&!inField&&!(t&&t.closest&&t.closest('.cedit'))){e.preventDefault();setMode(mode==='edit'?'play':'edit');return;} // 플레이 ↔ 편집
@@ -1334,21 +1343,27 @@ addEventListener('keydown',e=>{
   const toolKey={KeyC:'cam',KeyO:'obj',KeyT:'tone',KeyI:'spot',KeyV:'zone',KeyN:'text'}[e.code];
   if(toolKey&&!e.repeat){if(mode!=='edit')setMode('edit');setTool(toolKey);return;}
   if(mode==='edit'){ // 편집 모드: 키는 고른 카메라/물건을 움직인다 (소희는 멈춤)
-    if(/^Key[WASDQERFZX]$|^Shift/.test(e.code)){
+    if(/^Key[WASDQERFZX]$|^Shift/.test(kc)){
       // 카메라·물건을 바꾸는 키를 처음 누르는 순간 = 되돌리기 한 단계 (물건 도구의 W/A/S/D/Q/E는 자유 카메라 이동이라 제외)
       const editKey=editing?/^Key[WASDQE]$/:oEditing?/^Key[RFZX]$/:null;
-      if(editKey&&!e.repeat&&editKey.test(e.code)&&!Object.keys(EK).some(k=>EK[k]&&editKey.test(k)))pushUndo();
-      EK[e.code]=true;e.preventDefault();}
+      if(editKey&&!e.repeat&&editKey.test(kc)&&!EK[kc]&&!Object.keys(EK).some(k=>EK[k]&&editKey.test(k)))pushUndo();
+      EK[kc]=true;e.preventDefault();}
     if(e.code==='Escape'&&oEditing)objSel(null);
     return;}
-  if(keyMap[e.code]){K[keyMap[e.code]]=true;e.preventDefault();}
+  if(keyMap[kc]){K[keyMap[kc]]=true;e.preventDefault();}
   if(e.repeat)return;
   if(e.code==='KeyE'||e.code==='Space'||e.code==='Enter'){e.preventDefault();action();}
 
   if(e.code==='KeyG')cycleGrad();
   if(e.code==='KeyM')$('#mute').click();});
-addEventListener('keyup',e=>{if(keyMap[e.code])K[keyMap[e.code]]=false;EK[e.code]=false;});
-addEventListener('blur',()=>{for(const k in K)K[k]=false;for(const k in EK)EK[k]=false;});
+addEventListener('keyup',e=>{const kc=keyCodeOf(e);if(keyMap[kc])K[keyMap[kc]]=false;EK[kc]=false;delete imeT[kc];
+  if(e.key==='Shift'){EK.ShiftLeft=EK.ShiftRight=false;}});
+addEventListener('blur',releaseKeys);
+document.addEventListener('visibilitychange',releaseKeys);
+document.addEventListener('focusin',releaseKeys);   // 버튼·입력칸 등으로 포커스가 옮겨 가면 (그 사이 뗀 키를 놓칠 수 있음)
+addEventListener('contextmenu',releaseKeys);        // 오른쪽 클릭 메뉴가 뜨면 keyup이 메뉴로 감
+// 게임 화면을 누르면 입력칸·버튼의 포커스를 풀어서 키가 늘 화면으로 오게 (한글 입력 상태가 입력칸에 묶이는 것도 방지)
+scrEl.addEventListener('pointerdown',()=>{const a=document.activeElement;if(a&&a!==document.body&&a.blur)a.blur();},true);
 document.querySelectorAll('#pad button').forEach(b=>{const k=b.dataset.k;
   const on=e=>{e.preventDefault();b.classList.add('on');if(!started){start();return;}
     if(k==='act')action();else if(k==='skip')skipSeq();else K[k]=true;};
@@ -1394,7 +1409,7 @@ function move(dt){
 /* ================= 루프 ================= */
 const clock=new THREE.Clock();let T0=0,stepT=0;
 function tick(){requestAnimationFrame(tick);frame(Math.min(clock.getDelta(),.05));}
-function frame(dt){T0+=dt;
+function frame(dt){T0+=dt;keyWatch();
   stepSeq(dt);
   let speed=0;
   if(editing)editMove(dt);  // 편집 모드: 카메라 도구
