@@ -11,6 +11,7 @@ Claude Code가 이 저장소에서 작업할 때 따르는 지침입니다.
 - **현재 상태**:
   - `Assets/_Project/Scenes/SP_1-1_Wake.unity` — 씬 1-1 목업 (소희 기상). 메뉴 `Surplus Person > Build Scene 1-1`로 생성. 메모: `Docs/SurplusPerson/SP_1-1_NOTES.md`
   - `Assets/_Project/Scenes/B58.unity` — 이전 버티컬 슬라이스 「지하 58층」. 메모: `Docs/B58/`
+  - 기획 위키: `Docs/SurplusPerson/SP_Wiki.html` (Confluence 스타일, 파일 하나). 폴더 연결 시 `Docs/SurplusPerson/wiki/`에 `wiki.json`(원본)·`INDEX.md`·페이지별 `.md` 자동 저장. 기획서 읽을 땐 이 `.md`를, 밖에서 고칠 땐 `wiki.json` 수정 + `savedAt` 갱신
   - 그래픽 레퍼런스: `Docs/SurplusPerson/refs/` (단면 저택 일러스트, 픽셀 어드벤처, 잉크·디더링 톤)
   - `Assets/Scenes/SampleScene.unity`, `Assets/TutorialInfo/` — 템플릿 잔재, 삭제해도 됨
 - **저장소**: https://github.com/wheechoi/liminal_tho (private)
