@@ -36,7 +36,8 @@ body{background:var(--bg);color:var(--ink);font-family:var(--f-text);margin:0;pa
 .prompt{position:absolute;left:50%;bottom:5cqh;transform:translateX(-50%);font-size:2.7cqw;background:rgba(26,19,19,.78);padding:.5cqh 2cqw;color:var(--ink);white-space:nowrap}
 
 /* 대사창: 어두운 판 + 가는 크림색 테두리 두 줄 */
-.dlg{position:absolute;left:7cqw;right:7cqw;bottom:4cqh;min-height:19cqh;background:rgba(26,19,19,.94);border:2px solid rgba(239,227,207,.9);outline:1px solid #000;box-shadow:inset 0 0 0 4px rgba(26,19,19,.94),inset 0 0 0 5px rgba(239,227,207,.5);padding:2.6cqh 3.4cqw;font-family:var(--f-display);font-size:3.1cqw;line-height:1.55;color:var(--ink);pointer-events:none}
+.dlg{position:absolute;left:7cqw;right:7cqw;bottom:4cqh;height:calc(5.2cqh + 4.7em);box-sizing:border-box;overflow:hidden;background:rgba(26,19,19,.94);border:2px solid rgba(239,227,207,.9);outline:1px solid #000;box-shadow:inset 0 0 0 4px rgba(26,19,19,.94),inset 0 0 0 5px rgba(239,227,207,.5);padding:2.6cqh 3.4cqw;font-family:var(--f-display);font-size:3.1cqw;line-height:1.55;color:var(--ink);pointer-events:auto;cursor:pointer}
+#dlgText{white-space:pre-wrap} /* 대사 안 줄바꿈 유지. 대사창 높이를 넘으면 자동으로 다음 장 */
 .dlg .who{display:block;font-size:2.1cqw;color:var(--rose);margin-bottom:.6cqh}
 .dlg i{position:absolute;right:2.4cqw;bottom:1.4cqh;font-style:normal;color:var(--rose);font-size:2.6cqw}
 
@@ -108,7 +109,7 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
   <div class="dlg" id="dlg" hidden><span class="who" id="who"></span><span id="dlgText"></span><i id="dlgMore">▼</i></div>
   <div class="edbar" id="edbar" hidden>
     <b>편집 모드</b>
-    <button type="button" data-tool="cam">카메라 C</button><button type="button" data-tool="obj">물건 O</button><button type="button" data-tool="tone">톤 T</button><button type="button" data-tool="spot">조사 I</button>
+    <button type="button" data-tool="cam">카메라 C</button><button type="button" data-tool="obj">물건 O</button><button type="button" data-tool="tone">톤 T</button><button type="button" data-tool="spot">조사 I</button><button type="button" data-tool="zone">구역 V</button><button type="button" data-tool="text">텍스트 N</button>
     <i></i>
     <button type="button" id="edUndo" title="되돌리기 (Ctrl+Z)" aria-label="되돌리기">↶</button><button type="button" id="edRedo" title="다시 실행 (Ctrl+Y)" aria-label="다시 실행">↷</button>
     <i></i>
@@ -175,6 +176,24 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
     <div class="row"><b>조사 범위</b><span>선택: <span id="spotName"></span></span><button id="spotReset" type="button">이 범위 원래대로</button><button id="spotShrinkAll" type="button">전체 작게 ÷1.2</button><button id="spotScaleAll" type="button">전체 크게 ×1.2</button></div>
     <div class="sl"><label><span>범위 (반지름)</span><input type="range" id="spotR" min=".2" max="4" step=".05"><output id="spotRout"></output></label></div>
     <div>바닥의 원 = 그 안에 들어가면 <kbd>E</kbd> 조사/문 열기가 뜨는 범위예요. 원을 <b>클릭</b>해서 고르고 <b>휠</b>이나 슬라이더로 크기 조절 · 끌기: 둘러보기 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <kbd>Q</kbd>/<kbd>E</kbd> 자유 이동 · <kbd>1</kbd>~<kbd>7</kbd> 그 구역으로</div>
+  </div>
+  <div class="tool" data-tool="zone" hidden>
+    <div class="row"><b>카메라 구역</b><select id="znSel" aria-label="구역"></select>
+      <button id="znAdd" type="button">＋ 구역 추가 (지금 화면 = 카메라)</button><button id="znDel" type="button">구역 삭제</button></div>
+    <div class="row"><label class="clr"><span>이름</span><input id="znName" type="text" maxlength="20" style="width:160px"></label>
+      <label class="clr"><span>층</span><select id="znLevel"><option value="2">2층</option><option value="1">1층</option><option value="s">계단</option></select></label>
+      <button id="znCamSet" type="button">지금 보는 화면을 이 구역 카메라로</button><button id="znCamGo" type="button">이 구역 카메라 자리로 이동</button><button id="znReset" type="button">이 구역 원래대로</button></div>
+    <div class="sl" id="znSliders"></div>
+    <div>바닥의 사각형 = 소희가 그 안에 들어가면 그 구역 카메라로 바뀌는 범위. 사각형을 <b>클릭</b>해서 고르고, 고른 사각형을 <b>끌면</b> 옮겨져요 · 슬라이더로 네 변 조절 · 겹치면 <b>나중에 추가한 구역이 먼저</b> · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <kbd>Q</kbd>/<kbd>E</kbd> 자유 이동 · <kbd>1</kbd>~<kbd>7</kbd> 그 구역으로 · "구역 추가"는 지금 보고 있는 화면을 그대로 새 구역의 카메라로 써요</div>
+  </div>
+  <div class="tool" data-tool="text" hidden>
+    <div class="row"><b>텍스트</b><span>대상: <span id="txName"></span></span><button id="txPreview" type="button">미리보기</button></div>
+    <label style="display:block">대사 <small>(빈 줄 = 다음 대사창 · 줄 맨 앞에 <code>이름: </code>을 쓰면 말하는 사람 · 길면 자동으로 다음 장)</small>
+      <textarea id="txMain" rows="5" style="margin-top:4px" aria-label="대사"></textarea></label>
+    <label id="txSecretWrap" style="display:block" hidden>숨은 대사 <small>(조건을 만족하고 다시 조사하면 나오는 대사)</small>
+      <textarea id="txSecret" rows="2" style="margin-top:4px" aria-label="숨은 대사"></textarea></label>
+    <div class="sl" id="txSize"></div>
+    <div>화면에서 <b>가구</b>나 <b>조사 원</b>을 클릭하면 그 대사를 고칠 수 있어요 (대사가 없던 가구도 쓰면 조사할 수 있게 돼요) · 끌기: 둘러보기 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <kbd>Q</kbd>/<kbd>E</kbd> 자유 이동 · 대사창은 클릭해도 넘어가요</div>
   </div>
   <div class="row"><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Ctrl</kbd>+<kbd>Y</kbd> 다시 실행 · <kbd>Tab</kbd> 플레이로</div>
   <div class="row"><button id="edExport" type="button">값 내보내기 (복사)</button><button id="edRevert" type="button">저장한 상태로 되돌리기</button><button id="edResetAll" type="button">전부 처음값으로</button><span id="edMsg"></span></div>
@@ -268,6 +287,7 @@ function endObj(){const o=curObj;root=o.prevRoot;curObj=null;o.g.updateMatrixWor
   const bb=new THREE.Box3().setFromObject(o.g),pv=new THREE.Vector3((bb.min.x+bb.max.x)/2,bb.min.y,(bb.min.z+bb.max.z)/2);
   for(const ch of o.g.children)ch.position.sub(pv);o.g.position.copy(pv);
   o.sol=o.sol.map(b=>({rel:[b[0]-pv.x,b[1]-pv.z,b[2]-pv.x,b[3]-pv.z],y0:(b.length>4?b[4]:-.6)-pv.y,y1:(b.length>4?b[5]:1.6)-pv.y}));
+  o.orig=[pv.x,pv.y,pv.z]; // 처음 만들어진 자리 (가구에 붙은 조사 지점·누운 자리 계산 기준)
   o.def={p:[pv.x,pv.y,pv.z],ry:0,s:[1,1,1]};OBJS.push(o);return o;}
 function O(name,fn){beginObj(name);fn();return endObj();}
 let root=S;
@@ -472,7 +492,7 @@ cyl(col(0xe9e3d8),8.2,.92,.25,.07,.24);ball(col(0xe7a3b0),8.2,1.1,.25,.14);});
 O('복도/풍경화',()=>painting(tLand,5.6,1.85,.06,.8,.6,Math.PI));O('복도/초상화',()=>painting(tPortrait,10.6,1.85,.06,.45,.6,Math.PI));
 sconce(6.5,2.1,.09);sconce(9.5,2.1,.09);
 pLight(0xffe2b0,.8,6,8,2.6,1);
-zone('2층 복도',4.05,-.2,12,2.2,-1,2,{p:[11.75,2.9,.25],t:[4.5,.5,1.2],fov:62}); // 로비 쪽 끝에서 소희 방문 쪽을 봄
+zone('2층 복도',4.05,-.2,12,2.2,-1,2,{p:[11.82,3.08,.4],t:[8.16,-.24,1.17],fov:74}); // 로비 쪽 끝에서 소희 방문 쪽을 봄
 
 // ---- 2층 로비 x12~17 z-1~4 (남쪽은 난간, 거실이 내려다보임) ----
 walk(12,-1,17,4,0);
@@ -508,7 +528,13 @@ floorQ(tex(tChecker,7,5.5),6,20,-12,-1,Y1);ceilQ(6,20,-12,-1,HH);
 wallLine('x',-1.075,5.85,12,Y1,HH);wallLine('x',-1.075,12,17,Y1,-.3);wallLine('x',-1.075,17,20.15,Y1,HH);
 wallLine('z',5.925,-12.15,-.925,Y1,HH,[[-9.5,-8.5,2.2]]);
 wallLine('x',-12.075,5.85,20.15,Y1,HH,[[8.5,9.5,2.2],[16.5,17.5,2.2]]);
-wallLine('z',20.075,-12.15,-.925,Y1,HH);
+wallLine('z',20.075,-12.15,-.925,Y1,HH,[[-7.3,-5.7,2.6]]); // 동쪽 벽: 현관문 자리 (큰 창 두 개 사이)
+// ---- 현관문 (양문). 밖으로 나가면 무엇이 나오는지는 미정 → 지금은 잠긴 문 + 임시 대사 (텍스트 도구로 수정 가능) ----
+{const fd=door('front',20.075,-7.3,'z',.8,0,Y1,true,[{t:'현관문이다. 밖으로 나가는 문.'},{t:'(밖에 무엇이 나올지는 아직 정하지 않았어요)'}]);
+ fd.cx=19.55;fd.cz=-6.5;fd.block=[19.95,-7.3,20.2,-5.7];                                   // 조사 범위 중심 = 두 문짝 가운데, 문 바로 안쪽
+ const rl=group(20.075,Y1,-5.7);boxMM(doorMat,-.03,0,-.8,.03,2.15,0,rl);boxMM(col(0x6a4636),-.035,.3,-.68,.035,1.9,-.12,rl);ball(col(0xc9a24a),0,1.0,-.12,.14,.07,.07,rl); // 오른쪽 문짝
+ boxMM(glow(0xd7ecf8),20.02,Y1+2.17,-7.28,20.06,Y1+2.58,-5.72);boxMM(col(0x4a2f25),19.99,Y1+2.15,-7.3,20.08,Y1+2.19,-5.7); // 문 위 채광창
+ quad(lam({color:0x6c2e35}),19.45,Y1+.012,-6.5,.9,1.6,-Math.PI/2,0);}                        // 현관 매트
 // 동쪽 큰 창 (밝은 하늘빛) + 커튼
 for(const zc of[-8.8,-4.2]){boxMM(glow(0xd7ecf8),19.98,Y1+1,zc-.7,20,Y1+4.6,zc+.7);boxMM(col(0xf1ece2),19.93,Y1+1,zc-.04,20,Y1+4.6,zc+.04);
   boxMM(col(0xf1ece2),19.93,Y1+2.8,zc-.7,20,Y1+2.84,zc+.7);
@@ -530,8 +556,8 @@ O('거실/화분1',()=>plant(6.6,Y1,-11.4,1.3));O('거실/화분2',()=>plant(19.
 beginObj('거실/샹들리에');const bc=group(10,1.0,-6.5);boxMM(col(0x3a2a20),-.015,.2,-.015,.015,HH-1.0,.015,bc);cyl(col(0xc9a24a),0,0,0,.7,.06,bc,20);cyl(col(0xc9a24a),0,.45,0,.4,.05,bc,16);
 for(let i=0;i<10;i++){const a=i*Math.PI/5;cyl(col(0xf6efe4),Math.cos(a)*.62,.1,Math.sin(a)*.62,.03,.16,bc);ball(glow(0xffe7b0),Math.cos(a)*.62,.22,Math.sin(a)*.62,.08,.1,.08,bc);}endObj();
 pLight(0xffe2b0,1.1,14,10,.6,-6.5);pLight(0xf08a3c,.7,5,7,Y1+.8,-4);pLight(0xdcecff,.7,10,18.8,Y1+2.5,-6.5);
-zone('거실 오른쪽',15.5,-12.1,20.1,-.95,-4,.05,{p:[19.5,.3,-11.5],t:[15,-3.2,-3.5],fov:66},'거실'); // 계단 오른쪽 끝(x 15.5)을 넘으면 이 카메라로 컷: 남동쪽 높은 모서리 (왼쪽 거실 카메라와 마주 보는 구도)
-zone('거실',6,-12.1,20.1,-.95,-4,.05,{p:[6.5,.3,-11.5],t:[14,-3.2,-3.5],fov:66}); // 계단을 다 내려오면 이 카메라로 컷: 남서쪽 높은 모서리에서 계단 아래·거실을 마주 봄
+zone('거실 오른쪽',15.5,-12.1,20.1,-.95,-4,.05,{p:[14.12,1.76,-10.79],t:[16.51,-2.19,-8.87],fov:66},'거실'); // 계단 오른쪽 끝(x 15.5)을 넘으면 이 카메라로 컷: 남동쪽 높은 모서리 (왼쪽 거실 카메라와 마주 보는 구도)
+zone('거실',6,-12.1,20.1,-.95,-4,.05,{p:[13.81,1.82,-1.03],t:[11.29,-.56,-4.63],fov:55}); // 계단을 다 내려오면 이 카메라로 컷: 남서쪽 높은 모서리에서 계단 아래·거실을 마주 봄
 
 // ---- 1층 방 3개 (이름은 임시) ----
 function roomBox(x0,x1,z0,z1,tint,floorTex){
@@ -588,6 +614,11 @@ function rebuildSol(){SOL=solids.slice();for(const o of OBJS){const g=o.g,c=Math
       x0=Math.min(x0,wx);z0=Math.min(z0,wz);x1=Math.max(x1,wx);z1=Math.max(z1,wz);}
     SOL.push([x0,z0,x1,z1,g.position.y+b.y0*g.scale.y,g.position.y+b.y1*g.scale.y]);}}}
 // 저장된 물건 편집값 불러오기 (이 브라우저에만 저장됨)
+// 직접 조정해서 확정한 가구 배치 (= 새 기본값, '원래대로'도 여기로 돌아옴)
+const OBJ_BAKE={'소희방/침대':{p:[-3.03,0,3.5],ry:0,s:[1,1,1]},'소희방/협탁':{p:[-3.61,0,5.73],ry:0,s:[1,1,1]},
+  '거실/안락의자1':{p:[8,-3.6,-8.6],ry:-135,s:[1,1,1]},'거실/안락의자2':{p:[8,-3.6,-4.4],ry:105,s:[1,1,1]}}; // 2026-10-21
+for(const o of OBJS){const b=OBJ_BAKE[o.name];if(!b)continue;o.def=jcopyB(b);o.g.position.set(...b.p);o.g.rotation.y=b.ry*D2R;o.g.scale.set(...b.s);}
+function jcopyB(v){return JSON.parse(JSON.stringify(v));}
 const OBJ_LS='sp11_objs_v1';
 try{const s=JSON.parse(localStorage.getItem(OBJ_LS)||'{}');for(const o of OBJS){const v=s[o.name];if(!v)continue;o.g.position.set(...v.p);o.g.rotation.y=v.ry*D2R;o.g.scale.set(...v.s);}}catch(e){}
 rebuildSol();
@@ -661,7 +692,7 @@ function applyPose(walkSw){
 const SH={
   anchor:{p:[-2.25,2.05,7],t:[-3,.42,2.33],fov:38},            // ② 창밖 앵커 컷 (엔딩 1초 깜빡임에 재사용)
   doll:(()=>{const c=new THREE.Vector3(.2,1.5,3.0),d=new THREE.Vector3(1,1.05,-1).normalize().multiplyScalar(25).add(c);return{p:[d.x,d.y,d.z],t:[c.x,c.y,c.z],fov:21};})(),
-  corner:{p:[-3.72,3.22,.28],t:[-.7,.21,2.89],fov:64}, // 소희의 방 (2026-10-17 직접 조정)
+  corner:{p:[-3.72,3.22,.28],t:[-.62,.29,2.9],fov:68}, // 소희의 방 (2026-10-21 직접 조정)
   clock:{p:[-3.0,.8,4.74],t:[-3.55,.55,4.76],fov:40},
 };
 const VIEWS=['돌하우스','구석 고정 카메라','3인칭'];
@@ -677,7 +708,7 @@ function curZone(){
   return zoneNow;}
 function updateCam(dt){
   if(editing){hide.visible=ext.visible=true;S.background=SKY;place(CAMS[sel].ref);return;} // 카메라 도구: 고른 카메라로 보기
-  if(oEditing||sEditing){hide.visible=ext.visible=true;S.background=SKY;place(FLY);return;} // 물건·조사 도구: 자유 카메라 (게임 카메라와 별개)
+  if(flyTool()){hide.visible=ext.visible=true;S.background=SKY;place(FLY);return;} // 물건·조사·구역·텍스트 도구: 자유 카메라 (게임 카메라와 별개)
   const shot=override||(view===1?curZone():view);if(shot!==lastShot){lastShot=shot;camCut++;}
   const cut=!override&&view===0;hide.visible=ext.visible=!cut;S.background=cut?DARK:SKY;
   if(override){place(override);return;}
@@ -692,21 +723,34 @@ function setView(v){view=v;tpSnap=true;$('#viewName').textContent='[V] 시점: '
    Tab: 플레이 ↔ 편집. 편집 모드에서는 소희가 멈추고, 도구 3개로 고친다.
      카메라(C): 구역별 카메라 구도   물건(O): 화면에서 가구 클릭 → 옮기기·회전·크기   톤(T): 화면 효과·밝기
    '저장'해야 새로고침 후에도 남는다(이 브라우저에 저장). 플레이로 돌아가면 편집한 그대로 플레이된다. */
-let mode='play',tool='cam',editing=false,oEditing=false,sEditing=false,sel=0;const EK={}; // sEditing: 조사 범위 도구
+let mode='play',tool='cam',editing=false,oEditing=false,sEditing=false,zEditing=false,nEditing=false,sel=0;const EK={}; // s: 조사 범위, z: 카메라 구역, n: 텍스트
+const flyTool=()=>oEditing||sEditing||zEditing||nEditing; // 자유 카메라를 쓰는 도구들
 const scrEl=$('#screen'),r2=v=>Math.round(v*100)/100;
 const toastEl=$('#toast');let toastT=0;function toast(msg,ms=1400){toastEl.textContent=msg;toastEl.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>toastEl.hidden=true,ms);}
-const onUI=e=>e.target&&e.target.closest&&e.target.closest('.edbar,.chip');
+const onUI=e=>e.target&&e.target.closest&&e.target.closest('.edbar,.chip,.dlg');
 
-// ---- 카메라 ----
-const CAMS=[{name:'소희의 방',ref:SH.corner},...ZONES.filter(z=>z.cam).map(z=>({name:z.name.replace(' (임시)',''),ref:z.cam})),
-  {name:'오프닝: 창밖 컷',ref:SH.anchor},{name:'시계 클로즈업',ref:SH.clock}];
-for(const c of CAMS)c.def=JSON.parse(JSON.stringify(c.ref));
-const CAM_LS='sp11_cams_v1';
+// ---- 카메라 ---- (구역이 추가·삭제·이름 변경되면 목록을 다시 만든다)
+const CAMS=[],CAM_LS='sp11_cams_v1',ZONE_LS='sp11_zones_v1',jcopy=v=>JSON.parse(JSON.stringify(v));
+const SH_DEF={corner:jcopy(SH.corner),anchor:jcopy(SH.anchor),clock:jcopy(SH.clock)};
+const zoneSer=z=>({name:z.name,x0:z.x0,z0:z.z0,x1:z.x1,z1:z.z1,ymin:z.ymin,ymax:z.ymax,cam:z.cam?jcopy(z.cam):null,label:z.label||null,user:!!z.user});
+for(const z of ZONES)z.camDef=z.cam?jcopy(z.cam):null;
+const ZONES_DEF=ZONES.map(zoneSer); // 처음 구역들 (원래대로용)
+const ceSel=$('#ceSel'),ceIn={};
+function rebuildCams(){const keep=CAMS[sel]&&CAMS[sel].name;CAMS.length=0;
+  CAMS.push({name:'소희의 방',ref:SH.corner,def:SH_DEF.corner});
+  for(const z of ZONES)if(z.cam)CAMS.push({name:z.name.replace(' (임시)',''),ref:z.cam,def:z.camDef||jcopy(z.cam)});
+  CAMS.push({name:'오프닝: 창밖 컷',ref:SH.anchor,def:SH_DEF.anchor},{name:'시계 클로즈업',ref:SH.clock,def:SH_DEF.clock});
+  ceSel.innerHTML='';CAMS.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name;ceSel.appendChild(o);});
+  const k=CAMS.findIndex(c=>c.name===keep);sel=k>=0?k:0;}
+// 구역 목록 통째로 바꾸기 (불러오기·되돌리기·원래대로)
+function setZones(list){ZONES.length=0;for(const v of list){const d=!v.user&&ZONES_DEF.find(x=>x.name===v.name);
+    ZONES.push(Object.assign({},v,{cam:v.cam?jcopy(v.cam):null,camDef:d?d.cam:(v.cam?jcopy(v.cam):null)}));}
+  zoneNow=null;lastShot=null;rebuildCams();}
+try{const zs=JSON.parse(localStorage.getItem(ZONE_LS)||'null');if(zs&&zs.length)setZones(zs);}catch(e){}
+rebuildCams();
 try{const s=JSON.parse(localStorage.getItem(CAM_LS)||'{}');for(const c of CAMS)if(s[c.name])Object.assign(c.ref,{p:s[c.name].p.slice(),t:s[c.name].t.slice(),fov:s[c.name].fov});}catch(e){}
 const camAng=c=>{const d=[c.t[0]-c.p[0],c.t[1]-c.p[1],c.t[2]-c.p[2]],l=Math.hypot(...d)||1;return{yaw:Math.atan2(d[0],d[2]),pitch:Math.asin(clamp(d[1]/l,-1,1))};};
 function camSetAng(c,yaw,pitch){pitch=clamp(pitch,-1.5,.6);c.t=[c.p[0]+Math.sin(yaw)*Math.cos(pitch)*5,c.p[1]+Math.sin(pitch)*5,c.p[2]+Math.cos(yaw)*Math.cos(pitch)*5];}
-const ceSel=$('#ceSel'),ceIn={};
-CAMS.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name;ceSel.appendChild(o);});
 function slider(parent,label,mn,mx,st,onInput){const l=document.createElement('label');l.innerHTML=`<span>${label}</span><input type="range" min="${mn}" max="${mx}" step="${st}"><output></output>`;
   const inp=l.querySelector('input');inp.addEventListener('pointerdown',pushUndo);inp.addEventListener('keydown',e=>{if(!e.repeat&&/Arrow|Page|Home|End/.test(e.key))pushUndo();});
   inp.addEventListener('input',()=>onInput(+inp.value));parent.appendChild(l);return{inp,out:l.querySelector('output')};}
@@ -726,7 +770,7 @@ function editMove(dt){const c=CAMS[sel].ref,a=camAng(c),sp=(EK.ShiftLeft||EK.Shi
 // ---- 물건 (화면에서 바로 클릭) ----
 let oSel=null;const oBox=new THREE.BoxHelper(new THREE.Object3D(),0xffd27f);oBox.visible=false;S.add(oBox);
 function objSel(o){oSel=o;if(o){oBox.setFromObject(o.g);$('#chipName').textContent=o.name.split('/').pop();$('#objName').textContent=o.name;}else $('#objName').textContent='(없음 — 화면에서 가구를 클릭하세요)';oBox.visible=oEditing&&!!o;}
-function objReset(o){o.g.position.set(...o.def.p);o.g.rotation.y=0;o.g.scale.set(1,1,1);}
+function objReset(o){o.g.position.set(...o.def.p);o.g.rotation.y=(o.def.ry||0)*D2R;o.g.scale.set(...(o.def.s||[1,1,1]));}
 function screenAxes(){const f=new THREE.Vector3();cam.getWorldDirection(f);f.y=0;f.normalize();const r=new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,0);r.y=0;r.normalize();return{f,r};}
 // 물건 도구: 고른 물건 회전(Z/X)·높이(R/F). W/A/S/D/Q/E는 자유 카메라 이동에 쓴다
 function objMove(dt){if(!oSel)return;const g=oSel.g,fast=EK.ShiftLeft||EK.ShiftRight?3:1;
@@ -754,29 +798,32 @@ function pickObj(e){const rc=$('#game').getBoundingClientRect(),nd=new THREE.Vec
   for(const h of hits){let n=h.object;while(n&&!OBJS.some(o=>o.g===n))n=n.parent;if(n)return OBJS.find(o=>o.g===n);}return null;}
 
 // ---- 톤 (화면 효과 + 밝기) ----
-const TONE_DEF={levels:8,dither:.55,sat:.9,ink:.85,inkTh:.16,grain:.02,vig:.3,grad:0,g0:'#1f0f0d',g1:'#9e5242',g2:'#f2dbb8',bright:1};
+const TONE_DEF={levels:15,dither:.56,sat:1.05,ink:.52,inkTh:.43,grain:.15,vig:.52,grad:0,g0:'#1f0f0d',g1:'#9e5242',g2:'#f2dbb8',bright:.85,dlgSize:3.1}; // 2026-10-21 직접 조정한 톤 // dlgSize: 대사 글자 크기 (화면 폭의 %)
 const TONE=Object.assign({},TONE_DEF),TONE_LS='sp11_tone_v1';
 try{Object.assign(TONE,JSON.parse(localStorage.getItem(TONE_LS)||'{}'));}catch(e){}
 const LIGHTS=[];S.traverse(o=>{if(o.isLight)LIGHTS.push([o,o.intensity]);});
 let gradPreview=null; // 플레이 중 G키 미리보기
 function applyTone(){const u=post.uniforms;u.levels.value=TONE.levels;u.dither.value=TONE.dither;u.sat.value=TONE.sat;u.ink.value=TONE.ink;u.inkTh.value=TONE.inkTh;
   u.grain.value=TONE.grain;u.vig.value=TONE.vig;u.grad.value=gradPreview??TONE.grad;u.g0.value.set(TONE.g0);u.g1.value.set(TONE.g1);u.g2.value.set(TONE.g2);
-  for(const[l,b]of LIGHTS)l.intensity=b*TONE.bright;}
+  for(const[l,b]of LIGHTS)l.intensity=b*TONE.bright;
+  $('#dlg').style.fontSize=TONE.dlgSize+'cqw';$('#who').style.fontSize=(TONE.dlgSize*.68)+'cqw';}
 const toneIn={};
 for(const[k,label,mn,mx,st]of[['bright','전체 밝기',.3,2,.01],['levels','색 수 (적을수록 포스터처럼)',2,24,1],['dither','점묘(디더링) 세기',0,1.5,.01],['sat','채도',0,1.5,.01],
   ['ink','잉크선 진하기',0,1,.01],['inkTh','잉크선 기준 (낮을수록 선 많음)',.02,.6,.01],['grain','종이 질감',0,.15,.005],['vig','가장자리 어둡게',0,1,.01],['grad','공포 톤 (색조 덧씌우기)',0,1,.01]])
   toneIn[k]=slider($('#toneSliders'),label,mn,mx,st,v=>{TONE[k]=v;changed();});
 for(const[k,label]of[['g0','공포 톤: 어두운 색'],['g1','중간 색'],['g2','밝은 색']]){const l=document.createElement('label');l.className='clr';l.innerHTML=`<span>${label}</span><input type="color">`;
   const inp=l.querySelector('input');inp.addEventListener('pointerdown',pushUndo);inp.addEventListener('input',()=>{TONE[k]=inp.value;changed();});$('#toneColors').appendChild(l);toneIn[k]={inp,out:null};}
-function toneSync(){for(const k in toneIn){const{inp,out}=toneIn[k];if(document.activeElement!==inp)inp.value=TONE[k];if(out)out.textContent=k==='levels'?TONE[k]:(+TONE[k]).toFixed(2);}}
+toneIn.dlgSize=slider($('#txSize'),'대사 글자 크기',1.8,5.5,.05,v=>{TONE.dlgSize=v;changed();}); // 텍스트 도구 패널에 있음
+function toneSync(){for(const k in toneIn){const{inp,out}=toneIn[k];if(document.activeElement!==inp)inp.value=TONE[k];if(out)out.textContent=k==='levels'?TONE[k]:k==='dlgSize'?Math.round(TONE[k]/3.1*100)+'%':(+TONE[k]).toFixed(2);}}
 $('#toneReset').addEventListener('click',()=>{pushUndo();Object.assign(TONE,TONE_DEF);changed();});
 
 // ---- 되돌리기 (Ctrl+Z) / 다시 실행 (Ctrl+Y) ----
 const UNDO=[],REDO=[];
 function snapState(){return{o:OBJS.map(o=>[o.g.position.x,o.g.position.y,o.g.position.z,o.g.rotation.y,o.g.scale.x,o.g.scale.y,o.g.scale.z]),
-  c:CAMS.map(c=>({p:c.ref.p.slice(),t:c.ref.t.slice(),fov:c.ref.fov})),t:Object.assign({},TONE),s:spots.map(x=>x.r)};}
+  z:ZONES.map(zoneSer),c:{corner:jcopy(SH.corner),anchor:jcopy(SH.anchor),clock:jcopy(SH.clock)},t:Object.assign({},TONE),s:spotSnap()};}
 function applyState(s){OBJS.forEach((o,i)=>{const v=s.o[i];o.g.position.set(v[0],v[1],v[2]);o.g.rotation.y=v[3];o.g.scale.set(v[4],v[5],v[6]);});
-  CAMS.forEach((c,i)=>Object.assign(c.ref,{p:s.c[i].p.slice(),t:s.c[i].t.slice(),fov:s.c[i].fov}));Object.assign(TONE,s.t);if(s.s)spots.forEach((x,i)=>x.r=s.s[i]);changed();}
+  setZones(s.z);if(zSel)zSel=ZONES.find(z=>z.name===zSel.name)||null;for(const k in s.c)Object.assign(SH[k],jcopy(s.c[k]));
+  Object.assign(TONE,s.t);spotApply(s.s);changed();}
 function pushUndo(){UNDO.push(snapState());if(UNDO.length>200)UNDO.shift();REDO.length=0;}
 let lastWheel=0;function wheelUndo(){const now=performance.now();if(now-lastWheel>500)pushUndo();lastWheel=now;} // 휠을 연달아 굴린 건 한 번으로
 function undo(){if(!UNDO.length){toast('더 되돌릴 게 없어요');return;}REDO.push(snapState());applyState(UNDO.pop());toast(`되돌림 (남은 단계 ${UNDO.length})`);}
@@ -787,29 +834,89 @@ let savedSnap=null;
 function isDirty(){return JSON.stringify(snapState())!==JSON.stringify(savedSnap);}
 function saveAll(){try{const c={};for(const x of CAMS)c[x.name]={p:x.ref.p,t:x.ref.t,fov:x.ref.fov};localStorage.setItem(CAM_LS,JSON.stringify(c));
     const o={};for(const x of OBJS){const g=x.g;o[x.name]={p:[g.position.x,g.position.y,g.position.z],ry:g.rotation.y/D2R,s:[g.scale.x,g.scale.y,g.scale.z]};}localStorage.setItem(OBJ_LS,JSON.stringify(o));
-    localStorage.setItem(TONE_LS,JSON.stringify(TONE));const sr={};for(const x of spots)sr[x.id]=x.r;localStorage.setItem(SPOT_LS,JSON.stringify(sr));}catch(e){toast('이 창에서는 저장이 막혀 있어요 (일반 브라우저로 열어 주세요)',2600);}
+    localStorage.setItem(TONE_LS,JSON.stringify(TONE));const sr={};for(const x of spots)sr[x.id]=x.r;localStorage.setItem(SPOT_LS,JSON.stringify(sr));
+    localStorage.setItem(ZONE_LS,JSON.stringify(ZONES.map(zoneSer)));saveTexts();}catch(e){toast('이 창에서는 저장이 막혀 있어요 (일반 브라우저로 열어 주세요)',2600);}
   savedSnap=snapState();changed();}
 function exportText(){const L=['[카메라]',...CAMS.map(c=>`${c.name}: p:[${c.ref.p.map(r2)}], t:[${c.ref.t.map(r2)}], fov:${Math.round(c.ref.fov)}`)];
-  const ch=OBJS.filter(o=>{const g=o.g;return Math.abs(g.position.x-o.def.p[0])>.005||Math.abs(g.position.y-o.def.p[1])>.005||Math.abs(g.position.z-o.def.p[2])>.005||Math.abs(g.rotation.y)>.001||Math.abs(g.scale.x-1)>.005||Math.abs(g.scale.y-1)>.005||Math.abs(g.scale.z-1)>.005;});
+  const ch=OBJS.filter(o=>{const g=o.g;return Math.abs(g.position.x-o.def.p[0])>.005||Math.abs(g.position.y-o.def.p[1])>.005||Math.abs(g.position.z-o.def.p[2])>.005||Math.abs(g.rotation.y-(o.def.ry||0)*D2R)>.001||Math.abs(g.scale.x-o.def.s[0])>.005||Math.abs(g.scale.y-o.def.s[1])>.005||Math.abs(g.scale.z-o.def.s[2])>.005;});
   L.push('[물건]',...(ch.length?ch.map(o=>{const g=o.g;return `${o.name}: p:[${[g.position.x,g.position.y,g.position.z].map(r2)}], ry:${Math.round(g.rotation.y/D2R)}, s:[${[g.scale.x,g.scale.y,g.scale.z].map(r2)}]`;}):['(바뀐 물건 없음)']));
   L.push('[톤]',Object.entries(TONE).map(([k,v])=>`${k}:${typeof v==='number'?r2(v):v}`).join(', '));
   const sc=spots.filter(x=>Math.abs(x.r-x.r0)>.005);
-  L.push('[조사 범위 (반지름 m)]',...(sc.length?sc.map(x=>`${spotLabel(x)}: ${r2(x.r)} (원래 ${x.r0})`):['(바뀐 범위 없음)']));return L.join('\n');}
+  L.push('[조사 범위 (반지름 m)]',...(sc.length?sc.map(x=>`${spotLabel(x)}: ${r2(x.r)} (원래 ${x.r0})`):['(바뀐 범위 없음)']));
+  L.push('[카메라 구역]',...ZONES.map(z=>`${z.user?'(추가) ':''}${z.name}: x ${r2(z.x0)}~${r2(z.x1)}, z ${r2(z.z0)}~${r2(z.z1)}, 높이 ${r2(z.ymin)}~${r2(z.ymax)}`));
+  const tc=spots.filter(x=>JSON.stringify(textOf(x)||[])!==JSON.stringify(x.lines0||[])||JSON.stringify(x.secret||null)!==JSON.stringify(x.secret0||null));
+  L.push('[텍스트]',...(tc.length?tc.map(x=>`■ ${spotLabel(x)}\n${linesToText(textOf(x))}${x.secret?'\n(숨은 대사) '+linesToText(x.secret):''}`):['(바뀐 텍스트 없음)']));return L.join('\n');}
 // 무엇이든 바뀌면: 충돌·표시 갱신 (저장은 '저장' 버튼으로)
-function changed(){rebuildSol();if(oSel)oBox.setFromObject(oSel.g);applyTone();camSync();toneSync();spotSync();$('#edOut').value=exportText();
+function changed(){rebuildSol();if(oSel)oBox.setFromObject(oSel.g);applyTone();camSync();toneSync();spotSync();zoneSync();textSync();$('#edOut').value=exportText();
   const d=savedSnap&&isDirty();$('#edDirty').hidden=!d;}
 $('#edSave').addEventListener('click',()=>{saveAll();toast('저장했어요');});
 $('#edPlay').addEventListener('click',()=>{saveAll();setMode('play');toast('저장하고 플레이');});
 $('#edUndo').addEventListener('click',undo);$('#edRedo').addEventListener('click',redo);
 $('#edRevert').addEventListener('click',()=>{pushUndo();applyState(savedSnap);toast('마지막으로 저장한 상태로 되돌렸어요');});
-$('#edResetAll').addEventListener('click',()=>{pushUndo();for(const c of CAMS)Object.assign(c.ref,JSON.parse(JSON.stringify(c.def)));for(const o of OBJS)objReset(o);Object.assign(TONE,TONE_DEF);for(const x of spots)x.r=x.r0;changed();toast('전부 처음값으로 (저장하면 확정)');});
+$('#edResetAll').addEventListener('click',()=>{pushUndo();for(const c of CAMS)Object.assign(c.ref,JSON.parse(JSON.stringify(c.def)));for(const o of OBJS)objReset(o);Object.assign(TONE,TONE_DEF);for(const x of spots){x.r=x.r0;setText(x,jcopy(x.lines0||[]));if(x.secret0)x.secret=jcopy(x.secret0);}
+  setZones(ZONES_DEF);zSel=null;for(const k in SH_DEF)Object.assign(SH[k],jcopy(SH_DEF[k]));changed();toast('전부 처음값으로 (저장하면 확정)');});
 $('#edExport').addEventListener('click',async()=>{const t=$('#edOut');t.value=exportText();t.select();let ok=false;
   try{await navigator.clipboard.writeText(t.value);ok=true;}catch(e){try{ok=document.execCommand('copy');}catch(e2){}}
   $('#edMsg').textContent=ok?'복사했어요. 채팅에 붙여 주시면 파일에 확정할게요.':'아래 칸을 직접 복사해 주세요 (Ctrl+C).';});
 
+// ---- 카메라 구역 도구 (V): 카메라가 바뀌는 범위를 바닥 위 사각형으로 보여 주고 추가·이동·크기 조절 ----
+let zSel=null;
+const zoneVis=new THREE.Group();zoneVis.visible=false;S.add(zoneVis);
+const LEVELS={2:{ymin:-1,ymax:2},1:{ymin:-4,ymax:.05},s:{ymin:Y1+.03,ymax:.05}};
+const zLevelKey=z=>z.ymax>1?'2':(z.ymin>Y1+.01&&z.ymin<-.5?'s':'1');
+const zFloorY=z=>({2:0,1:Y1,s:Y1/2})[zLevelKey(z)];
+function labelTex(text,on){const c=document.createElement('canvas');c.width=256;c.height=48;const g=c.getContext('2d');
+  g.fillStyle=on?'rgba(255,210,127,.95)':'rgba(20,16,16,.85)';g.fillRect(0,0,256,48);g.fillStyle=on?'#141010':'#efe3cf';
+  g.font='bold 24px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(text,128,25);return new THREE.CanvasTexture(c);}
+function rebuildZoneVis(){
+  for(const c of[...zoneVis.children]){zoneVis.remove(c);c.traverse(o=>{if(o.material){if(o.material.map)o.material.map.dispose();o.material.dispose();}if(o.geometry)o.geometry.dispose();});}
+  if(!zEditing)return;
+  ZONES.forEach((z,i)=>{const on=z===zSel,col=new THREE.Color().setHSL((i*.17)%1,.55,.6),w=Math.max(z.x1-z.x0,.05),d=Math.max(z.z1-z.z0,.05),y=zFloorY(z)+.05+i*.003;
+    const g=new THREE.Group();
+    const rect=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshBasicMaterial({color:on?0xffd27f:col,transparent:true,opacity:on?.38:.2,depthWrite:false,side:THREE.DoubleSide}));
+    rect.rotation.x=-Math.PI/2;rect.position.set((z.x0+z.x1)/2,y,(z.z0+z.z1)/2);rect.userData.zone=z;
+    const edge=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w,.001,d)),new THREE.LineBasicMaterial({color:on?0xffd27f:col}));edge.position.copy(rect.position);
+    const lab=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTex(z.name,on),depthTest:false}));lab.position.set(rect.position.x,y+.5,rect.position.z);lab.scale.set(1.8,.34,1);
+    g.add(rect,edge,lab);
+    if(on){const c=z.cam||SH.corner,m=new THREE.Mesh(new THREE.ConeGeometry(.14,.34,8),new THREE.MeshBasicMaterial({color:0xffd27f}));
+      m.position.set(...c.p);m.lookAt(...c.t);m.rotateX(Math.PI/2);g.add(m);} // 고른 구역의 카메라 위치 (뾰족한 쪽이 보는 방향)
+    zoneVis.add(g);});}
+function pickZone(e){const rc=$('#game').getBoundingClientRect(),nd=new THREE.Vector2((e.clientX-rc.left)/rc.width*2-1,-((e.clientY-rc.top)/rc.height)*2+1);
+  zoneVis.updateMatrixWorld(true);ray.setFromCamera(nd,cam);let best=null,ba=1e9;
+  for(const h of ray.intersectObjects(zoneVis.children.map(g=>g.children[0]),false)){const z=h.object.userData.zone,a=(z.x1-z.x0)*(z.z1-z.z0);if(a<ba){ba=a;best=z;}} // 겹치면 작은 구역 우선
+  return best;}
+const znIn={};
+for(const[k,label,mn,mx]of[['x0','서쪽 끝 (x)',-6,22],['x1','동쪽 끝 (x)',-6,22],['z0','남쪽 끝 (z)',-20,8],['z1','북쪽 끝 (z)',-20,8]])
+  znIn[k]=slider($('#znSliders'),label,mn,mx,.05,v=>{if(!zSel)return;zSel[k]=v;
+    if(zSel.x1-zSel.x0<.3){if(k==='x0')zSel.x1=v+.3;else zSel.x0=v-.3;}if(zSel.z1-zSel.z0<.3){if(k==='z0')zSel.z1=v+.3;else zSel.z0=v-.3;}zoneChanged();});
+function zoneSel(z){zSel=z;rebuildZoneVis();zoneSync();}
+function zoneSync(){const s=$('#znSel'),names=ZONES.map(z=>z.name);
+  if(s.options.length!==names.length||[...s.options].some((o,i)=>o.textContent!==names[i])){s.innerHTML='<option value="-1">(구역 고르기)</option>';ZONES.forEach((z,i)=>{const o=document.createElement('option');o.value=i;o.textContent=z.name;s.appendChild(o);});}
+  s.value=zSel?ZONES.indexOf(zSel):-1;const has=!!zSel;
+  for(const k in znIn){znIn[k].inp.disabled=!has;if(has){if(document.activeElement!==znIn[k].inp)znIn[k].inp.value=zSel[k];znIn[k].out.textContent=r2(zSel[k]).toFixed(2);}else znIn[k].out.textContent='';}
+  $('#znName').disabled=!has||!zSel.user;if(document.activeElement!==$('#znName'))$('#znName').value=has?zSel.name:'';
+  $('#znLevel').disabled=!has;if(has)$('#znLevel').value=zLevelKey(zSel);
+  $('#znDel').disabled=!has||!zSel.user;$('#znReset').disabled=!has||!!zSel.user;$('#znCamSet').disabled=$('#znCamGo').disabled=!has;}
+function zoneChanged(){zoneNow=null;lastShot=null;rebuildZoneVis();changed();}
+$('#znSel').addEventListener('change',()=>zoneSel(ZONES[+$('#znSel').value]||null));
+$('#znAdd').addEventListener('click',()=>{pushUndo();const d=new THREE.Vector3();cam.getWorldDirection(d);
+  const fy=FLY.p[1]>-.6?0:Y1,t=d.y<-.05?Math.min((fy-FLY.p[1])/d.y,12):5,px=FLY.p[0]+d.x*t,pz=FLY.p[2]+d.z*t; // 지금 보고 있는 바닥 지점에 3×3m
+  let n=1;while(ZONES.some(z=>z.name==='새 구역 '+n))n++;
+  const z=Object.assign({name:'새 구역 '+n,x0:r2(px-1.5),x1:r2(px+1.5),z0:r2(pz-1.5),z1:r2(pz+1.5),cam:jcopy(FLY),label:null,user:true},fy===0?LEVELS[2]:LEVELS[1]);
+  z.camDef=jcopy(z.cam);ZONES.unshift(z);zSel=z;rebuildCams();zoneChanged();toast('새 구역 추가 — 지금 보던 화면이 이 구역 카메라예요');});
+$('#znDel').addEventListener('click',()=>{if(!zSel||!zSel.user)return;pushUndo();ZONES.splice(ZONES.indexOf(zSel),1);zSel=null;rebuildCams();zoneChanged();});
+$('#znName').addEventListener('focus',pushUndo);
+$('#znName').addEventListener('input',()=>{if(!zSel||!zSel.user)return;const v=$('#znName').value.trim();if(!v||ZONES.some(z=>z!==zSel&&z.name===v))return;zSel.name=v;rebuildCams();zoneChanged();});
+$('#znLevel').addEventListener('change',()=>{if(!zSel)return;pushUndo();Object.assign(zSel,LEVELS[$('#znLevel').value]);zoneChanged();});
+$('#znCamSet').addEventListener('click',()=>{if(!zSel)return;pushUndo();if(zSel.cam)Object.assign(zSel.cam,jcopy(FLY));else Object.assign(SH.corner,jcopy(FLY));zoneChanged();toast('지금 화면을 이 구역 카메라로 정했어요');});
+$('#znCamGo').addEventListener('click',()=>{if(zSel)flyFrom(zSel.cam||SH.corner);});
+$('#znReset').addEventListener('click',()=>{if(!zSel||zSel.user)return;const d=ZONES_DEF.find(x=>x.name===zSel.name);if(!d)return;pushUndo();
+  Object.assign(zSel,{x0:d.x0,x1:d.x1,z0:d.z0,z1:d.z1,ymin:d.ymin,ymax:d.ymax});if(zSel.cam&&d.cam)Object.assign(zSel.cam,jcopy(d.cam));zoneChanged();});
+
 // ---- 모드 / 도구 전환 ----
-function setTool(t){const wasFly=oEditing||sEditing;tool=t;editing=mode==='edit'&&t==='cam';oEditing=mode==='edit'&&t==='obj';sEditing=mode==='edit'&&t==='spot';
-  if((oEditing||sEditing)&&!wasFly)flyFromCam(); // 물건·조사 도구로 들어오면 지금 보던 화면에서 자유 카메라 시작
+function setTool(t){const wasFly=flyTool();tool=t;const ed=mode==='edit';editing=ed&&t==='cam';oEditing=ed&&t==='obj';sEditing=ed&&t==='spot';zEditing=ed&&t==='zone';nEditing=ed&&t==='text';
+  if(flyTool()&&!wasFly)flyFromCam(); // 자유 카메라 도구로 들어오면 지금 보던 화면에서 시작
+  zoneVis.visible=zEditing;if(zEditing)rebuildZoneVis();
   document.querySelectorAll('.edbar [data-tool]').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));
   document.querySelectorAll('#edPanel .tool').forEach(p=>p.hidden=p.dataset.tool!==t);
   if(editing){const cur=override||(curZone()&&(curZone().cam||SH.corner))||SH.corner;const i=CAMS.findIndex(c=>c.ref===cur);if(i>=0)sel=i;camSync();}
@@ -832,28 +939,34 @@ scrEl.addEventListener('pointerdown',e=>{if(mode!=='edit'||onUI(e))return;
   else if(oEditing){const o=pickObj(e);
     drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:o&&o===oSel?'obj':'fly',moved:0,pick:o,undone:false};
     try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}
-  else if(sEditing){drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'fly',moved:0,pick:pickSpot(e)};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}}); // 조사 도구: 클릭 = 범위 고르기, 끌기 = 둘러보기
+  else if(sEditing){drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'fly',moved:0,pick:pickSpot(e)};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}} // 조사 도구: 클릭 = 범위 고르기, 끌기 = 둘러보기
+  else if(zEditing){const z=pickZone(e); // 구역 도구: 클릭 = 고르기, 고른 구역 위에서 끌기 = 옮기기, 그 외 끌기 = 둘러보기
+    drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:z&&z===zSel?'zone':'fly',moved:0,pick:z,undone:false};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}
+  else if(nEditing){drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'fly',moved:0,pick:pickTextTarget(e)};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}}); // 텍스트 도구: 클릭 = 대상 고르기
 scrEl.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
   if(drag.k==='cam'){const c=CAMS[sel].ref,a=camAng(c);camSetAng(c,a.yaw-dx*.005,a.pitch-dy*.005);changed();return;}
   drag.moved+=Math.abs(dx)+Math.abs(dy);if(drag.moved<4)return; // 살짝 흔들린 건 클릭으로 본다
   if(drag.k==='fly'){const a=camAng(FLY);camSetAng(FLY,a.yaw-dx*.005,a.pitch-dy*.005);}
+  else if(drag.k==='zone'&&zSel){if(!drag.undone){pushUndo();drag.undone=true;}
+    const{f,r}=screenAxes(),k=.02,mx=(r.x*dx-f.x*dy)*k,mz=(r.z*dx-f.z*dy)*k;zSel.x0+=mx;zSel.x1+=mx;zSel.z0+=mz;zSel.z1+=mz;zoneChanged();}
   else if(oSel){if(!drag.undone){pushUndo();drag.undone=true;} // 실제로 옮기기 시작할 때만 되돌리기 한 단계
     const{f,r}=screenAxes(),k=.012;oSel.g.position.x+=(r.x*dx-f.x*dy)*k;oSel.g.position.z+=(r.z*dx-f.z*dy)*k;changed();}});
 ['pointerup','pointercancel'].forEach(ev=>scrEl.addEventListener(ev,e=>{if(!drag||e.pointerId!==drag.id)return;
-  if(ev==='pointerup'&&drag.k!=='cam'&&drag.moved<4){if(sEditing)spotSel(drag.pick);else objSel(drag.pick);} // 클릭 = 고르기 (빈 곳이면 해제)
+  if(ev==='pointerup'&&drag.k!=='cam'&&drag.moved<4){ // 클릭 = 고르기 (빈 곳이면 해제)
+    if(sEditing)spotSel(drag.pick);else if(zEditing)zoneSel(drag.pick);else if(nEditing)textSel(drag.pick);else objSel(drag.pick);}
   drag=null;}));
 scrEl.addEventListener('wheel',e=>{if(mode!=='edit'||onUI(e))return;
   if(editing){e.preventDefault();wheelUndo();const c=CAMS[sel].ref;c.fov=clamp(c.fov*Math.exp(e.deltaY*.0006),20,110);changed();}
   else if(oEditing&&oSel){e.preventDefault();wheelUndo();oSel.g.scale.multiplyScalar(Math.exp(-e.deltaY*.0006));changed();}
   else if(sEditing&&sSel){e.preventDefault();wheelUndo();sSel.r=clamp(sSel.r*Math.exp(-e.deltaY*.0008),.2,4);changed();} // 조사 범위 크기
-  else if(oEditing||sEditing){e.preventDefault();const a=camAng(FLY),s=-e.deltaY*.004,d=[Math.sin(a.yaw)*Math.cos(a.pitch)*s,Math.sin(a.pitch)*s,Math.cos(a.yaw)*Math.cos(a.pitch)*s];for(let i=0;i<3;i++){FLY.p[i]+=d[i];FLY.t[i]+=d[i];}}},{passive:false});
+  else if(flyTool()){e.preventDefault();const a=camAng(FLY),s=-e.deltaY*.004,d=[Math.sin(a.yaw)*Math.cos(a.pitch)*s,Math.sin(a.pitch)*s,Math.cos(a.yaw)*Math.cos(a.pitch)*s];for(let i=0;i<3;i++){FLY.p[i]+=d[i];FLY.t[i]+=d[i];}}},{passive:false});
 
 /* ================= 숫자키로 구역 이동 (플레이·편집 둘 다) ================= */
 const JUMPS=[{x:-3.1,y:0,z:2.4},{x:6,y:0,z:1},{x:14.5,y:0,z:1.5},{x:13,y:Y1,z:-9.5},{x:3,y:Y1,z:-8},{x:9,y:Y1,z:-13.3},{x:17,y:Y1,z:-13.3}]; // 1 소희방 … 7 손님방
 function jumpTo(i){
   const n=['소희의 방','2층 복도','2층 로비','거실','서재','식당','손님방'][i],k=CAMS.findIndex(c=>c.name===n);
   if(editing){if(k>=0){sel=k;camSync();}return;}            // 카메라 도구: 그 카메라 고르기
-  if(oEditing||sEditing){if(k>=0)flyFrom(CAMS[k].ref);return;} // 물건·조사 도구: 자유 카메라를 그 구역 카메라 자리로
+  if(flyTool()){if(k>=0)flyFrom(CAMS[k].ref);return;} // 자유 카메라 도구: 그 구역 카메라 자리로
   if(!started)return;if(seq)skipSeq();if(dlg){dlg=null;$('#dlg').hidden=true;control=true;}
   override=null;const j=JUMPS[i];Object.assign(P,{x:j.x,z:j.z,fy:j.y,y:j.y});}
 
@@ -897,7 +1010,18 @@ $('#mute').addEventListener('click',()=>{muted=!muted;if(master)master.gain.valu
 
 /* ================= 대사 ================= */
 let dlg=null; // {lines:[{who,t}], i, n, onClose}
-function say(lines,onClose){dlg={lines,i:0,n:0,onClose};$('#dlg').hidden=false;}
+// 대사창 높이를 넘는 긴 대사는 여러 장으로 자동으로 나눈다 (글자 크기에 맞춰 실제로 재 본다)
+function paginate(lines){const box=$('#dlg'),txt=$('#dlgText'),who=$('#who'),wasHidden=box.hidden,vis=box.style.visibility,out=[];
+  box.hidden=false;box.style.visibility='hidden';const fits=()=>box.scrollHeight<=box.clientHeight+1;
+  for(const L of lines){who.textContent=L.who||'';who.hidden=!L.who;let rest=String(L.t||'').trim();
+    while(rest){txt.textContent=rest;if(fits()){out.push(Object.assign({},L,{t:rest}));break;}
+      let lo=1,hi=rest.length-1;while(lo<hi){const m=(lo+hi+1)>>1;txt.textContent=rest.slice(0,m);if(fits())lo=m;else hi=m-1;}
+      let cut=lo;const sp=Math.max(rest.lastIndexOf(' ',cut),rest.lastIndexOf('\n',cut));if(sp>cut*.5)cut=sp; // 가능하면 띄어쓰기에서 자르기
+      out.push(Object.assign({},L,{t:rest.slice(0,cut).trim()}));rest=rest.slice(cut).trim();}}
+  txt.textContent='';box.style.visibility=vis;box.hidden=wasHidden;return out;}
+function say(lines,onClose){const pages=paginate(lines||[]);if(!pages.length){if(onClose)onClose();return;}
+  dlg={lines:pages,i:0,n:0,onClose};$('#dlg').hidden=false;}
+$('#dlg').addEventListener('click',e=>{e.stopPropagation();if(dlg)advance();}); // 대사창 클릭으로도 넘기기
 function advance(){if(!dlg)return;const L=dlg.lines[dlg.i];
   if(dlg.n<L.t.length){dlg.n=L.t.length;return;}
   if(dlg.i<dlg.lines.length-1){dlg.i++;dlg.n=0;return;}
@@ -919,31 +1043,77 @@ const spots=[
 ];
 for(const d of DOORS)spots.push({id:'door_'+d.name,kind:'door',door:d,x:d.cx,y:d.y,z:d.cz,r:1.3,seen:0}); // 문은 조금 멀리서도 열리게
 // 가구에 붙은 조사 지점은 가구를 옮기면 같이 따라간다
-for(const s of spots)if(s.obj){s.o=OBJS.find(o=>o.name===s.obj);if(s.o)s.off=[s.x-s.o.def.p[0],s.z-s.o.def.p[2]];}
+for(const s of spots)if(s.obj){s.o=OBJS.find(o=>o.name===s.obj);if(s.o)s.off=[s.x-s.o.orig[0],s.z-s.o.orig[2]];}
 const spotXZ=s=>s.o?[s.o.g.position.x+s.off[0],s.o.g.position.z+s.off[1]]:[s.x,s.z];
 const bedroomSpots=spots.filter(s=>s.group==='bedroom');
 const allSeen=()=>bedroomSpots.every(s=>s.seen>0);
-function nearSpot(){let best=null,bd=1e9;for(const s of spots){if(s.kind==='door'&&s.door.target>0)continue;if(Math.abs(s.y-P.fy)>1)continue;const[sx,sz]=spotXZ(s);
+// ---- 텍스트: 조사 지점마다 대사. 문은 문의 대사, 가구는 '가구 텍스트 지점'(kind:'text')을 만들어 붙인다 ----
+let spotVisReady=false; // 범위 원 표시가 준비되기 전에 만든 지점은 나중에 한꺼번에 표시
+const textOf=s=>s.kind==='door'?s.door.lines:s.lines;
+function setText(s,ls){if(s.kind==='door')s.door.lines=ls;else s.lines=ls;}
+const hasText=s=>{const t=textOf(s);return!!(t&&t.length);};
+const linesToText=ls=>(ls||[]).map(l=>(l.who?l.who+': ':'')+l.t).join('\n\n');
+// 빈 줄 = 다음 대사창. "이름: 대사" (콜론 뒤 띄어쓰기)면 말하는 사람. 원래 줄의 말 속도(speed)는 같은 순서면 유지
+function textToLines(str,old){return str.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean).map((p,i)=>{
+  const m=p.match(/^([^\s\d\n:：“"'(][^\n:：]{0,11})[:：]\s([\s\S]+)$/),L=m?{who:m[1].trim(),t:m[2].trim()}:{t:p};
+  if(old&&old[i]&&old[i].speed)L.speed=old[i].speed;return L;});}
+for(const s of spots){s.lines0=jcopy(textOf(s)||[]);if(s.secret)s.secret0=jcopy(s.secret);}
+// 대사가 없던 가구에 대사를 쓰면 그 가구에 조사 지점을 만든다 (가구를 따라 움직임)
+function objSpot(o,create){let s=spots.find(x=>x.o===o);if(s||!create)return s||null;
+  const bb=new THREE.Box3().setFromObject(o.g),rr=r2(Math.max(bb.max.x-bb.min.x,bb.max.z-bb.min.z)/2+.7); // 범위 = 가구 크기의 절반 + 0.7m
+  s={id:'obj:'+o.name,kind:'text',obj:o.name,o,off:[0,0],x:o.def.p[0],z:o.def.p[2],y:o.def.p[1]>-1.5?0:Y1,r:rr,r0:rr,seen:0,lines:[],lines0:[]};
+  spots.push(s);if(spotVisReady)makeSpotVis(s);return s;}
+const TEXT_LS='sp11_texts_v1';
+try{const tv=JSON.parse(localStorage.getItem(TEXT_LS)||'null');
+  if(tv){for(const n of tv.objSpots||[]){const o=OBJS.find(x=>x.name===n);if(o)objSpot(o,true);}
+    for(const s of spots){const v=tv.texts&&tv.texts[s.id];if(!v)continue;setText(s,v.l||[]);if(v.sec&&s.secret)s.secret=v.sec;}}}catch(e){}
+function saveTexts(){const texts={};for(const s of spots)texts[s.id]={l:textOf(s)||[],sec:s.secret||null};
+  localStorage.setItem(TEXT_LS,JSON.stringify({texts,objSpots:spots.filter(s=>s.kind==='text').map(s=>s.obj)}));}
+function spotSnap(){return spots.map(s=>({id:s.id,r:s.r,l:jcopy(textOf(s)||[]),sec:s.secret?jcopy(s.secret):null,obj:s.kind==='text'?s.obj:null}));}
+function spotApply(arr){if(!arr)return;const ids=new Set(arr.map(e=>e.id));
+  for(const e of arr){let s=spots.find(x=>x.id===e.id);if(!s&&e.obj){const o=OBJS.find(x=>x.name===e.obj);if(o)s=objSpot(o,true);}if(!s)continue;
+    s.r=e.r;setText(s,jcopy(e.l));if(e.sec&&s.secret)s.secret=jcopy(e.sec);}
+  for(const s of spots)if(!ids.has(s.id)&&s.kind==='text')setText(s,[]);} // 그 뒤에 만든 가구 텍스트는 비움
+function nearSpot(){let best=null,bd=1e9;for(const s of spots){if(s.kind==='door'&&s.door.target>0)continue;if(s.kind==='text'&&!hasText(s))continue;if(Math.abs(s.y-P.fy)>1)continue;const[sx,sz]=spotXZ(s);
   const d=Math.hypot(sx-P.x,sz-P.z);if(d<s.r&&d<bd){bd=d;best=s;}}return best;}
 /* ---- 편집 모드: 조사 범위 도구 (I) — 상호작용 범위를 바닥 위 원으로 보여 주고, 클릭해서 고른 뒤 휠/슬라이더로 반지름 조절 ---- */
 const SPOT_LS='sp11_spots_v1';
-const SPOT_NAMES={clock:'알람시계',window:'창문',wardrobe:'옷장',mirror:'거울',door_bedroom:'소희 방문',door_hallA:'복도 문 A',door_hallB:'복도 문 B',door_study:'서재 문',door_dining:'식당 문',door_guest:'손님방 문'};
-const spotLabel=s=>SPOT_NAMES[s.id]||s.id;
+const SPOT_NAMES={clock:'알람시계',window:'창문',wardrobe:'옷장',mirror:'거울',door_bedroom:'소희 방문',door_hallA:'복도 문 A',door_hallB:'복도 문 B',door_study:'서재 문',door_dining:'식당 문',door_guest:'손님방 문',door_front:'현관문'};
+const spotLabel=s=>SPOT_NAMES[s.id]||(s.kind==='text'?s.obj:s.id);
+for(const[id,r]of[['door_bedroom',.8],['door_hallA',.7],['door_hallB',.65]]){const s=spots.find(x=>x.id===id);if(s)s.r=r;} // 2026-10-21 직접 조정한 범위
 for(const s of spots)s.r0=s.r;
 try{const sv=JSON.parse(localStorage.getItem(SPOT_LS)||'{}');for(const s of spots)if(sv[s.id])s.r=sv[s.id];}catch(e){}
 const spotVis=new THREE.Group();spotVis.visible=false;S.add(spotVis);
 const SPOT_COL=0xb98f8a,SPOT_SEL=0xffd27f;
-for(const s of spots){const g=new THREE.Group();
+function makeSpotVis(s){const g=new THREE.Group();
   const disc=new THREE.Mesh(new THREE.CircleGeometry(1,40),new THREE.MeshBasicMaterial({color:SPOT_COL,transparent:true,opacity:.28,depthWrite:false}));
   const ring=new THREE.Mesh(new THREE.RingGeometry(.96,1,48),new THREE.MeshBasicMaterial({color:SPOT_COL,transparent:true,opacity:.95,depthWrite:false}));
   disc.rotation.x=ring.rotation.x=-Math.PI/2;ring.position.y=.002;g.add(disc,ring);disc.userData.spot=s;s.vis={g,disc,ring};spotVis.add(g);}
+for(const s of spots)makeSpotVis(s);spotVisReady=true;
 let sSel=null;
 function spotSel(s){sSel=s;$('#spotName').textContent=s?spotLabel(s):'(없음 — 화면에서 원을 클릭하세요)';spotSync();}
 function spotSync(){const ip=$('#spotR');if(sSel){ip.disabled=false;if(document.activeElement!==ip)ip.value=sSel.r;$('#spotRout').textContent=r2(sSel.r).toFixed(2)+' m';}else{ip.disabled=true;$('#spotRout').textContent='';}}
-function updateSpotVis(){spotVis.visible=sEditing;if(!sEditing)return;
-  for(const s of spots){const[x,z]=spotXZ(s),v=s.vis,c=s===sSel?SPOT_SEL:SPOT_COL;v.g.position.set(x,s.y+.03,z);v.g.scale.set(s.r,1,s.r);v.disc.material.color.setHex(c);v.ring.material.color.setHex(c);}}
+function updateSpotVis(){spotVis.visible=sEditing||nEditing;if(!spotVis.visible)return;
+  const cur=nEditing?(tSel&&tSel.spot):sSel;
+  for(const s of spots){const[x,z]=spotXZ(s),v=s.vis,c=s===cur?SPOT_SEL:SPOT_COL;v.g.visible=s.kind!=='text'||hasText(s)||s===cur; // 대사 없는 가구 지점은 숨김
+    v.g.position.set(x,s.y+.03,z);v.g.scale.set(s.r,1,s.r);v.disc.material.color.setHex(c);v.ring.material.color.setHex(c);}}
 function pickSpot(e){const rc=$('#game').getBoundingClientRect(),nd=new THREE.Vector2((e.clientX-rc.left)/rc.width*2-1,-((e.clientY-rc.top)/rc.height)*2+1);
-  updateSpotVis();spotVis.updateMatrixWorld(true);ray.setFromCamera(nd,cam);const h=ray.intersectObjects(spots.map(s=>s.vis.disc),false)[0];return h?h.object.userData.spot:null;}
+  updateSpotVis();spotVis.updateMatrixWorld(true);ray.setFromCamera(nd,cam);const h=ray.intersectObjects(spots.filter(s=>s.vis.g.visible).map(s=>s.vis.disc),false)[0];return h?h.object.userData.spot:null;}
+
+/* ---- 편집 모드: 텍스트 도구 (N) — 가구나 조사 원을 클릭해서 대사 쓰기·고치기 ---- */
+let tSel=null; // {spot, o}: spot이 없으면 가구만 고른 상태 (대사를 쓰는 순간 지점이 생김)
+function pickTextTarget(e){const s=pickSpot(e);if(s)return{spot:s,o:s.o||null};const o=pickObj(e);if(o)return{spot:objSpot(o,false),o};return null;}
+function textSel(t){tSel=t;if(t&&t.o&&!t.spot)t.spot=objSpot(t.o,false);
+  if(t&&t.o){oSel=t.o;oBox.setFromObject(t.o.g);oBox.visible=true;}else oBox.visible=false;textSync(true);}
+function textSync(force){const s=tSel&&tSel.spot,name=tSel?(s?spotLabel(s):tSel.o.name):'(없음 — 화면에서 가구나 원을 클릭하세요)';$('#txName').textContent=name;
+  const m=$('#txMain'),sec=$('#txSecret');m.disabled=!tSel;$('#txPreview').disabled=!(s&&hasText(s));
+  if(force||document.activeElement!==m)m.value=s?linesToText(textOf(s)):'';
+  $('#txSecretWrap').hidden=!(s&&s.secret);if(s&&s.secret&&(force||document.activeElement!==sec))sec.value=linesToText(s.secret);}
+$('#txMain').addEventListener('focus',pushUndo);$('#txSecret').addEventListener('focus',pushUndo);
+$('#txMain').addEventListener('input',()=>{if(!tSel)return;if(!tSel.spot&&tSel.o)tSel.spot=objSpot(tSel.o,true);const s=tSel.spot;if(!s)return;
+  setText(s,textToLines($('#txMain').value,textOf(s)));changed();});
+$('#txSecret').addEventListener('input',()=>{const s=tSel&&tSel.spot;if(!s||!s.secret)return;s.secret=textToLines($('#txSecret').value,s.secret);changed();});
+$('#txPreview').addEventListener('click',()=>{const s=tSel&&tSel.spot;if(s&&hasText(s))say(textOf(s));}); // 대사창은 클릭으로 넘김
 $('#spotR').addEventListener('pointerdown',pushUndo);$('#spotR').addEventListener('keydown',e=>{if(!e.repeat&&/Arrow|Page|Home|End/.test(e.key))pushUndo();});
 $('#spotR').addEventListener('input',()=>{if(sSel){sSel.r=+$('#spotR').value;changed();}});
 $('#spotReset').addEventListener('click',()=>{if(sSel){pushUndo();sSel.r=sSel.r0;changed();}});
@@ -951,7 +1121,9 @@ $('#spotScaleAll').addEventListener('click',()=>{pushUndo();for(const s of spots
 $('#spotShrinkAll').addEventListener('click',()=>{pushUndo();for(const s of spots)s.r=Math.max(.2,Math.round(s.r/1.2*100)/100);changed();toast('모든 범위 ÷1.2');});
 
 function inspect(s){
-  if(s.kind==='door'){const d=s.door;if(d.locked){say(d.lines);return;}d.target=1;snd.door();return;} // 문 열기
+  if(s.kind==='door'){const d=s.door;if(d.locked){say(d.lines);return;}                           // 잠긴 문: 대사만
+    if(hasText(s)){say(d.lines,()=>{d.target=1;snd.door();});return;}d.target=1;snd.door();return;} // 열리는 문: 대사가 있으면 보여 준 뒤 열기
+  if(s.kind==='text'){s.seen++;say(s.lines);return;}                                              // 가구에 붙인 텍스트
   // 숨은 대사: 4곳을 전부 한 번씩 본 뒤 시계를 다시 조사하면
   const secret=s.secret&&s.seen>0&&allSeen();
   s.seen++;
@@ -974,7 +1146,7 @@ function skipSeq(){if(!seq||skipping)return;skipping=true;snd.skip();ringing=fal
 const fadeEl=$('#fade');const setFade=v=>fadeEl.style.opacity=v;
 const BED={x:-2.95,y:.14,z:3.65,a:Math.PI/2},STAND={x:-3.1,y:0,z:2.4,a:Math.PI};
 function opening(){
-  const bo=OBJS.find(o=>o.name==='소희방/침대'),bx=bo?bo.g.position.x-bo.def.p[0]:0,bz=bo?bo.g.position.z-bo.def.p[2]:0; // 침대를 옮기면 누운 자리도 따라감
+  const bo=OBJS.find(o=>o.name==='소희방/침대'),bx=bo?bo.g.position.x-bo.orig[0]:0,bz=bo?bo.g.position.z-bo.orig[2]:0; // 침대를 옮기면 누운 자리도 따라감
   Object.assign(P,{x:BED.x+bx,y:BED.y,z:BED.z+bz,a:BED.a,tilt:-Math.PI/2,hip:0,armL:-REST,armR:REST});
   duvet.scale.set(1,1,1);duvet.position.set(duvet0.x,duvet0.y,duvet.position.z);
   override=SH.anchor;control=false;$('#hud').classList.add('off');setFade(1);snd.outside(true);
@@ -1011,7 +1183,7 @@ addEventListener('keydown',e=>{
     if(t&&t.tagName==='TEXTAREA')return;e.preventDefault();if(e.code==='KeyY'||e.shiftKey)redo();else undo();return;}
   if(inField)return;
   if(/^Digit[1-7]$/.test(e.code)&&!e.repeat){jumpTo(+e.code.slice(5)-1);return;}
-  const toolKey={KeyC:'cam',KeyO:'obj',KeyT:'tone',KeyI:'spot'}[e.code];
+  const toolKey={KeyC:'cam',KeyO:'obj',KeyT:'tone',KeyI:'spot',KeyV:'zone',KeyN:'text'}[e.code];
   if(toolKey&&!e.repeat){if(mode!=='edit')setMode('edit');setTool(toolKey);return;}
   if(mode==='edit'){ // 편집 모드: 키는 고른 카메라/물건을 움직인다 (소희는 멈춤)
     if(/^Key[WASDQERFZX]$|^Shift/.test(e.code)){
@@ -1078,7 +1250,7 @@ function frame(dt){T0+=dt;
   stepSeq(dt);
   let speed=0;
   if(editing)editMove(dt);  // 편집 모드: 카메라 도구
-  else if(oEditing||sEditing){flyMove(dt);if(oEditing)objMove(dt);} // 편집 모드: 물건·조사 도구 (자유 카메라)
+  else if(flyTool()){flyMove(dt);if(oEditing)objMove(dt);} // 편집 모드: 자유 카메라 도구들
   else if(mode==='play'&&control&&!dlg)speed=move(dt);else{basis.frozen=false;basis.combo='';}
   let sw=0;
   if(control){
@@ -1098,7 +1270,7 @@ function frame(dt){T0+=dt;
 // 첫 화면: 타이틀 뒤로 돌하우스가 보이게
 savedSnap=snapState();applyTone();setMode('play');changed(); // 편집 모드 초기화 (저장된 값 기준)
 applyPose(0);setView(1);updateDev();tick(); // 시점 확정: 구석 고정 카메라 (플레이어 조작 불가)
-window.__sp={P,spots,FLAG,DOORS,curZone,cam,free,floorAt,solids,WALK,frame,CAMS,OBJS,setMode,setTool,objSel,spotSel,get spotVisOn(){return spotVis.visible},jumpTo,undo,redo,saveAll,TONE,get mode(){return mode},get SOL(){return SOL},get oSel(){return oSel},get editing(){return editing},skip:skipSeq,action,setView,get dlg(){return dlg},get control(){return control},K};
+window.__sp={P,spots,FLAG,DOORS,curZone,cam,free,floorAt,solids,WALK,frame,CAMS,OBJS,ZONES,setMode,setTool,objSel,spotSel,textSel,zoneSel,objSpot,say,get spotVisOn(){return spotVis.visible},jumpTo,undo,redo,saveAll,TONE,get mode(){return mode},get SOL(){return SOL},get oSel(){return oSel},get editing(){return editing},skip:skipSeq,action,setView,get dlg(){return dlg},get control(){return control},K};
 })();
 </script>
 </body></html>
