@@ -168,6 +168,8 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
     <div class="row"><label class="clr"><span>전체 색</span><input type="color" id="ocAll"></label>
       <label class="clr"><span>클릭한 부분 색</span><input type="color" id="ocPart"></label><button id="ocReset" type="button">색 원래대로</button>
       <span id="oImgRow"><label class="clr"><span>액자 그림</span><input type="file" id="oImg" accept="image/*"></label><button id="oImgReset" type="button">원래 그림</button></span></div>
+    <div class="row" id="modRow" hidden><b id="modName"></b><span>— 문을 끌면 방 전체(벽·가구·조명·카메라)가 거실 벽을 따라 같이 움직여요</span><button id="modReset" type="button">방 위치 원래대로</button></div>
+    <div><b>방 문</b>(서재·식당·손님방): 문을 <b>클릭</b>해서 고른 뒤 <b>끌면</b> 방이 통째로 따라와요 · 다른 방과 겹치거나 벽 밖으로는 안 나가요</div>
     <div><b>가구</b>: <b>클릭</b>하면 골라지고 옆에 조작 버튼이 떠요 · 가구 드래그: 옮기기 · 휠: 크기 · <kbd>Z</kbd>/<kbd>X</kbd> 회전 · <kbd>R</kbd>/<kbd>F</kbd> 위/아래 · <kbd>Esc</kbd>/빈 곳 클릭: 선택 해제. 부딪히는 범위와 조사 지점도 같이 움직여요.</div>
   </div>
   <div class="tool" data-tool="tone" hidden>
@@ -284,14 +286,18 @@ const tex=(tf,rx=1,ry=1,o={})=>lam(Object.assign({map:tf(rx,ry)},o));
 const solids=[]; // 충돌용 xz 상자 (고정)
 // 물건(가구) 단위: 편집 모드에서 클릭해 위치·회전·크기를 바꿀 수 있다. 충돌 상자도 물건을 따라간다
 const OBJS=[];let curObj=null;
-function addSolid(b){(curObj?curObj.sol:solids).push(b);}
+function addSolid(b){(curObj?curObj.sol:solids).push(b);if(!curObj&&curMod)curMod.solids.push(b);} // 방 모듈 안의 고정 충돌 상자는 모듈과 함께 움직임
+// ---- 방 모듈: 문과 함께 통째로 옮겨지는 방. 모듈을 만드는 동안 생긴 것(바닥판·벽·조명·구역·충돌·문·가구)을 기록해 둔다 ----
+const MODS={};let curMod=null,spotsReady=false,zonesDefReady=false;
+function beginMod(id,info){curMod=Object.assign({id,group:new THREE.Group(),walks:[],solids:[],lights:[],doors:[],off:0},info);S.add(curMod.group);curMod.prevRoot=root;root=curMod.group;MODS[id]=curMod;}
+function endMod(){root=curMod.prevRoot;curMod=null;}
 function beginObj(name){const g=new THREE.Group();S.add(g);curObj={name,g,sol:[],prevRoot:root};root=g;}
 function endObj(){const o=curObj;root=o.prevRoot;curObj=null;o.g.updateMatrixWorld(true);
   const bb=new THREE.Box3().setFromObject(o.g),pv=new THREE.Vector3((bb.min.x+bb.max.x)/2,bb.min.y,(bb.min.z+bb.max.z)/2);
   for(const ch of o.g.children)ch.position.sub(pv);o.g.position.copy(pv);
   o.sol=o.sol.map(b=>({rel:[b[0]-pv.x,b[1]-pv.z,b[2]-pv.x,b[3]-pv.z],y0:(b.length>4?b[4]:-.6)-pv.y,y1:(b.length>4?b[5]:1.6)-pv.y}));
   o.orig=[pv.x,pv.y,pv.z]; // 처음 만들어진 자리 (가구에 붙은 조사 지점·누운 자리 계산 기준)
-  o.def={p:[pv.x,pv.y,pv.z],ry:0,s:[1,1,1]};OBJS.push(o);return o;}
+  o.def={p:[pv.x,pv.y,pv.z],ry:0,s:[1,1,1]};if(curMod)o.mod=curMod.id;OBJS.push(o);return o;}
 function O(name,fn){beginObj(name);fn();return endObj();}
 let root=S;
 function boxMM(m,x0,y0,z0,x1,y1,z1,p=root,solid=false){const me=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,y1-y0,z1-z0),m);me.position.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);p.add(me);if(solid)addSolid([x0,z0,x1,z1]);return me;}
@@ -429,8 +435,8 @@ for(const[c,i,d,x,y,z]of[[0xe6f1ff,.9,5,-2.7,1.9,5.2],[0xffe2b0,.8,7,.2,2.5,2.6]
 const Y1=-3.6;      // 1층 바닥 높이
 const ROOMH=3.0;    // 1층 방 천장 높이
 const WALK=[],ZONES=[],DOORS=[];
-function walk(x0,z0,x1,z1,h){WALK.push({x0,z0,x1,z1,h:typeof h==='function'?h:()=>h});}
-function zone(name,x0,z0,x1,z1,ymin,ymax,cam,label){ZONES.push({name,x0,z0,x1,z1,ymin,ymax,cam,label});} // label: 화면 왼쪽 위에 보일 장소 이름 (없으면 name)
+function walk(x0,z0,x1,z1,h){const w={x0,z0,x1,z1,h:typeof h==='function'?h:()=>h};WALK.push(w);if(curMod)curMod.walks.push(w);}
+function zone(name,x0,z0,x1,z1,ymin,ymax,cam,label){ZONES.push({name,x0,z0,x1,z1,ymin,ymax,cam,label,mod:curMod?curMod.id:null});} // label: 화면 왼쪽 위에 보일 장소 이름 (없으면 name)
 function solid(x0,z0,x1,z1,y){addSolid([x0,z0,x1,z1,y-.6,y+1.6]);}
 
 const tParquet=T(32,32,(g,w,h)=>{for(let y=0;y<h;y++)for(let x=0;x<w;x++){const bx=x>>3,by=y>>3,hor=(bx+by)%2===0,s=hor?y%8:x%8;
@@ -467,13 +473,13 @@ function door(name,hx,hz,axis,w,swing,y,locked,lines){
   else{boxMM(doorMat,0,0,-.03,w,2.15,.03,leaf);boxMM(col(0x6a4636),.12,.3,-.035,w-.12,1.9,.035,leaf);ball(col(0xc9a24a),w-.12,1.0,0,.07,.07,.14,leaf);}
   const d={name,leaf,swing,open:0,target:0,locked,lines,y,
     cx:axis==='z'?hx:hx+w/2,cz:axis==='z'?hz+w/2:hz,block:axis==='z'?[hx-.12,hz,hx+.12,hz+w]:[hx,hz-.12,hx+w,hz+.12]};
-  DOORS.push(d);return d;}
+  DOORS.push(d);if(curMod)curMod.doors.push(d);return d;}
 // 안락의자 (재사용)
 function armchair(x,y,z,ry,m=col(0x9b4f57)){const c=group(x,y,z);c.rotation.y=ry;
   boxMM(m,-.4,.2,-.4,.4,.45,.4,c);boxMM(m,-.4,.45,-.45,.4,1.05,-.28,c);boxMM(m,-.48,.2,-.4,-.36,.65,.4,c);boxMM(m,.36,.2,-.4,.48,.65,.4,c);
   for(const[a,b]of[[-.38,-.38],[.38,-.38],[-.38,.38],[.38,.38]])boxMM(col(0x3e2820),a-.03,0,b-.03,a+.03,.2,b+.03,c);solid(x-.5,z-.5,x+.5,z+.5,y);}
 function plant(x,y,z,s=1){cyl(col(0xb5694a),x,y+.2*s,z,.18*s,.4*s);ball(col(0x5f8a4a),x,y+.7*s,z,.5*s,.7*s,.5*s);ball(col(0x739e57),x+.1*s,y+.95*s,z-.05*s,.3*s,.4*s,.3*s);solid(x-.22,z-.22,x+.22,z+.22,y);}
-function pLight(c,i,d,x,y,z){const l=new THREE.PointLight(c,i,d,1);l.position.set(x,y,z);S.add(l);return l;}
+function pLight(c,i,d,x,y,z){const l=new THREE.PointLight(c,i,d,1);l.position.set(x,y,z);S.add(l);if(curMod)curMod.lights.push(l);return l;}
 function sconce(x,y,z){boxMM(col(0xc9a24a),x-.05,y-.12,z-.05,x+.05,y,z+.05);ball(glow(0xffe7b0),x,y+.06,z,.1,.12,.1);}
 
 // ---- 소희의 방: 바닥·문·카메라 ----
@@ -529,8 +535,8 @@ zone('계단',13.4,-6.45,15.6,-1,Y1+.03,.05,{p:[18.69,4.75,-2.02],t:[15.58,1.54,
 walk(6,-12,20,-1,Y1);
 floorQ(tex(tChecker,7,5.5),6,20,-12,-1,Y1);ceilQ(6,20,-12,-1,HH);
 wallLine('x',-1.075,5.85,12,Y1,HH);wallLine('x',-1.075,12,17,Y1,-.3);wallLine('x',-1.075,17,20.15,Y1,HH);
-wallLine('z',5.925,-12.15,-.925,Y1,HH,[[-9.5,-8.5,2.2]]);
-wallLine('x',-12.075,5.85,20.15,Y1,HH,[[8.5,9.5,2.2],[16.5,17.5,2.2]]);
+// 서쪽·남쪽 벽은 방 모듈의 문 구멍이 있는 '허브 벽' → 아래 rebuildHubWalls()에서 문 위치에 맞춰 만든다
+
 wallLine('z',20.075,-12.15,-.925,Y1,HH,[[-7.3,-5.7,2.6]]); // 동쪽 벽: 현관문 자리 (큰 창 두 개 사이)
 // ---- 현관문 (양문). 밖으로 나가면 무엇이 나오는지는 미정 → 지금은 잠긴 문 + 임시 대사 (텍스트 도구로 수정 가능) ----
 {const fd=door('front',20.075,-7.3,'z',.8,0,Y1,true,[{t:'현관문이다. 밖으로 나가는 문.'},{t:'(밖에 무엇이 나올지는 아직 정하지 않았어요)'}]);
@@ -565,7 +571,8 @@ zone('거실',6,-12.1,20.1,-.95,-4,.05,{p:[13.81,1.82,-1.03],t:[11.29,-.56,-4.63
 // ---- 1층 방 3개 (이름은 임시) ----
 function roomBox(x0,x1,z0,z1,tint,floorTex){
   floorQ(tex(floorTex||tParquet,(x1-x0)/2,(z1-z0)/2),x0,x1,z0,z1,Y1);ceilQ(x0,x1,z0,z1,Y1+ROOMH);}
-// 서재 x0~5.85 z-12~-6 (거실 서쪽 문)
+// 서재 x0~5.85 z-12~-6 (거실 서쪽 문) — 모듈: 문 중심 z=-9, 거실 서쪽 벽을 따라 z로 움직임
+beginMod('study',{name:'서재',wall:'west',axis:'z',door0:-9,half:3.15});
 walk(5.6,-9.5,6.3,-8.5,Y1);walk(0,-12,5.85,-6,Y1);
 roomBox(0,5.85,-12,-6);
 wallLine('z',-.075,-12.15,-5.85,Y1,Y1+ROOMH,[],0xc9d6c0);wallLine('x',-5.925,-.15,5.85,Y1,Y1+ROOMH,[],0xc9d6c0);wallLine('x',-12.075,-.15,5.85,Y1,Y1+ROOMH,[],0xc9d6c0);
@@ -579,7 +586,9 @@ O('서재/스탠드',()=>{cyl(col(0xc9a24a),5.4,Y1+.8,-6.45,.025,1.6);cyl(glow(0
 O('서재/그림',()=>painting(tLand,3,Y1+1.9,-6.06,1.0,.7,0));
 pLight(0xffe2b0,.9,7,3,Y1+2.4,-9);
 zone('서재 (임시)',-.2,-12.1,5.9,-5.9,-4,-.5,{p:[.35,Y1+2.75,-6.3],t:[4.2,Y1+.2,-10.2],fov:66});
-// 식당 x6~12 z-18~-12 (거실 남쪽 왼쪽 문)
+endMod();
+// 식당 x6~12 z-18~-12 (거실 남쪽 왼쪽 문) — 모듈: 문 중심 x=9, 거실 남쪽 벽을 따라 x로 움직임
+beginMod('dining',{name:'식당',wall:'south',axis:'x',door0:9,half:3.15});
 walk(8.5,-12.4,9.5,-11.8,Y1);walk(6,-18,12,-12.15,Y1);
 roomBox(6,12,-18,-12.15,0,tChecker);
 wallLine('z',5.925,-18.15,-12,Y1,Y1+ROOMH,[],0xe8c8b8);wallLine('z',12.075,-18.15,-12,Y1,Y1+ROOMH,[],0xe8c8b8);wallLine('x',-18.075,5.85,12.15,Y1,Y1+ROOMH,[],0xe8c8b8);
@@ -593,7 +602,9 @@ O('식당/찬장',()=>{boxMM(tex(tWood,2,.5),7,Y1,-17.95,11,Y1+.9,-17.45);solid(
 O('식당/샹들리에',()=>{const dc=group(9,Y1+2.4,-15.4);cyl(col(0xc9a24a),0,0,0,.4,.04,dc,14);for(let i=0;i<5;i++){const a=i*Math.PI*.4;ball(glow(0xffe7b0),Math.cos(a)*.36,.1,Math.sin(a)*.36,.07,.09,.07,dc);}});
 pLight(0xffe2b0,.9,7,9,Y1+2.3,-15.2);
 zone('식당 (임시)',5.9,-18.1,12.1,-12.1,-4,-.5,{p:[11.7,Y1+2.75,-12.5],t:[7.6,Y1+.2,-16.6],fov:66});
-// 손님방 x14~20 z-18~-12 (거실 남쪽 오른쪽 문)
+endMod();
+// 손님방 x14~20 z-18~-12 (거실 남쪽 오른쪽 문) — 모듈: 문 중심 x=17
+beginMod('guest',{name:'손님방',wall:'south',axis:'x',door0:17,half:3.15});
 walk(16.5,-12.4,17.5,-11.8,Y1);walk(14,-18,20,-12.15,Y1);
 roomBox(14,20,-18,-12.15);
 wallLine('z',13.925,-18.15,-12,Y1,Y1+ROOMH,[],0xd4cde0);wallLine('z',20.075,-18.15,-12,Y1,Y1+ROOMH,[],0xd4cde0);wallLine('x',-18.075,13.85,20.15,Y1,Y1+ROOMH,[],0xd4cde0);
@@ -607,6 +618,37 @@ O('손님방/러그',()=>quad(lam({map:tRug(),alphaTest:.5}),17.2,Y1+.012,-15,2.
 O('손님방/초상화',()=>painting(tPortrait,17,Y1+1.9,-17.96,.5,.65,Math.PI));
 pLight(0xffe2b0,.9,7,17,Y1+2.3,-15);
 zone('손님방 (임시)',13.9,-18.1,20.1,-12.1,-4,-.5,{p:[19.7,Y1+2.75,-12.5],t:[15.6,Y1+.2,-16.6],fov:66});
+endMod();
+
+// ---- 허브 벽: 거실 서쪽·남쪽 벽. 방 모듈의 문 위치에 맞춰 문 구멍을 뚫어 다시 만든다 ----
+const HUB={west:{c:5.925,axis:'z',a0:-12.15,a1:-.925},south:{c:-12.075,axis:'x',a0:5.85,a1:20.15}};
+let hubG=null;
+function rebuildHubWalls(){
+  if(hubG){S.remove(hubG);hubG.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material&&o.material.map&&!Object.values(MC).includes(o.material))o.material.map.dispose();});}
+  hubG=new THREE.Group();S.add(hubG);const pr=root;root=hubG;const holes={west:[],south:[]};
+  for(const id in MODS){const m=MODS[id],c=m.door0+m.off;holes[m.wall].push([c-.5,c+.5,2.2]);}
+  for(const k in HUB){const h=HUB[k];wallLine(h.axis,h.c,h.a0,h.a1,Y1,HH,holes[k]);}root=pr;}
+// 방 모듈을 벽을 따라 d만큼 옮긴다: 방 전체(바닥·벽·천장·문) + 걷는 바닥 + 충돌 + 조명 + 구역·카메라 + 가구 + 문 조사 지점
+function moveModule(m,d){if(!d)return;const dx=m.axis==='x'?d:0,dz=m.axis==='z'?d:0;m.off+=d;
+  m.group.position.x+=dx;m.group.position.z+=dz;
+  for(const w of m.walks){w.x0+=dx;w.x1+=dx;w.z0+=dz;w.z1+=dz;}
+  for(const b of m.solids){b[0]+=dx;b[2]+=dx;b[1]+=dz;b[3]+=dz;}
+  for(const l of m.lights){l.position.x+=dx;l.position.z+=dz;}
+  for(const dd of m.doors){dd.cx+=dx;dd.cz+=dz;dd.block[0]+=dx;dd.block[2]+=dx;dd.block[1]+=dz;dd.block[3]+=dz;}
+  const mv=c=>{if(c){c.p[0]+=dx;c.p[2]+=dz;c.t[0]+=dx;c.t[2]+=dz;}};
+  for(const z of ZONES)if(z.mod===m.id){z.x0+=dx;z.x1+=dx;z.z0+=dz;z.z1+=dz;mv(z.cam);mv(z.camDef);}
+  if(zonesDefReady)for(const z of ZONES_DEF)if(z.mod===m.id){z.x0+=dx;z.x1+=dx;z.z0+=dz;z.z1+=dz;mv(z.cam);} // 구역 "원래대로" 값도 방과 같이
+  for(const o of OBJS)if(o.mod===m.id){o.g.position.x+=dx;o.g.position.z+=dz;o.def.p[0]+=dx;o.def.p[2]+=dz;o.orig[0]+=dx;o.orig[2]+=dz;}
+  if(spotsReady)for(const s of spots)if(s.kind==='door'&&m.doors.includes(s.door)){s.x+=dx;s.z+=dz;}
+  rebuildHubWalls();rebuildSol();} // 가구 부딪힘 판정도 새 자리로
+// 문 위치 제한: 문이 허브 벽 안에 있어야 하고, 같은 벽의 다른 방과 겹치면 안 됨
+function clampModOff(m,off){const h=HUB[m.wall];let c=clamp(m.door0+off,h.a0+.75,h.a1-.75);
+  for(const id in MODS){const o=MODS[id];if(o===m||o.wall!==m.wall)continue;const oc=o.door0+o.off,gap=m.half+o.half;
+    if(m.door0<o.door0)c=Math.min(c,oc-gap);else c=Math.max(c,oc+gap);}
+  return c-m.door0;}
+function setModOffset(m,off){moveModule(m,clampModOff(m,off)-m.off);}
+const MOD_LS='sp11_mods_v1';
+rebuildHubWalls();
 
 // 충돌 상자 최종 목록: 고정 상자 + 물건별 상자(물건의 위치·회전·크기를 반영). 물건이 바뀔 때마다 다시 계산
 let SOL=[];
@@ -623,6 +665,8 @@ const OBJ_BAKE={'소희방/침대':{p:[-3.03,0,3.5],ry:0,s:[1,1,1]},'소희방/�
 for(const o of OBJS){const b=OBJ_BAKE[o.name];if(!b)continue;o.def=jcopyB(b);o.g.position.set(...b.p);o.g.rotation.y=b.ry*D2R;o.g.scale.set(...b.s);}
 function jcopyB(v){return JSON.parse(JSON.stringify(v));}
 const OBJ_LS='sp11_objs_v1';
+// 저장된 방 위치 먼저 (그다음 불러오는 가구·구역·카메라 값은 옮긴 뒤의 실제 위치라서 두 번 밀리지 않음)
+try{const mo=JSON.parse(localStorage.getItem(MOD_LS)||'{}');for(const id in mo)if(MODS[id])setModOffset(MODS[id],mo[id]);}catch(e){}
 try{const s=JSON.parse(localStorage.getItem(OBJ_LS)||'{}');for(const o of OBJS){const v=s[o.name];if(!v)continue;o.g.position.set(...v.p);o.g.rotation.y=v.ry*D2R;o.g.scale.set(...v.s);}}catch(e){}
 rebuildSol();
 
@@ -735,9 +779,9 @@ const onUI=e=>e.target&&e.target.closest&&e.target.closest('.edbar,.chip,.dlg');
 // ---- 카메라 ---- (구역이 추가·삭제·이름 변경되면 목록을 다시 만든다)
 const CAMS=[],CAM_LS='sp11_cams_v1',ZONE_LS='sp11_zones_v1',jcopy=v=>JSON.parse(JSON.stringify(v));
 const SH_DEF={corner:jcopy(SH.corner),anchor:jcopy(SH.anchor),clock:jcopy(SH.clock)};
-const zoneSer=z=>({name:z.name,x0:z.x0,z0:z.z0,x1:z.x1,z1:z.z1,ymin:z.ymin,ymax:z.ymax,cam:z.cam?jcopy(z.cam):null,label:z.label||null,user:!!z.user});
+const zoneSer=z=>({name:z.name,x0:z.x0,z0:z.z0,x1:z.x1,z1:z.z1,ymin:z.ymin,ymax:z.ymax,cam:z.cam?jcopy(z.cam):null,label:z.label||null,user:!!z.user,mod:z.mod||null});
 for(const z of ZONES)z.camDef=z.cam?jcopy(z.cam):null;
-const ZONES_DEF=ZONES.map(zoneSer); // 처음 구역들 (원래대로용)
+const ZONES_DEF=ZONES.map(zoneSer);zonesDefReady=true; // 처음 구역들 (원래대로용, 방을 옮기면 같이 옮겨짐)
 const ceSel=$('#ceSel'),ceIn={};
 function rebuildCams(){const keep=CAMS[sel]&&CAMS[sel].name;CAMS.length=0;
   CAMS.push({name:'소희의 방',ref:SH.corner,def:SH_DEF.corner});
@@ -747,7 +791,7 @@ function rebuildCams(){const keep=CAMS[sel]&&CAMS[sel].name;CAMS.length=0;
   const k=CAMS.findIndex(c=>c.name===keep);sel=k>=0?k:0;}
 // 구역 목록 통째로 바꾸기 (불러오기·되돌리기·원래대로)
 function setZones(list){ZONES.length=0;for(const v of list){const d=!v.user&&ZONES_DEF.find(x=>x.name===v.name);
-    ZONES.push(Object.assign({},v,{cam:v.cam?jcopy(v.cam):null,camDef:d?d.cam:(v.cam?jcopy(v.cam):null)}));}
+    ZONES.push(Object.assign({},v,{cam:v.cam?jcopy(v.cam):null,camDef:d&&d.cam?jcopy(d.cam):(v.cam?jcopy(v.cam):null)}));}
   zoneNow=null;lastShot=null;rebuildCams();}
 try{const zs=JSON.parse(localStorage.getItem(ZONE_LS)||'null');if(zs&&zs.length)setZones(zs);}catch(e){}
 rebuildCams();
@@ -830,8 +874,15 @@ function updateChip(){if(!oEditing||!oSel){chipEl.hidden=true;return;}chipB.setF
 const ray=new THREE.Raycaster();
 function pickObj(e){const rc=$('#game').getBoundingClientRect(),nd=new THREE.Vector2((e.clientX-rc.left)/rc.width*2-1,-((e.clientY-rc.top)/rc.height)*2+1);
   ray.setFromCamera(nd,cam);const hits=ray.intersectObjects(OBJS.map(o=>o.g),true);
-  for(const h of hits){let n=h.object;while(n&&!OBJS.some(o=>o.g===n))n=n.parent;if(n){lastPickMesh=h.object;return OBJS.find(o=>o.g===n);}}return null;}
-let lastPickMesh=null; // 마지막으로 클릭한 가구의 '부분' (색 바꾸기용)
+  for(const h of hits){let n=h.object;while(n&&!OBJS.some(o=>o.g===n))n=n.parent;if(n){lastPickMesh=h.object;lastPickDist=h.distance;return OBJS.find(o=>o.g===n);}}return null;}
+let lastPickMesh=null,lastPickDist=1e9; // 마지막으로 클릭한 가구의 '부분' (색 바꾸기용)
+// 방 모듈의 문 클릭 (가구보다 가까이 있을 때만)
+function pickModDoor(e){const rc=$('#game').getBoundingClientRect(),nd=new THREE.Vector2((e.clientX-rc.left)/rc.width*2-1,-((e.clientY-rc.top)/rc.height)*2+1);
+  ray.setFromCamera(nd,cam);const ms=[];for(const m of Object.values(MODS))for(const d of m.doors)d.leaf.traverse(x=>{if(x.isMesh){x.userData.mod=m;ms.push(x);}});
+  const h=ray.intersectObjects(ms,false)[0];return h?{m:h.object.userData.mod,dist:h.distance}:null;}
+let mSel=null; // 고른 방 모듈 (문을 끌면 방이 따라옴)
+function modSel(m){mSel=m;$('#modRow').hidden=!m;if(m){$('#modName').textContent=m.name+' 문';oBox.setFromObject(m.doors[0].leaf.parent);oBox.visible=true;}}
+$('#modReset').addEventListener('click',()=>{if(!mSel)return;pushUndo();moveModule(mSel,-mSel.off);oBox.setFromObject(mSel.doors[0].leaf.parent);changed();});
 
 // ---- 톤 (화면 효과 + 밝기) ----
 const TONE_DEF={levels:15,dither:.56,sat:1.05,ink:.52,inkTh:.43,grain:.15,vig:.52,grad:0,g0:'#1f0f0d',g1:'#9e5242',g2:'#f2dbb8',bright:.85,dlgSize:3.1}; // 2026-10-21 직접 조정한 톤 // dlgSize: 대사 글자 크기 (화면 폭의 %)
@@ -856,8 +907,10 @@ $('#toneReset').addEventListener('click',()=>{pushUndo();Object.assign(TONE,TONE
 // ---- 되돌리기 (Ctrl+Z) / 다시 실행 (Ctrl+Y) ----
 const UNDO=[],REDO=[];
 function snapState(){return{o:OBJS.map(o=>[o.g.position.x,o.g.position.y,o.g.position.z,o.g.rotation.y,o.g.scale.x,o.g.scale.y,o.g.scale.z,o.col?jcopy(o.col):null,o.img||null]),
-  z:ZONES.map(zoneSer),c:{corner:jcopy(SH.corner),anchor:jcopy(SH.anchor),clock:jcopy(SH.clock)},t:Object.assign({},TONE),s:spotSnap()};}
-function applyState(s){OBJS.forEach((o,i)=>{const v=s.o[i];o.g.position.set(v[0],v[1],v[2]);o.g.rotation.y=v[3];o.g.scale.set(v[4],v[5],v[6]);
+  z:ZONES.map(zoneSer),c:{corner:jcopy(SH.corner),anchor:jcopy(SH.anchor),clock:jcopy(SH.clock)},t:Object.assign({},TONE),s:spotSnap(),
+  m:Object.fromEntries(Object.values(MODS).map(m=>[m.id,m.off]))};}
+function applyState(s){if(s.m)for(const id in s.m)if(MODS[id])moveModule(MODS[id],s.m[id]-MODS[id].off); // 방 위치 먼저 (가구·구역은 아래에서 저장된 값으로 덮어씀)
+  OBJS.forEach((o,i)=>{const v=s.o[i];o.g.position.set(v[0],v[1],v[2]);o.g.rotation.y=v[3];o.g.scale.set(v[4],v[5],v[6]);
     const lc=JSON.stringify(o.col||null)!==JSON.stringify(v[7]||null)||(o.img||null)!==(v[8]||null);o.col=v[7]?jcopy(v[7]):null;o.img=v[8]||null;if(lc)applyObjLook(o);});
   setZones(s.z);if(zSel)zSel=ZONES.find(z=>z.name===zSel.name)||null;for(const k in s.c)Object.assign(SH[k],jcopy(s.c[k]));
   Object.assign(TONE,s.t);spotApply(s.s);changed();}
@@ -872,7 +925,7 @@ function isDirty(){return JSON.stringify(snapState())!==JSON.stringify(savedSnap
 function saveAll(){try{const c={};for(const x of CAMS)c[x.name]={p:x.ref.p,t:x.ref.t,fov:x.ref.fov};localStorage.setItem(CAM_LS,JSON.stringify(c));
     const o={};for(const x of OBJS){const g=x.g;o[x.name]={p:[g.position.x,g.position.y,g.position.z],ry:g.rotation.y/D2R,s:[g.scale.x,g.scale.y,g.scale.z]};}localStorage.setItem(OBJ_LS,JSON.stringify(o));
     localStorage.setItem(TONE_LS,JSON.stringify(TONE));const sr={};for(const x of spots)sr[x.id]=x.r;localStorage.setItem(SPOT_LS,JSON.stringify(sr));
-    localStorage.setItem(ZONE_LS,JSON.stringify(ZONES.map(zoneSer)));saveTexts();
+    localStorage.setItem(ZONE_LS,JSON.stringify(ZONES.map(zoneSer)));saveTexts();localStorage.setItem(MOD_LS,JSON.stringify(Object.fromEntries(Object.values(MODS).map(m=>[m.id,m.off]))));
     const cs={},is={};for(const o of OBJS){if(o.col)cs[o.name]=o.col;if(o.img)is[o.name]=o.img;}localStorage.setItem(COL_LS,JSON.stringify(cs));localStorage.setItem(IMG_LS,JSON.stringify(is));}catch(e){toast('이 창에서는 저장이 막혀 있어요 (일반 브라우저로 열어 주세요)',2600);}
   savedSnap=snapState();changed();}
 function exportText(){const L=['[카메라]',...CAMS.map(c=>`${c.name}: p:[${c.ref.p.map(r2)}], t:[${c.ref.t.map(r2)}], fov:${Math.round(c.ref.fov)}`)];
@@ -881,6 +934,8 @@ function exportText(){const L=['[카메라]',...CAMS.map(c=>`${c.name}: p:[${c.r
   L.push('[톤]',Object.entries(TONE).map(([k,v])=>`${k}:${typeof v==='number'?r2(v):v}`).join(', '));
   const sc=spots.filter(x=>Math.abs(x.r-x.r0)>.005);
   L.push('[조사 범위 (반지름 m)]',...(sc.length?sc.map(x=>`${spotLabel(x)}: ${r2(x.r)} (원래 ${x.r0})`):['(바뀐 범위 없음)']));
+  const mm=Object.values(MODS).filter(m=>Math.abs(m.off)>.005);
+  L.push('[방 위치 (문 중심 이동량 m)]',...(mm.length?mm.map(m=>`${m.name}: ${m.axis==='x'?'동서':'남북'} 방향으로 ${r2(m.off)} (문 중심 ${r2(m.door0+m.off)})`):['(옮긴 방 없음)']));
   const lk=OBJS.filter(o=>o.col||o.img);
   L.push('[색·그림]',...(lk.length?lk.map(o=>`${o.name}: ${o.col&&o.col.all?'전체 '+o.col.all:''}${o.col&&o.col.parts&&Object.keys(o.col.parts).length?' 부분 '+Object.entries(o.col.parts).map(([i,c])=>'#'+i+'='+c).join(' '):''}${o.img?' (그림 넣음 — 파일로 따로 보내 주세요)':''}`):['(바뀐 색·그림 없음)']));
   L.push('[카메라 구역]',...ZONES.map(z=>`${z.user?'(추가) ':''}${z.name}: x ${r2(z.x0)}~${r2(z.x1)}, z ${r2(z.z0)}~${r2(z.z1)}, 높이 ${r2(z.ymin)}~${r2(z.ymax)}`));
@@ -893,7 +948,7 @@ $('#edSave').addEventListener('click',()=>{saveAll();toast('저장했어요');})
 $('#edPlay').addEventListener('click',()=>{saveAll();setMode('play');toast('저장하고 플레이');});
 $('#edUndo').addEventListener('click',undo);$('#edRedo').addEventListener('click',redo);
 $('#edRevert').addEventListener('click',()=>{pushUndo();applyState(savedSnap);toast('마지막으로 저장한 상태로 되돌렸어요');});
-$('#edResetAll').addEventListener('click',()=>{pushUndo();for(const c of CAMS)Object.assign(c.ref,JSON.parse(JSON.stringify(c.def)));for(const o of OBJS){objReset(o);if(o.col||o.img){o.col=null;o.img=null;applyObjLook(o);}}Object.assign(TONE,TONE_DEF);for(const x of spots){x.r=x.r0;setText(x,jcopy(x.lines0||[]));if(x.secret0)x.secret=jcopy(x.secret0);}
+$('#edResetAll').addEventListener('click',()=>{pushUndo();for(const m of Object.values(MODS))moveModule(m,-m.off);for(const c of CAMS)Object.assign(c.ref,JSON.parse(JSON.stringify(c.def)));for(const o of OBJS){objReset(o);if(o.col||o.img){o.col=null;o.img=null;applyObjLook(o);}}Object.assign(TONE,TONE_DEF);for(const x of spots){x.r=x.r0;setText(x,jcopy(x.lines0||[]));if(x.secret0)x.secret=jcopy(x.secret0);}
   setZones(ZONES_DEF);zSel=null;for(const k in SH_DEF)Object.assign(SH[k],jcopy(SH_DEF[k]));changed();toast('전부 처음값으로 (저장하면 확정)');});
 $('#edExport').addEventListener('click',async()=>{const t=$('#edOut');t.value=exportText();t.select();let ok=false;
   try{await navigator.clipboard.writeText(t.value);ok=true;}catch(e){try{ok=document.execCommand('copy');}catch(e2){}}
@@ -960,7 +1015,7 @@ function setTool(t){const wasFly=flyTool();tool=t;const ed=mode==='edit';editing
   document.querySelectorAll('.edbar [data-tool]').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));
   document.querySelectorAll('#edPanel .tool').forEach(p=>p.hidden=p.dataset.tool!==t);
   if(editing){const cur=override||(curZone()&&(curZone().cam||SH.corner))||SH.corner;const i=CAMS.findIndex(c=>c.ref===cur);if(i>=0)sel=i;camSync();}
-  objSel(oSel);for(const k in EK)EK[k]=false;}
+  modSel(null);objSel(oSel);for(const k in EK)EK[k]=false;}
 function setMode(m){if(m==='edit'&&!started)start();mode=m;const ed=m==='edit';
   $('#edbar').hidden=!ed;$('#edPanel').hidden=!ed;$('#modeBtn').textContent=ed?'플레이 모드로 (Tab)':'편집 모드 (Tab)';scrEl.classList.toggle('editing',ed);
   if(ed){gradPreview=null;applyTone();}else if(isDirty())toast('저장 안 한 편집이 있어요 — 새로고침하면 사라져요',2600);
@@ -976,8 +1031,8 @@ $('#modeBtn').addEventListener('click',()=>setMode(mode==='edit'?'play':'edit'))
 let drag=null;
 scrEl.addEventListener('pointerdown',e=>{if(mode!=='edit'||onUI(e))return;
   if(editing){pushUndo();drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'cam'};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}
-  else if(oEditing){const o=pickObj(e);
-    drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:o&&o===oSel?'obj':'fly',moved:0,pick:o,undone:false};
+  else if(oEditing){lastPickDist=1e9;const o=pickObj(e),dh=pickModDoor(e),md=dh&&(!o||dh.dist<lastPickDist)?dh.m:null; // 방 문이 가구보다 앞에 있으면 문
+    drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:md?(md===mSel?'mod':'fly'):(o&&o===oSel?'obj':'fly'),moved:0,pick:md?{mod:md}:o,undone:false,acc:0};
     try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}
   else if(sEditing){drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'fly',moved:0,pick:pickSpot(e)};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}} // 조사 도구: 클릭 = 범위 고르기, 끌기 = 둘러보기
   else if(zEditing){const z=pickZone(e); // 구역 도구: 클릭 = 고르기, 고른 구역 위에서 끌기 = 옮기기, 그 외 끌기 = 둘러보기
@@ -989,11 +1044,15 @@ scrEl.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;
   if(drag.k==='fly'){const a=camAng(FLY);camSetAng(FLY,a.yaw-dx*.005,a.pitch-dy*.005);}
   else if(drag.k==='zone'&&zSel){if(!drag.undone){pushUndo();drag.undone=true;}
     const{f,r}=screenAxes(),k=.02,mx=(r.x*dx-f.x*dy)*k,mz=(r.z*dx-f.z*dy)*k;zSel.x0+=mx;zSel.x1+=mx;zSel.z0+=mz;zSel.z1+=mz;zoneChanged();}
+  else if(drag.k==='mod'&&mSel){if(!drag.undone){pushUndo();drag.undone=true;} // 방 문 끌기 → 방 전체가 벽을 따라 이동
+    const{f,r}=screenAxes(),k=.015,wx=(r.x*dx-f.x*dy)*k,wz=(r.z*dx-f.z*dy)*k;setModOffset(mSel,mSel.off+(mSel.axis==='x'?wx:wz));
+    oBox.setFromObject(mSel.doors[0].leaf.parent);changed();}
   else if(oSel){if(!drag.undone){pushUndo();drag.undone=true;} // 실제로 옮기기 시작할 때만 되돌리기 한 단계
     const{f,r}=screenAxes(),k=.012;oSel.g.position.x+=(r.x*dx-f.x*dy)*k;oSel.g.position.z+=(r.z*dx-f.z*dy)*k;changed();}});
 ['pointerup','pointercancel'].forEach(ev=>scrEl.addEventListener(ev,e=>{if(!drag||e.pointerId!==drag.id)return;
   if(ev==='pointerup'&&drag.k!=='cam'&&drag.moved<4){ // 클릭 = 고르기 (빈 곳이면 해제)
-    if(sEditing)spotSel(drag.pick);else if(zEditing)zoneSel(drag.pick);else if(nEditing)textSel(drag.pick);else objSel(drag.pick);}
+    if(sEditing)spotSel(drag.pick);else if(zEditing)zoneSel(drag.pick);else if(nEditing)textSel(drag.pick);
+    else if(drag.pick&&drag.pick.mod){objSel(null);modSel(drag.pick.mod);}else{modSel(null);objSel(drag.pick);}}
   drag=null;}));
 scrEl.addEventListener('wheel',e=>{if(mode!=='edit'||onUI(e))return;
   if(editing){e.preventDefault();wheelUndo();const c=CAMS[sel].ref;c.fov=clamp(c.fov*Math.exp(e.deltaY*.0006),20,110);changed();}
@@ -1008,7 +1067,8 @@ function jumpTo(i){
   if(editing){if(k>=0){sel=k;camSync();}return;}            // 카메라 도구: 그 카메라 고르기
   if(flyTool()){if(k>=0)flyFrom(CAMS[k].ref);return;} // 자유 카메라 도구: 그 구역 카메라 자리로
   if(!started)return;if(seq)skipSeq();if(dlg){dlg=null;$('#dlg').hidden=true;control=true;}
-  override=null;const j=JUMPS[i];Object.assign(P,{x:j.x,z:j.z,fy:j.y,y:j.y});}
+  override=null;const j=JUMPS[i],m=[null,null,null,null,MODS.study,MODS.dining,MODS.guest][i],ox=m&&m.axis==='x'?m.off:0,oz=m&&m.axis==='z'?m.off:0; // 옮긴 방은 따라감
+  Object.assign(P,{x:j.x+ox,z:j.z+oz,fy:j.y,y:j.y});}
 
 
 /* ================= 사운드 (WebAudio 합성) ================= */
@@ -1082,6 +1142,7 @@ const spots=[
   {id:'mirror',group:'bedroom',obj:'소희방/화장대',x:-3.15,y:0,z:1.1,r:.9,seen:0,lines:[{t:'“…어라. 오늘따라 얼굴이 창백하네. 아프진 않은데…”'}]},
 ];
 for(const d of DOORS)spots.push({id:'door_'+d.name,kind:'door',door:d,x:d.cx,y:d.y,z:d.cz,r:1.3,seen:0}); // 문은 조금 멀리서도 열리게
+spotsReady=true; // 이제부터 방 모듈을 옮기면 문 조사 지점도 같이 옮김
 // 가구에 붙은 조사 지점은 가구를 옮기면 같이 따라간다
 for(const s of spots)if(s.obj){s.o=OBJS.find(o=>o.name===s.obj);if(s.o)s.off=[s.x-s.o.orig[0],s.z-s.o.orig[2]];}
 const spotXZ=s=>s.o?[s.o.g.position.x+s.off[0],s.o.g.position.z+s.off[1]]:[s.x,s.z];
@@ -1310,7 +1371,7 @@ function frame(dt){T0+=dt;
 // 첫 화면: 타이틀 뒤로 돌하우스가 보이게
 savedSnap=snapState();applyTone();setMode('play');changed(); // 편집 모드 초기화 (저장된 값 기준)
 applyPose(0);setView(1);updateDev();tick(); // 시점 확정: 구석 고정 카메라 (플레이어 조작 불가)
-window.__sp={P,spots,FLAG,DOORS,curZone,cam,free,floorAt,solids,WALK,frame,CAMS,OBJS,ZONES,FLY,setMode,setTool,objSel,spotSel,textSel,zoneSel,objSpot,say,get spotVisOn(){return spotVis.visible},jumpTo,undo,redo,saveAll,TONE,get mode(){return mode},get SOL(){return SOL},get oSel(){return oSel},get editing(){return editing},skip:skipSeq,action,setView,get dlg(){return dlg},get control(){return control},K};
+window.__sp={P,spots,FLAG,DOORS,curZone,cam,free,floorAt,solids,WALK,frame,CAMS,OBJS,ZONES,FLY,MODS,modSel,setModOffset,setMode,setTool,objSel,spotSel,textSel,zoneSel,objSpot,say,get spotVisOn(){return spotVis.visible},jumpTo,undo,redo,saveAll,TONE,get mode(){return mode},get SOL(){return SOL},get oSel(){return oSel},get editing(){return editing},skip:skipSeq,action,setView,get dlg(){return dlg},get control(){return control},K};
 })();
 </script>
 </body></html>
