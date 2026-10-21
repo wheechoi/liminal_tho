@@ -91,6 +91,12 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
 .cedit b{color:var(--ink);font-size:13px}
 .cedit select,.cedit button{font-family:var(--f-text);font-size:12px;background:#141010;color:var(--ink);border:1px solid var(--line);padding:4px 8px;border-radius:3px}
 .cedit button{cursor:pointer}
+.libgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px;max-height:340px;overflow:auto;padding-right:4px}
+.libgrid button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;font-size:11px;line-height:1.2}
+.libgrid button[hidden]{display:none}
+.libgrid img{width:88px;height:70px;image-rendering:pixelated;background:#2a2220;display:block}
+.libgrid button:hover{border-color:var(--rose)}
+#libCats button.on{background:var(--rose);color:#141010;border-color:var(--rose)}
 .cedit select:focus-visible,.cedit button:focus-visible,.cedit input:focus-visible,.cedit textarea:focus-visible{outline:2px solid var(--rose)}
 .cedit .sl{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 18px}
 .cedit label{display:grid;grid-template-columns:110px 1fr 52px;align-items:center;gap:8px}
@@ -109,7 +115,7 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
   <div class="dlg" id="dlg" hidden><span class="who" id="who"></span><span id="dlgText"></span><i id="dlgMore">▼</i></div>
   <div class="edbar" id="edbar" hidden>
     <b>편집 모드</b>
-    <button type="button" data-tool="cam">카메라 C</button><button type="button" data-tool="obj">물건 O</button><button type="button" data-tool="tone">톤 T</button><button type="button" data-tool="spot">조사 I</button><button type="button" data-tool="zone">구역 V</button><button type="button" data-tool="text">텍스트 N</button>
+    <button type="button" data-tool="cam">카메라 C</button><button type="button" data-tool="obj">물건 O</button><button type="button" data-tool="tone">톤 T</button><button type="button" data-tool="spot">조사 I</button><button type="button" data-tool="zone">구역 V</button><button type="button" data-tool="text">텍스트 N</button><button type="button" data-tool="lib">보관함 B</button>
     <i></i>
     <button type="button" id="edUndo" title="되돌리기 (Ctrl+Z)" aria-label="되돌리기">↶</button><button type="button" id="edRedo" title="다시 실행 (Ctrl+Y)" aria-label="다시 실행">↷</button>
     <i></i>
@@ -152,7 +158,7 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
     <span><kbd>E</kbd><kbd>Space</kbd><kbd>Enter</kbd> 조사·대사 넘기기</span>
     <span><kbd>G</kbd> 공포 톤 미리보기</span>
     <span><kbd>Tab</kbd> 편집 모드 ↔ 플레이 모드</span>
-    <span><kbd>1</kbd>~<kbd>7</kbd> 구역 이동: 1 소희방 · 2 복도 · 3 로비 · 4 거실 · 5 거실 방1(서재) · 6 식당 · 7 손님방</span>
+    <span><kbd>1</kbd>~<kbd>8</kbd> 구역 이동: 1 소희방 · 2 복도 · 3 로비 · 4 거실 · 5 서재 · 6 식당 · 7 손님방 · 8 부엌</span>
   </div>
   <div class="btns"><button id="modeBtn" type="button">편집 모드 (Tab)</button><button id="restart" type="button">처음부터</button><button id="mute" type="button">소리 끄기</button></div>
 </div>
@@ -163,8 +169,8 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
     <div>화면 드래그: 방향 · 휠: 화각 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 앞뒤좌우 · <kbd>Q</kbd>/<kbd>E</kbd> 아래/위 · <kbd>Shift</kbd> 빠르게 · <kbd>1</kbd>~<kbd>7</kbd> 카메라 고르기</div>
   </div>
   <div class="tool" data-tool="obj" hidden>
-    <div class="row"><b>물건</b><span>선택: <span id="objName"></span></span></div>
-    <div><b>둘러보기</b> (게임 카메라와 별개): <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 자유 이동 · <kbd>Q</kbd>/<kbd>E</kbd> 아래/위 · <kbd>Shift</kbd> 빠르게 · 빈 곳 드래그: 시선 돌리기 · <kbd>1</kbd>~<kbd>7</kbd> 그 구역으로</div>
+    <div class="row"><b>물건</b><span>선택: <span id="objName"></span></span><button id="oDel" type="button" disabled title="보관함에서 꺼낸 물건만 뺄 수 있어요">이 물건 빼기 (Delete)</button></div>
+    <div><b>둘러보기</b> (게임 카메라와 별개): <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 자유 이동 · <kbd>Q</kbd>/<kbd>E</kbd> 아래/위 · <kbd>Shift</kbd> 빠르게 · 빈 곳 드래그: 시선 돌리기 · <kbd>1</kbd>~<kbd>8</kbd> 그 구역으로</div>
     <div class="row"><label class="clr"><span>전체 색</span><input type="color" id="ocAll"></label>
       <label class="clr"><span>클릭한 부분 색</span><input type="color" id="ocPart"></label><button id="ocReset" type="button">색 원래대로</button>
       <span id="oImgRow"><label class="clr"><span>액자 그림</span><input type="file" id="oImg" accept="image/*"></label><button id="oImgReset" type="button">원래 그림</button></span></div>
@@ -181,7 +187,7 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
   <div class="tool" data-tool="spot" hidden>
     <div class="row"><b>조사 범위</b><span>선택: <span id="spotName"></span></span><button id="spotReset" type="button">이 범위 원래대로</button><button id="spotShrinkAll" type="button">전체 작게 ÷1.2</button><button id="spotScaleAll" type="button">전체 크게 ×1.2</button></div>
     <div class="sl"><label><span>범위 (반지름)</span><input type="range" id="spotR" min=".2" max="4" step=".05"><output id="spotRout"></output></label></div>
-    <div>바닥의 원 = 그 안에 들어가면 <kbd>E</kbd> 조사/문 열기가 뜨는 범위예요. 원을 <b>클릭</b>해서 고르고 <b>휠</b>이나 슬라이더로 크기 조절 · 끌기: 둘러보기 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <kbd>Q</kbd>/<kbd>E</kbd> 자유 이동 · <kbd>1</kbd>~<kbd>7</kbd> 그 구역으로</div>
+    <div>바닥의 원 = 그 안에 들어가면 <kbd>E</kbd> 조사/문 열기가 뜨는 범위예요. 원을 <b>클릭</b>해서 고르고 <b>휠</b>이나 슬라이더로 크기 조절 · 끌기: 둘러보기 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <kbd>Q</kbd>/<kbd>E</kbd> 자유 이동 · <kbd>1</kbd>~<kbd>8</kbd> 그 구역으로</div>
   </div>
   <div class="tool" data-tool="zone" hidden>
     <div class="row"><b>카메라 구역</b><select id="znSel" aria-label="구역"></select>
@@ -190,7 +196,12 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
       <label class="clr"><span>층</span><select id="znLevel"><option value="2">2층</option><option value="1">1층</option><option value="s">계단</option></select></label>
       <button id="znCamSet" type="button">지금 보는 화면을 이 구역 카메라로</button><button id="znCamGo" type="button">이 구역 카메라 자리로 이동</button><button id="znReset" type="button">이 구역 원래대로</button></div>
     <div class="sl" id="znSliders"></div>
-    <div>바닥의 사각형 = 소희가 그 안에 들어가면 그 구역 카메라로 바뀌는 범위. 사각형을 <b>클릭</b>해서 고르고, 고른 사각형을 <b>끌면</b> 옮겨져요 · 고른 사각형의 <b>흰 동그라미 손잡이</b>(꼭짓점·변 가운데)를 끌면 크기 조절 (파워포인트처럼) · 슬라이더로도 네 변 조절 · 겹치면 <b>나중에 추가한 구역이 먼저</b> · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <kbd>Q</kbd>/<kbd>E</kbd> 자유 이동 · <kbd>1</kbd>~<kbd>7</kbd> 그 구역으로 · "구역 추가"는 지금 보고 있는 화면을 그대로 새 구역의 카메라로 써요</div>
+    <div>바닥의 사각형 = 소희가 그 안에 들어가면 그 구역 카메라로 바뀌는 범위. 사각형을 <b>클릭</b>해서 고르고, 고른 사각형을 <b>끌면</b> 옮겨져요 · 고른 사각형의 <b>흰 동그라미 손잡이</b>(꼭짓점·변 가운데)를 끌면 크기 조절 (파워포인트처럼) · 슬라이더로도 네 변 조절 · 겹치면 <b>나중에 추가한 구역이 먼저</b> · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <kbd>Q</kbd>/<kbd>E</kbd> 자유 이동 · <kbd>1</kbd>~<kbd>8</kbd> 그 구역으로 · "구역 추가"는 지금 보고 있는 화면을 그대로 새 구역의 카메라로 써요</div>
+  </div>
+  <div class="tool" data-tool="lib" hidden>
+    <div class="row"><b>에셋 보관함</b><span id="libCats" class="row"></span></div>
+    <div>그림을 누르면 <b>지금 보는 화면 가운데 바닥</b>에 놓이고 바로 <b>물건 도구</b>로 넘어가요 (벽에 거는 물건은 벽 높이로 · 선반 위 물건은 탁자 높이로). 꺼낸 물건도 옮기기·돌리기·크기·색·텍스트가 다 되고, 물건 도구의 <b>이 물건 빼기</b>(<kbd>Delete</kbd>)로 치워요 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <kbd>Q</kbd>/<kbd>E</kbd> 자유 이동 · <kbd>1</kbd>~<kbd>8</kbd> 그 구역으로 · 그림에 마우스를 올리면 나중에 유니티로 옮길 때의 파일 이름이 보여요</div>
+    <div class="libgrid" id="libGrid"></div>
   </div>
   <div class="tool" data-tool="text" hidden>
     <div class="row"><b>텍스트</b><span>대상: <span id="txName"></span></span><button id="txPreview" type="button">미리보기</button></div>
@@ -483,6 +494,116 @@ function plant(x,y,z,s=1){cyl(col(0xb5694a),x,y+.2*s,z,.18*s,.4*s);ball(col(0x5f
 function pLight(c,i,d,x,y,z){const l=new THREE.PointLight(c,i,d,1);l.position.set(x,y,z);S.add(l);if(curMod)curMod.lights.push(l);return l;}
 function sconce(x,y,z){boxMM(col(0xc9a24a),x-.05,y-.12,z-.05,x+.05,y,z+.05);ball(glow(0xffe7b0),x,y+.06,z,.1,.12,.1);}
 
+/* ================= 에셋 보관함 (가구 라이브러리) =================
+   가구 하나 = 항목 하나. 원점(바닥 가운데)에서 만들고, 앞면은 +z 쪽(기본 회전에서 카메라를 봄).
+   id = 목업 안 이름, file = 나중에 유니티로 옮길 때의 파일(프리팹) 이름. 크기는 미터.
+   wall: 벽에 거는 물건(꺼낼 때 바닥에서 y만큼 띄움), y: 바닥에서 띄우는 높이 (선반 위 물건·매다는 조명) */
+const tMarble=T(32,32,(g,w,h)=>{g.fillStyle='#ece8e2';g.fillRect(0,0,w,h);for(let i=0;i<3;i++){let x=noise(i,0,20)*w,y=0;while(y<h){px(g,x|0,y|0,'#b9b4ae');x+=(noise(i,y|0,21)-.5)*3;y+=1;}}jit(g,w,h,22,.05);});
+const tTile=T(16,16,(g,w,h)=>{for(let y=0;y<h;y++)for(let x=0;x<w;x++)px(g,x,y,x%8===0||y%8===0?'#bdb6aa':'#f2efe8');jit(g,w,h,23,.05);});
+const tRugRect=T(48,32,(g,w,h)=>{for(let y=0;y<h;y++)for(let x=0;x<w;x++){const e=Math.min(x,y,w-1-x,h-1-y);let c='#3b4f6e';if(e<2)c='#b8964f';else if(e<4)c='#6c2e35';else if(e===5)c='#e8d9c2';
+  else{const dx=Math.abs(x-w/2+.5),dy=Math.abs(y-h/2+.5);if(Math.abs(dx/1.6+dy-7)<.8)c='#b8964f';else if(dx/1.6+dy<4)c='#9b4f57';}px(g,x,y,c);}jit(g,w,h,24,.05);});
+const mWood=tex(tWood,1,.5),mWoodT=tex(tWood,1,2),mMarble=tex(tMarble,1,1);
+const L_DK=col(0x4a2f25),L_MID=col(0x6a4636),L_DEEP=col(0x3e2820),L_CRM=col(0xf1ece2),L_WHT=col(0xf6efe4),L_GOLD=col(0xc9a24a),L_STEEL=col(0xb9bec4),L_BLK=col(0x1f1a1a),
+  L_GLASS=lam({color:0xcfe6f0,transparent:true,opacity:.35},'glass'),L_MIRROR=col(0xcfdde4);
+const B=(m,x0,y0,z0,x1,y1,z1)=>boxMM(m,x0,y0,z0,x1,y1,z1);
+const S0=(x0,z0,x1,z1)=>solid(x0,z0,x1,z1,0);
+function cone(m,x,y,z,r0,r1,h,p=root,seg=14){const me=new THREE.Mesh(new THREE.CylinderGeometry(r0,r1,h,seg),m);me.position.set(x,y,z);p.add(me);return me;} // r0 위, r1 아래
+function discZ(m,x,y,z,r,t){const me=cyl(m,x,y,z,r,t,root,20);me.rotation.x=Math.PI/2;return me;} // 앞(+z)을 보는 동그란 판
+function legs4(m,x0,z0,x1,z1,h,t=.045){for(const x of[x0,x1-t])for(const z of[z0,z1-t])B(m,x,0,z,x+t,h,z+t);}
+function sofaB(hw,m){B(m,-hw,.2,-.45,hw,.45,.45);B(m,-hw,.45,-.45,hw,.95,-.25);B(m,-hw-.12,.2,-.45,-hw,.66,.45);B(m,hw,.2,-.45,hw+.12,.66,.45);
+  const n=Math.round(hw/.35),cw=hw*2/n;for(let i=0;i<n;i++){const x=-hw+cw*i;B(col(0x8d9c6c),x+.02,.45,-.24,x+cw-.02,.55,.42);}
+  for(const x of[-hw-.08,hw+.03])for(const z of[-.42,.37])B(L_DEEP,x,0,z,x+.05,.2,z+.05);S0(-hw-.12,-.45,hw+.12,.45);}
+function counterB(hw){B(L_CRM,-hw,.1,-.3,hw,.88,.3);B(L_DEEP,-hw+.02,0,-.27,hw-.02,.1,.26);B(mMarble,-hw-.01,.88,-.32,hw+.01,.92,.32);
+  const n=Math.max(1,Math.round(hw/.3));for(let i=0;i<n;i++){const x=-hw+hw*2/n*(i+.5);B(col(0xe2dccf),x-hw/n+.02,.14,.3,x+hw/n-.02,.84,.305);B(L_GOLD,x-.07,.72,.305,x+.07,.735,.325);}S0(-hw,-.3,hw,.3);}
+function chairB(m,back){B(m,-.22,.44,-.22,.22,.5,.22);B(back,-.22,.5,-.24,.22,1.05,-.19);legs4(back,-.21,-.21,.21,.21,.44,.04);S0(-.25,-.25,.25,.25);}
+function bedB(hw){B(mWood,-hw,.15,-1.05,hw,.45,1.05);B(L_WHT,-hw+.03,.45,-1.02,hw-.03,.6,1.02);B(lam({map:tDuvet(2,2),color:0xe6d3cf},'duvet'),-hw+.02,.6,-.5,hw-.02,.72,1.04);
+  for(const x of hw>.6?[-hw/2,hw/2]:[0])B(L_WHT,x-.3,.6,-.98,x+.3,.74,-.62);B(mWoodT,-hw-.05,0,-1.1,hw+.05,1.15,-1.02);S0(-hw-.05,-1.1,hw+.05,1.05);}
+function tableB(hw,hd,top=mWood){B(top,-hw,.72,-hd,hw,.77,hd);legs4(L_DK,-hw+.05,-hd+.05,hw-.05,hd-.05,.72,.06);S0(-hw,-hd,hw,hd);}
+const LIB=[
+  // ---- 거실 ----
+  {id:'sofa3',file:'SP_Sofa_3Seat',name:'3인 소파',cat:'거실',b(){sofaB(1.0,col(0x7b8a5c));}},
+  {id:'sofa2',file:'SP_Sofa_2Seat',name:'2인 소파',cat:'거실',b(){sofaB(.68,col(0x9b4f57));}},
+  {id:'armchair',file:'SP_Armchair',name:'안락의자',cat:'거실',b(){armchair(0,0,0,0);}},
+  {id:'coffeeT',file:'SP_CoffeeTable',name:'커피 테이블',cat:'거실',b(){B(mWood,-.6,.4,-.32,.6,.45,.32);legs4(L_DK,-.55,-.27,.55,.27,.4,.05);B(L_DK,-.5,.1,-.22,.5,.13,.22);S0(-.6,-.32,.6,.32);}},
+  {id:'sideT',file:'SP_SideTable',name:'사이드 테이블',cat:'거실',b(){cyl(mWood,0,.56,0,.26,.04,root,16);cyl(L_DK,0,.28,0,.03,.54);cyl(L_DK,0,.02,0,.17,.04,root,14);S0(-.26,-.26,.26,.26);}},
+  {id:'tvStand',file:'SP_TVStand',name:'TV장과 TV',cat:'거실',b(){B(L_MID,-.8,0,-.22,.8,.5,.22);for(const x of[-.4,.4])B(L_GOLD,x-.08,.36,.22,x+.08,.375,.24);
+    B(L_BLK,-.12,.5,-.1,.12,.53,.06);B(L_BLK,-.03,.53,-.04,.03,.62,0);B(L_BLK,-.56,.62,-.05,.56,1.25,0);B(col(0x2a3440),-.53,.65,.001,.53,1.22,.006);S0(-.8,-.22,.8,.22);}},
+  {id:'floorLamp',file:'SP_FloorLamp',name:'플로어 스탠드',cat:'거실',b(){cyl(L_GOLD,0,.02,0,.17,.04,root,14);cyl(L_GOLD,0,.82,0,.02,1.6);cone(glow(0xf3dfb8),0,1.72,0,.15,.24,.32);S0(-.2,-.2,.2,.2);}},
+  {id:'bookshelf',file:'SP_Bookshelf',name:'책장',cat:'거실',b(){B(L_DK,-.5,0,-.18,.5,2.0,.17);quad(tex(tBooks,1,2.5),0,1.0,.175,.9,1.9,0,0);B(L_DK,-.52,2.0,-.2,.52,2.05,.19);S0(-.52,-.2,.52,.19);}},
+  {id:'displayCab',file:'SP_DisplayCabinet',name:'유리 장식장',cat:'거실',b(){B(L_MID,-.45,0,-.2,.45,.1,.2);B(L_MID,-.45,1.82,-.2,.45,1.92,.2);B(L_MID,-.45,.1,-.2,-.42,1.82,.2);B(L_MID,.42,.1,-.2,.45,1.82,.2);B(L_CRM,-.42,.1,-.2,.42,1.82,-.17);
+    for(const y of[.6,1.05,1.45]){B(L_GLASS,-.42,y,-.17,.42,y+.02,.18);for(const x of[-.22,0,.22]){const p=cyl(L_WHT,x,y+.13,-.1,.1,.015,root,14);p.rotation.x=Math.PI/2-.2;}}
+    B(L_GLASS,-.42,.1,.18,.42,1.82,.19);B(L_GOLD,.3,.9,.19,.32,1.05,.21);S0(-.45,-.2,.45,.2);}},
+  {id:'piano',file:'SP_UprightPiano',name:'피아노',cat:'거실',b(){const pb=col(0x15110f);B(pb,-.75,0,-.3,.75,1.25,0);B(pb,-.75,.7,0,.75,.76,.3);B(L_WHT,-.7,.76,.02,.7,.785,.28);
+    for(let i=0;i<35;i++)if([0,1,3,4,5].includes(i%7)){const x=-.7+(i+1)*.0389;B(pb,x-.011,.785,.1,x+.011,.81,.28);} // 검은 건반 (도# 레# / 파# 솔# 라#)
+    for(const x of[-.72,.66])B(pb,x,0,.22,x+.06,.7,.28);B(pb,-.3,.76,-.02,.3,1.0,.0);B(L_GOLD,-.68,.3,.0,-.6,.32,.02);S0(-.75,-.3,.75,.3);}},
+  {id:'grandClock',file:'SP_GrandfatherClock',name:'괘종시계',cat:'거실',b(){B(L_MID,-.25,0,-.15,.25,2.0,.15);B(L_DK,-.28,2.0,-.17,.28,2.12,.17);discZ(L_WHT,0,1.68,.16,.17,.02);
+    B(L_BLK,-.006,1.68,.172,.006,1.8,.176);B(L_BLK,0,1.675,.172,.1,1.687,.176);B(L_GLASS,-.15,.45,.15,.15,1.4,.16);cyl(L_GOLD,0,1.05,.12,.004,.6);discZ(L_GOLD,0,.72,.12,.07,.015);S0(-.28,-.17,.28,.17);}},
+  {id:'plantBig',file:'SP_Plant_Large',name:'큰 화분',cat:'거실',b(){plant(0,0,0,1.3);}},
+  {id:'plantSmall',file:'SP_Plant_Small',name:'작은 화분',cat:'거실',b(){plant(0,0,0,.7);}},
+  {id:'rugRect',file:'SP_Rug_Rect',name:'네모 러그',cat:'거실',b(){quad(lam({map:tRugRect()}),0,.012,0,2.4,1.7,-Math.PI/2,0);}},
+  {id:'rugRound',file:'SP_Rug_Oval',name:'타원 러그',cat:'거실',b(){quad(lam({map:tRug(),alphaTest:.5}),0,.012,0,2.4,1.8,-Math.PI/2,0);}},
+  {id:'paintLand',file:'SP_Painting_Landscape',name:'액자 (풍경)',cat:'벽',wall:1,y:1.25,b(){painting(tLand,0,0,0,.9,.6,Math.PI);}},
+  {id:'paintPortrait',file:'SP_Painting_Portrait',name:'액자 (초상화)',cat:'벽',wall:1,y:1.2,b(){painting(tPortrait,0,0,0,.45,.6,Math.PI);}},
+  {id:'paintBig',file:'SP_Painting_Large',name:'큰 액자',cat:'벽',wall:1,y:1.0,b(){painting(tLand,0,0,0,1.4,1.0,Math.PI);}},
+  {id:'wallMirror',file:'SP_WallMirror',name:'벽거울',cat:'벽',wall:1,y:1.0,b(){B(L_GOLD,-.4,0,-.04,.4,1.1,0);B(L_MIRROR,-.34,.06,0,.34,1.04,.005);}},
+  {id:'wallClock',file:'SP_WallClock',name:'벽시계',cat:'벽',wall:1,y:1.7,b(){discZ(L_DK,0,.2,-.02,.2,.04);discZ(L_WHT,0,.2,.002,.17,.01);B(L_BLK,-.005,.2,.008,.005,.33,.012);B(L_BLK,0,.195,.008,.09,.205,.012);}},
+  {id:'sconce',file:'SP_WallSconce',name:'벽등',cat:'벽',wall:1,y:1.9,b(){sconce(0,.12,.06);B(L_GOLD,-.06,-.02,-.02,.06,.16,0);}},
+  {id:'curtain',file:'SP_Curtain',name:'커튼 한 쌍',cat:'벽',wall:1,y:.05,b(){for(const s of[-1,1])B(tex(tCurtain,2,1),s*.75-.2,0,-.05,s*.75+.2,2.4,.03);B(L_GOLD,-1.0,2.42,-.03,1.0,2.46,.01);}},
+  // ---- 부엌 ----
+  {id:'fridge',file:'SP_Fridge',name:'양문형 냉장고',cat:'부엌',b(){B(col(0xdfe3e6),-.47,0,-.37,.47,1.85,.36);B(col(0x9aa0a6),-.005,.03,.36,.005,1.82,.366);for(const x of[-.07,.05])B(L_STEEL,x,.85,.366,x+.02,1.5,.39);S0(-.47,-.37,.47,.37);}},
+  {id:'counter',file:'SP_Counter',name:'조리대 (하부장)',cat:'부엌',b(){counterB(.6);}},
+  {id:'counterS',file:'SP_Counter_Small',name:'작은 조리대',cat:'부엌',b(){counterB(.3);}},
+  {id:'sink',file:'SP_SinkCounter',name:'싱크대',cat:'부엌',b(){counterB(.6);B(col(0x8f969c),-.34,.921,-.2,.34,.926,.18);B(L_STEEL,-.36,.92,-.22,.36,.93,-.2);cyl(L_STEEL,0,1.04,-.26,.018,.24);B(L_STEEL,-.012,1.15,-.26,.012,1.17,-.1);}},
+  {id:'stove',file:'SP_Stove',name:'가스레인지·오븐',cat:'부엌',b(){B(L_STEEL,-.4,.1,-.3,.4,.88,.3);B(L_DEEP,-.38,0,-.27,.38,.1,.26);B(L_BLK,-.4,.88,-.32,.4,.92,.32);B(L_BLK,-.34,.22,.3,.34,.7,.305);B(col(0x3a3433),-.28,.3,.305,.28,.62,.31);
+    B(L_STEEL,-.3,.74,.305,.3,.76,.335);for(const x of[-.18,.18])for(const z of[-.14,.12])cyl(col(0x5a5654),x,.93,z,.08,.012,root,12);for(let i=0;i<4;i++)discZ(L_BLK,-.27+i*.18,.82,.305,.025,.02);S0(-.4,-.3,.4,.3);}},
+  {id:'upperCab',file:'SP_UpperCabinet',name:'상부장',cat:'부엌',wall:1,y:1.45,b(){B(L_CRM,-.6,0,-.17,.6,.72,.17);for(const x of[-.3,.3]){B(col(0xe2dccf),x-.28,.03,.17,x+.28,.69,.175);B(L_GOLD,x+(x<0?.18:-.2),.06,.175,x+(x<0?.2:-.18),.2,.19);}}},
+  {id:'hood',file:'SP_RangeHood',name:'레인지 후드',cat:'부엌',wall:1,y:1.55,b(){cone(L_STEEL,0,.1,0,.18,.42,.2,root,4).rotation.y=Math.PI/4;B(L_STEEL,-.14,.2,-.14,.14,.9,.14);}},
+  {id:'island',file:'SP_KitchenIsland',name:'아일랜드 식탁',cat:'부엌',b(){B(L_MID,-.92,.1,-.38,.92,.88,.38);B(L_DEEP,-.9,0,-.36,.9,.1,.36);B(mMarble,-1.0,.88,-.46,1.0,.92,.46);S0(-1,-.46,1,.46);}},
+  {id:'barStool',file:'SP_BarStool',name:'바 스툴',cat:'부엌',b(){cyl(col(0x6c2e35),0,.74,0,.18,.06,root,14);cyl(L_STEEL,0,.37,0,.025,.72);cyl(L_STEEL,0,.02,0,.17,.03,root,14);cyl(L_STEEL,0,.3,0,.14,.015,root,14);S0(-.2,-.2,.2,.2);}},
+  {id:'microwave',file:'SP_Microwave',name:'전자레인지',cat:'부엌',y:.92,b(){B(col(0xe8e8e8),-.25,0,-.18,.25,.3,.18);B(L_BLK,-.23,.03,.18,.1,.27,.185);B(col(0x9aa0a6),.13,.04,.18,.23,.26,.185);}},
+  {id:'kettle',file:'SP_Kettle',name:'주전자',cat:'부엌',y:.92,b(){cone(L_STEEL,0,.1,0,.06,.1,.2);B(L_BLK,-.015,.2,-.06,.015,.23,.06);B(L_STEEL,.07,.08,-.01,.16,.1,.01);}},
+  {id:'fruitBowl',file:'SP_FruitBowl',name:'과일 그릇',cat:'부엌',y:.92,b(){cone(L_WHT,0,.05,0,.17,.09,.1);for(const[x,z,c]of[[-.06,0,0xe08a3c],[.06,.03,0xb53a35],[0,-.06,0xe0c35a],[.01,.04,0xe08a3c]])ball(col(c),x,.12,z,.09);}},
+  {id:'pendant',file:'SP_PendantLight',name:'펜던트 조명',cat:'부엌',y:1.9,b(){B(L_BLK,-.005,.24,-.005,.005,1.05,.005);cone(L_GOLD,0,.13,0,.05,.18,.24);ball(glow(0xffe7b0),0,.02,0,.1);}},
+  {id:'wineRack',file:'SP_WineRack',name:'와인 장',cat:'부엌',b(){B(L_DK,-.32,0,-.2,.32,1.6,-.17);B(L_DK,-.32,0,-.2,-.29,1.6,.2);B(L_DK,.29,0,-.2,.32,1.6,.2);B(L_DK,-.32,1.57,-.2,.32,1.6,.2);
+    for(let r=0;r<6;r++){B(L_DK,-.29,.08+r*.25,-.17,.29,.1+r*.25,.2);for(let c=0;c<4;c++){const b=cyl(col(0x2f3d2a),-.21+c*.14,.17+r*.25,.05,.04,.3,root,8);b.rotation.x=Math.PI/2;}}S0(-.32,-.2,.32,.2);}},
+  // ---- 식당 ----
+  {id:'diningT6',file:'SP_DiningTable_6',name:'6인 식탁',cat:'식당',b(){tableB(1.0,.5);}},
+  {id:'diningT4',file:'SP_DiningTable_4',name:'4인 식탁',cat:'식당',b(){tableB(.6,.4);}},
+  {id:'diningChair',file:'SP_DiningChair',name:'식탁 의자',cat:'식당',b(){chairB(col(0x9b4f57),L_DK);}},
+  {id:'sideboard',file:'SP_Sideboard',name:'찬장',cat:'식당',b(){B(tex(tWood,2,.5),-.8,0,-.25,.8,.9,.25);B(L_DK,-.82,.9,-.27,.82,.94,.27);for(const x of[-.4,0,.4])ball(L_GOLD,x,.6,.26,.04);S0(-.82,-.27,.82,.27);}},
+  {id:'candelabra',file:'SP_Candelabra',name:'촛대',cat:'식당',y:.77,b(){cyl(L_GOLD,0,.015,0,.08,.03,root,12);cyl(L_GOLD,0,.15,0,.015,.27);B(L_GOLD,-.16,.27,-.01,.16,.29,.01);
+    for(const x of[-.15,0,.15]){cyl(L_WHT,x,.36,0,.018,.14);ball(glow(0xffd27f),x,.46,0,.025,.05,.025);}}},
+  {id:'teaSet',file:'SP_TeaSet',name:'찻잔 세트',cat:'식당',y:.77,b(){cyl(L_WHT,0,.01,0,.2,.02,root,16);cone(L_WHT,0,.08,0,.05,.07,.12);for(const[x,z]of[[.12,.05],[-.12,.05]])cone(L_WHT,x,.05,z,.04,.03,.06);}},
+  // ---- 침실 ----
+  {id:'bedDouble',file:'SP_Bed_Double',name:'더블 침대',cat:'침실',b(){bedB(.8);}},
+  {id:'bedSingle',file:'SP_Bed_Single',name:'싱글 침대',cat:'침실',b(){bedB(.5);}},
+  {id:'nightstand',file:'SP_Nightstand',name:'협탁 (스탠드)',cat:'침실',b(){B(mWood,-.25,0,-.22,.25,.55,.22);B(L_DK,-.23,.3,.22,.23,.31,.225);ball(L_GOLD,0,.42,.23,.03);cyl(L_GOLD,0,.63,0,.02,.16);cone(glow(0xf3dfb8),0,.78,0,.08,.13,.16);S0(-.25,-.22,.25,.22);}},
+  {id:'wardrobe',file:'SP_Wardrobe',name:'옷장',cat:'침실',b(){B(mWoodT,-.6,0,-.3,.6,2.1,.3);B(L_DK,-.62,2.1,-.32,.62,2.16,.32);B(L_DK,-.008,.05,.3,.008,2.05,.305);for(const x of[-.07,.05])B(L_GOLD,x,.95,.305,x+.02,1.2,.32);S0(-.62,-.32,.62,.32);}},
+  {id:'dresser',file:'SP_Dresser',name:'서랍장',cat:'침실',b(){B(mWood,-.5,0,-.25,.5,.85,.25);for(const y of[.28,.55])B(L_DK,-.48,y,.25,.48,y+.015,.255);for(const y of[.15,.42,.7])for(const x of[-.25,.25])ball(L_GOLD,x,y,.26,.035);S0(-.5,-.25,.5,.25);}},
+  {id:'vanity',file:'SP_Vanity',name:'화장대',cat:'침실',b(){B(L_CRM,-.5,.7,-.22,.5,.76,.22);legs4(L_CRM,-.48,-.2,.48,.2,.7,.05);B(L_GOLD,-.32,.76,-.22,.32,1.55,-.19);B(L_MIRROR,-.27,.81,-.19,.27,1.5,-.185);
+    cyl(col(0xe7a3b0),0,.22,.42,.18,.06,root,14);cyl(L_GOLD,0,.1,.42,.025,.2);S0(-.5,-.22,.5,.6);}},
+  {id:'standMirror',file:'SP_StandMirror',name:'전신 거울',cat:'침실',b(){B(L_GOLD,-.3,.1,-.03,.3,1.75,0);B(L_MIRROR,-.25,.15,0,.25,1.7,.005);B(L_GOLD,-.3,0,-.2,-.26,.12,.15);B(L_GOLD,.26,0,-.2,.3,.12,.15);S0(-.3,-.2,.3,.15);}},
+  // ---- 서재·현관·기타 ----
+  {id:'desk',file:'SP_Desk',name:'책상',cat:'서재·기타',b(){B(mWood,-.7,.73,-.35,.7,.78,.35);B(L_DK,.3,0,-.33,.68,.73,.33);for(const y of[.2,.45])B(L_MID,.32,y,.33,.66,y+.015,.335);B(L_DK,-.68,0,-.33,-.62,.73,.33);S0(-.7,-.35,.7,.35);}},
+  {id:'deskChair',file:'SP_DeskChair',name:'서재 의자',cat:'서재·기타',b(){chairB(col(0x3e2820),col(0x2c1d17));}},
+  {id:'shoeCab',file:'SP_ShoeCabinet',name:'신발장',cat:'서재·기타',b(){B(L_CRM,-.45,0,-.17,.45,1.0,.17);B(mWood,-.47,1.0,-.19,.47,1.04,.19);B(L_DK,-.005,.03,.17,.005,.97,.175);for(const x of[-.06,.04])B(L_GOLD,x,.7,.175,x+.02,.82,.19);S0(-.47,-.19,.47,.19);}},
+  {id:'coatRack',file:'SP_CoatRack',name:'옷걸이',cat:'서재·기타',b(){cyl(L_DK,0,.9,0,.025,1.8);for(let i=0;i<3;i++){const f=group(0,0,0,root);f.rotation.y=i*Math.PI*2/3;boxMM(L_DK,-.02,0,0,.02,.03,.3,f);}for(let i=0;i<4;i++){const a=i*Math.PI/2;ball(L_GOLD,Math.sin(a)*.12,1.72,Math.cos(a)*.12,.05);}S0(-.22,-.22,.22,.22);}},
+  {id:'umbrella',file:'SP_UmbrellaStand',name:'우산꽂이',cat:'서재·기타',b(){cyl(col(0x3b4f6e),0,.25,0,.12,.5,root,12);cyl(L_BLK,.03,.6,0,.012,.3);cyl(col(0x6c2e35),-.04,.55,.02,.012,.25);S0(-.13,-.13,.13,.13);}},
+  {id:'trashBin',file:'SP_TrashBin',name:'휴지통',cat:'서재·기타',b(){cone(col(0x8a8f94),0,.17,0,.14,.11,.34,root,12);S0(-.14,-.14,.14,.14);}},
+  {id:'globe',file:'SP_Globe',name:'지구본',cat:'서재·기타',b(){cyl(L_GOLD,0,.45,0,.03,.9);ball(col(0x7a9ab0),0,1.05,0,.4);S0(-.3,-.3,.3,.3);}},
+  {id:'phone',file:'SP_RotaryPhone',name:'다이얼 전화기',cat:'서재·기타',y:.77,b(){B(L_BLK,-.1,0,-.09,.1,.08,.09);B(L_BLK,-.12,.09,-.03,.12,.12,.03);discZ(L_WHT,0,.06,.09,.045,.01);}},
+  // ---- 욕실 ----
+  {id:'bathtub',file:'SP_Bathtub',name:'욕조',cat:'욕실',b(){B(L_WHT,-.85,.15,-.38,.85,.6,.38);B(col(0xdfe9ee),-.78,.5,-.31,.78,.605,.31);for(const x of[-.75,.7])for(const z of[-.3,.25])ball(L_GOLD,x+.03,.08,z+.03,.1);
+    cyl(L_GOLD,-.8,.75,0,.015,.3);B(L_GOLD,-.8,.88,-.012,-.7,.9,.012);S0(-.85,-.38,.85,.38);}},
+  {id:'washbasin',file:'SP_Washbasin',name:'세면대',cat:'욕실',b(){cone(L_WHT,0,.4,-.05,.07,.11,.8);B(L_WHT,-.28,.8,-.25,.28,.9,.2);B(col(0xdfe9ee),-.22,.895,-.18,.22,.902,.14);cyl(L_GOLD,0,.98,-.21,.015,.16);B(L_GOLD,-.01,1.05,-.21,.01,1.07,-.12);S0(-.28,-.25,.28,.2);}},
+  {id:'toilet',file:'SP_Toilet',name:'변기',cat:'욕실',b(){cone(L_WHT,0,.2,.08,.18,.14,.4);B(L_WHT,-.18,.4,-.12,.18,.43,.3);B(L_WHT,-.2,.4,-.3,.2,.8,-.12);S0(-.22,-.3,.22,.3);}},
+  {id:'towelRack',file:'SP_TowelRack',name:'수건걸이',cat:'욕실',wall:1,y:1.0,b(){B(L_GOLD,-.35,.3,-.06,.35,.32,-.04);B(lam({color:0xe8d9c2},'towel'),-.25,0,-.065,.25,.32,-.035);}},
+];
+const LIB_BY=Object.fromEntries(LIB.map(L=>[L.id,L]));
+// 보관함 가구를 물건으로 만든다: (x,z)에 가운데, 바닥 높이 y, 회전 ry도
+function libObj(id,name,x,y,z,ry=0){const L=LIB_BY[id];beginObj(name);L.b();const o=endObj();o.lib=id;
+  o.g.position.set(x,y,z);o.g.rotation.y=ry*D2R;o.def={p:[x,y,z],ry,s:[1,1,1]};o.orig=[x,y,z];o.g.updateMatrixWorld(true);return o;}
+
 // ---- 소희의 방: 바닥·문·카메라 ----
 walk(-4,0,4,6,0);
 walk(3.8,.6,4.4,1.6,0);                                   // 방문 문턱
@@ -592,17 +713,33 @@ endMod();
 beginMod('dining',{name:'식당',wall:'south',axis:'x',door0:9,half:3.15});
 walk(8.5,-12.4,9.5,-11.8,Y1);walk(6,-18,12,-12.15,Y1);
 roomBox(6,12,-18,-12.15,0,tChecker);
-wallLine('z',5.925,-18.15,-12,Y1,Y1+ROOMH,[],0xe8c8b8);wallLine('z',12.075,-18.15,-12,Y1,Y1+ROOMH,[],0xe8c8b8);wallLine('x',-18.075,5.85,12.15,Y1,Y1+ROOMH,[],0xe8c8b8);
+wallLine('z',5.925,-18.15,-12,Y1,Y1+ROOMH,[],0xe8c8b8);wallLine('z',12.075,-18.15,-12,Y1,Y1+ROOMH,[],0xe8c8b8);wallLine('x',-18.075,5.85,12.15,Y1,Y1+ROOMH,[[10.2,11.4,2.3]],0xe8c8b8); // 남쪽 벽: 부엌으로 가는 아치 (문 없음)
 door('dining',8.5,-12.075,'x',1.0,Math.PI/2*.95,Y1,false);
 beginObj('식당/식탁');boxMM(col(0xf6efe4),7.4,Y1+.74,-16.2,10.6,Y1+.8,-14.6);for(const[x,z]of[[7.5,-16.1],[10.5,-16.1],[7.5,-14.7],[10.5,-14.7]])boxMM(col(0x4a2f25),x-.04,Y1,z-.04,x+.04,Y1+.74,z+.04);
 solid(7.4,-16.2,10.6,-14.6,Y1);
 for(const x of[8.2,9,9.8])cyl(col(0xf6efe4),x,Y1+.95,-15.4,.03,.28);endObj(); // 촛대는 식탁에 붙음
 beginObj('식당/의자 6개');for(const x of[7.9,9,10.1])for(const[z,ry]of[[-16.6,0],[-14.2,Math.PI]]){const c=group(x,Y1,z);c.rotation.y=ry;boxMM(col(0x9b4f57),-.22,.42,-.22,.22,.48,.22,c);boxMM(col(0x4a2f25),-.22,.48,-.24,.22,1.05,-.19,c);for(const[a,b]of[[-.18,-.18],[.18,-.18],[-.18,.18],[.18,.18]])boxMM(col(0x4a2f25),a-.02,0,b-.02,a+.02,.42,b+.02,c);}
 solid(7.6,-16.9,10.4,-16.3,Y1);solid(7.6,-14.5,10.4,-13.9,Y1);endObj();
-O('식당/찬장',()=>{boxMM(tex(tWood,2,.5),7,Y1,-17.95,11,Y1+.9,-17.45);solid(7,-18,11,-17.4,Y1);});O('식당/그림',()=>painting(tLand,9,Y1+1.9,-17.96,1.3,.8,Math.PI));
+O('식당/찬장',()=>{boxMM(tex(tWood,2,.5),6.4,Y1,-17.95,9.9,Y1+.9,-17.45);solid(6.4,-18,9.9,-17.4,Y1);});O('식당/그림',()=>painting(tLand,8.15,Y1+1.9,-17.96,1.3,.8,Math.PI)); // 부엌 아치 자리만큼 왼쪽으로
 O('식당/샹들리에',()=>{const dc=group(9,Y1+2.4,-15.4);cyl(col(0xc9a24a),0,0,0,.4,.04,dc,14);for(let i=0;i<5;i++){const a=i*Math.PI*.4;ball(glow(0xffe7b0),Math.cos(a)*.36,.1,Math.sin(a)*.36,.07,.09,.07,dc);}});
 pLight(0xffe2b0,.9,7,9,Y1+2.3,-15.2);
 zone('식당 (임시)',5.9,-18.1,12.1,-12.1,-4,-.5,{p:[11.7,Y1+2.75,-12.5],t:[7.6,Y1+.2,-16.6],fov:66});
+// 부엌 x6~12 z-25~-18 (식당 남쪽 아치로 연결, 식당 모듈에 포함 → 식당 문을 옮기면 같이 움직임). 가구는 전부 에셋 보관함 가구
+walk(10.2,-18.4,11.4,-17.75,Y1);walk(6,-25,12,-18.15,Y1);
+floorQ(tex(tTile,6,7),6,12,-25,-18.15,Y1);ceilQ(6,12,-25,-18.15,Y1+ROOMH);
+wallLine('z',5.925,-25.15,-18,Y1,Y1+ROOMH,[],0xf3efe6);wallLine('z',12.075,-25.15,-18,Y1,Y1+ROOMH,[],0xf3efe6);wallLine('x',-25.075,5.85,12.15,Y1,Y1+ROOMH,[],0xf3efe6);
+quad(tex(tTile,5.6,1.2),9,Y1+1.25,-24.93,5.6,.65,0,0); // 조리대 뒤 타일 벽
+O('부엌/창',()=>{boxMM(glow(0xd7ecf8),8.35,Y1+1.6,-24.99,9.35,Y1+2.35,-24.94);boxMM(col(0xf1ece2),8.3,Y1+1.55,-24.98,9.4,Y1+1.6,-24.9);boxMM(col(0xf1ece2),8.3,Y1+2.35,-24.98,9.4,Y1+2.4,-24.9);boxMM(col(0xf1ece2),8.83,Y1+1.6,-24.98,8.87,Y1+2.35,-24.92);});
+libObj('fridge','부엌/냉장고',6.55,Y1,-24.6);
+libObj('counter','부엌/조리대1',7.65,Y1,-24.66);libObj('sink','부엌/싱크대',8.85,Y1,-24.66);libObj('stove','부엌/가스레인지',9.85,Y1,-24.66);libObj('counter','부엌/조리대2',10.85,Y1,-24.66);
+libObj('upperCab','부엌/상부장1',7.65,Y1+1.45,-24.81);libObj('hood','부엌/레인지 후드',9.85,Y1+1.6,-24.75);libObj('upperCab','부엌/상부장2',10.85,Y1+1.45,-24.81);
+libObj('microwave','부엌/전자레인지',10.95,Y1+.92,-24.72);libObj('kettle','부엌/주전자',9.7,Y1+.92,-24.6);
+libObj('island','부엌/아일랜드 식탁',9,Y1,-21.9);libObj('fruitBowl','부엌/과일 그릇',9.3,Y1+.92,-21.9);
+for(const[i,x]of[[1,8.35],[2,9],[3,9.65]])libObj('barStool','부엌/바 스툴'+i,x,Y1,-21.05);
+for(const[i,x]of[[1,8.4],[2,9],[3,9.6]])libObj('pendant','부엌/펜던트 조명'+i,x,Y1+1.9,-21.9);
+libObj('wineRack','부엌/와인 장',11.77,Y1,-21.6,-90);libObj('plantBig','부엌/화분',6.45,Y1,-18.75);libObj('trashBin','부엌/휴지통',11.75,Y1,-24.2);
+pLight(0xfff0d8,1.0,8,9,Y1+2.4,-21.5);
+zone('부엌 (임시)',5.9,-25.1,12.1,-18.1,-4,-.5,{p:[11.7,Y1+2.75,-18.45],t:[7.6,Y1+.2,-23.6],fov:66});
 endMod();
 // 손님방 x14~20 z-18~-12 (거실 남쪽 오른쪽 문) — 모듈: 문 중심 x=17
 beginMod('guest',{name:'손님방',wall:'south',axis:'x',door0:17,half:3.15});
@@ -666,6 +803,20 @@ const OBJ_BAKE={'소희방/침대':{p:[-3.03,0,3.5],ry:0,s:[1,1,1]},'소희방/�
 for(const o of OBJS){const b=OBJ_BAKE[o.name];if(!b)continue;o.def=jcopyB(b);o.g.position.set(...b.p);o.g.rotation.y=b.ry*D2R;o.g.scale.set(...b.s);}
 function jcopyB(v){return JSON.parse(JSON.stringify(v));}
 const OBJ_LS='sp11_objs_v1';
+// ---- 보관함에서 꺼낸 물건 (편집 모드에서 추가·빼기, 이 브라우저에 저장). 이름은 '추가/가구 이름 n' ----
+const SPAWN_LS='sp11_spawn_v1';
+const userObjs=()=>OBJS.filter(o=>o.user);
+function spawnObj(lib,name,def){const o=libObj(lib,name,def.p[0],def.p[1],def.p[2],def.ry||0);o.user=true;o.def={p:def.p.slice(),ry:def.ry||0,s:(def.s||[1,1,1]).slice()};o.g.scale.set(...o.def.s);return o;}
+function removeObj(o){const i=OBJS.indexOf(o);if(i<0)return;OBJS.splice(i,1);S.remove(o.g);
+  o.g.traverse(m=>{if(m.isMesh){m.geometry.dispose();if(m.userData.tint)m.userData.tint.dispose();}});
+  const si=spots.findIndex(s=>s.o===o);if(si>=0){const s=spots[si];if(s.vis)spotVis.remove(s.vis.g);spots.splice(si,1);}
+  if(oSel===o)objSel(null);}
+function newSpawnName(L){let n=1;while(OBJS.some(o=>o.name===`추가/${L.name} ${n}`))n++;return `추가/${L.name} ${n}`;}
+const spawnSer=()=>userObjs().map(o=>({lib:o.lib,name:o.name,def:jcopyB(o.def)}));
+// 되돌리기용: 꺼낸 물건 목록을 스냅숏과 똑같이 맞춘다 (위치·색은 그다음에 덮어씀)
+function syncSpawns(list){const want=list.map(u=>u.name).join('|'),have=userObjs().map(o=>o.name).join('|');if(want===have)return;
+  for(const o of userObjs())removeObj(o);for(const u of list)if(LIB_BY[u.lib])spawnObj(u.lib,u.name,u.def);}
+try{for(const u of JSON.parse(localStorage.getItem(SPAWN_LS)||'[]'))if(LIB_BY[u.lib]&&!OBJS.some(o=>o.name===u.name))spawnObj(u.lib,u.name,u.def);}catch(e){}
 // 저장된 방 위치 먼저 (그다음 불러오는 가구·구역·카메라 값은 옮긴 뒤의 실제 위치라서 두 번 밀리지 않음)
 try{const mo=JSON.parse(localStorage.getItem(MOD_LS)||'{}');for(const id in mo)if(MODS[id])setModOffset(MODS[id],mo[id]);}catch(e){}
 try{const s=JSON.parse(localStorage.getItem(OBJ_LS)||'{}');for(const o of OBJS){const v=s[o.name];if(!v)continue;o.g.position.set(...v.p);o.g.rotation.y=v.ry*D2R;o.g.scale.set(...v.s);}}catch(e){}
@@ -772,8 +923,8 @@ function setView(v){view=v;tpSnap=true;$('#viewName').textContent='[V] 시점: '
    Tab: 플레이 ↔ 편집. 편집 모드에서는 소희가 멈추고, 도구 3개로 고친다.
      카메라(C): 구역별 카메라 구도   물건(O): 화면에서 가구 클릭 → 옮기기·회전·크기   톤(T): 화면 효과·밝기
    '저장'해야 새로고침 후에도 남는다(이 브라우저에 저장). 플레이로 돌아가면 편집한 그대로 플레이된다. */
-let mode='play',tool='cam',editing=false,oEditing=false,sEditing=false,zEditing=false,nEditing=false,sel=0;const EK={}; // s: 조사 범위, z: 카메라 구역, n: 텍스트
-const flyTool=()=>oEditing||sEditing||zEditing||nEditing; // 자유 카메라를 쓰는 도구들
+let mode='play',tool='cam',editing=false,oEditing=false,sEditing=false,zEditing=false,nEditing=false,lEditing=false,sel=0;const EK={}; // s: 조사 범위, z: 카메라 구역, n: 텍스트
+const flyTool=()=>oEditing||sEditing||zEditing||nEditing||lEditing; // 자유 카메라를 쓰는 도구들
 const scrEl=$('#screen'),r2=v=>Math.round(v*100)/100;
 const toastEl=$('#toast');let toastT=0;function toast(msg,ms=1400){toastEl.textContent=msg;toastEl.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>toastEl.hidden=true,ms);}
 const onUI=e=>e.target&&e.target.closest&&e.target.closest('.edbar,.chip,.dlg');
@@ -840,7 +991,7 @@ function fitImageToFrame(file,w,h,cb){const rd=new FileReader();rd.onload=()=>{c
     const g=cv.getContext('2d'),s=Math.max(cw/im.width,ch/im.height),dw=im.width*s,dh=im.height*s;g.drawImage(im,(cw-dw)/2,(ch-dh)/2,dw,dh);cb(cv.toDataURL('image/png'));};
     im.src=rd.result;};rd.readAsDataURL(file);}
 const canvasOf=o=>objMeshes(o).find(m=>m.userData.canvas);
-function objLookSync(){const o=oSel,has=!!o;$('#ocAll').disabled=$('#ocReset').disabled=!has;$('#ocPart').disabled=!has||!oPart;
+function objLookSync(){const o=oSel,has=!!o;$('#ocAll').disabled=$('#ocReset').disabled=!has;$('#oDel').disabled=!(has&&o.user);$('#ocPart').disabled=!has||!oPart;
   const cv=has&&canvasOf(o);$('#oImgRow').hidden=!cv;$('#oImgReset').disabled=!(cv&&o.img);}
 $('#ocAll').addEventListener('pointerdown',pushUndo);$('#ocPart').addEventListener('pointerdown',pushUndo);
 $('#ocAll').addEventListener('input',()=>{if(!oSel)return;oSel.col={all:$('#ocAll').value,parts:{}};applyObjLook(oSel);changed();});
@@ -932,9 +1083,10 @@ $('#toneZoneClear').addEventListener('click',()=>{if(!toneSel)return;pushUndo();
 const UNDO=[],REDO=[];
 function snapState(){return{o:OBJS.map(o=>[o.g.position.x,o.g.position.y,o.g.position.z,o.g.rotation.y,o.g.scale.x,o.g.scale.y,o.g.scale.z,o.col?jcopy(o.col):null,o.img||null]),
   z:ZONES.map(zoneSer),c:{corner:jcopy(SH.corner),anchor:jcopy(SH.anchor),clock:jcopy(SH.clock)},t:Object.assign({},TONE),s:spotSnap(),
-  m:Object.fromEntries(Object.values(MODS).map(m=>[m.id,m.off]))};}
+  m:Object.fromEntries(Object.values(MODS).map(m=>[m.id,m.off])),u:spawnSer()};}
 function applyState(s){if(s.m)for(const id in s.m)if(MODS[id])moveModule(MODS[id],s.m[id]-MODS[id].off); // 방 위치 먼저 (가구·구역은 아래에서 저장된 값으로 덮어씀)
-  OBJS.forEach((o,i)=>{const v=s.o[i];o.g.position.set(v[0],v[1],v[2]);o.g.rotation.y=v[3];o.g.scale.set(v[4],v[5],v[6]);
+  if(s.u){const keep=oSel&&oSel.name;syncSpawns(s.u);if(keep&&!OBJS.includes(oSel))objSel(OBJS.find(o=>o.name===keep)||null);} // 꺼낸 물건 목록 맞추기
+  OBJS.forEach((o,i)=>{const v=s.o[i];if(!v)return;o.g.position.set(v[0],v[1],v[2]);o.g.rotation.y=v[3];o.g.scale.set(v[4],v[5],v[6]);
     const lc=JSON.stringify(o.col||null)!==JSON.stringify(v[7]||null)||(o.img||null)!==(v[8]||null);o.col=v[7]?jcopy(v[7]):null;o.img=v[8]||null;if(lc)applyObjLook(o);});
   setZones(s.z);if(zSel)zSel=ZONES.find(z=>z.name===zSel.name)||null;for(const k in s.c)Object.assign(SH[k],jcopy(s.c[k]));
   Object.assign(TONE,s.t);spotApply(s.s);changed();}
@@ -950,7 +1102,7 @@ function saveAll(){try{const c={};for(const x of CAMS)c[x.name]={p:x.ref.p,t:x.r
     const o={};for(const x of OBJS){const g=x.g;o[x.name]={p:[g.position.x,g.position.y,g.position.z],ry:g.rotation.y/D2R,s:[g.scale.x,g.scale.y,g.scale.z]};}localStorage.setItem(OBJ_LS,JSON.stringify(o));
     localStorage.setItem(TONE_LS,JSON.stringify(TONE));const sr={};for(const x of spots)sr[x.id]=x.r;localStorage.setItem(SPOT_LS,JSON.stringify(sr));
     localStorage.setItem(ZONE_LS,JSON.stringify(ZONES.map(zoneSer)));saveTexts();localStorage.setItem(MOD_LS,JSON.stringify(Object.fromEntries(Object.values(MODS).map(m=>[m.id,m.off]))));
-    const cs={},is={};for(const o of OBJS){if(o.col)cs[o.name]=o.col;if(o.img)is[o.name]=o.img;}localStorage.setItem(COL_LS,JSON.stringify(cs));localStorage.setItem(IMG_LS,JSON.stringify(is));}catch(e){toast('이 창에서는 저장이 막혀 있어요 (일반 브라우저로 열어 주세요)',2600);}
+    const cs={},is={};for(const o of OBJS){if(o.col)cs[o.name]=o.col;if(o.img)is[o.name]=o.img;}localStorage.setItem(COL_LS,JSON.stringify(cs));localStorage.setItem(IMG_LS,JSON.stringify(is));localStorage.setItem(SPAWN_LS,JSON.stringify(spawnSer()));}catch(e){toast('이 창에서는 저장이 막혀 있어요 (일반 브라우저로 열어 주세요)',2600);}
   savedSnap=snapState();changed();}
 function exportText(){const L=['[카메라]',...CAMS.map(c=>`${c.name}: p:[${c.ref.p.map(r2)}], t:[${c.ref.t.map(r2)}], fov:${Math.round(c.ref.fov)}`)];
   const ch=OBJS.filter(o=>{const g=o.g;return Math.abs(g.position.x-o.def.p[0])>.005||Math.abs(g.position.y-o.def.p[1])>.005||Math.abs(g.position.z-o.def.p[2])>.005||Math.abs(g.rotation.y-(o.def.ry||0)*D2R)>.001||Math.abs(g.scale.x-o.def.s[0])>.005||Math.abs(g.scale.y-o.def.s[1])>.005||Math.abs(g.scale.z-o.def.s[2])>.005;});
@@ -962,6 +1114,8 @@ function exportText(){const L=['[카메라]',...CAMS.map(c=>`${c.name}: p:[${c.r
   L.push('[조사 범위 (반지름 m)]',...(sc.length?sc.map(x=>`${spotLabel(x)}: ${r2(x.r)} (원래 ${x.r0})`):['(바뀐 범위 없음)']));
   const mm=Object.values(MODS).filter(m=>Math.abs(m.off)>.005);
   L.push('[방 위치 (문 중심 이동량 m)]',...(mm.length?mm.map(m=>`${m.name}: ${m.axis==='x'?'동서':'남북'} 방향으로 ${r2(m.off)} (문 중심 ${r2(m.door0+m.off)})`):['(옮긴 방 없음)']));
+  const uo=userObjs();
+  L.push('[보관함에서 꺼낸 물건 (이름 / 보관함 항목 → 유니티 파일 이름)]',...(uo.length?uo.map(o=>{const g=o.g;return `${o.name} / ${LIB_BY[o.lib].name} → ${LIB_BY[o.lib].file}: p:[${[g.position.x,g.position.y,g.position.z].map(r2)}], ry:${Math.round(g.rotation.y/D2R)}, s:[${[g.scale.x,g.scale.y,g.scale.z].map(r2)}]`;}):['(꺼낸 물건 없음)']));
   const lk=OBJS.filter(o=>o.col||o.img);
   L.push('[색·그림]',...(lk.length?lk.map(o=>`${o.name}: ${o.col&&o.col.all?'전체 '+o.col.all:''}${o.col&&o.col.parts&&Object.keys(o.col.parts).length?' 부분 '+Object.entries(o.col.parts).map(([i,c])=>'#'+i+'='+c).join(' '):''}${o.img?' (그림 넣음 — 파일로 따로 보내 주세요)':''}`):['(바뀐 색·그림 없음)']));
   L.push('[카메라 구역]',...ZONES.map(z=>`${z.user?'(추가) ':''}${z.name}: x ${r2(z.x0)}~${r2(z.x1)}, z ${r2(z.z0)}~${r2(z.z1)}, 높이 ${r2(z.ymin)}~${r2(z.ymax)}`));
@@ -974,7 +1128,7 @@ $('#edSave').addEventListener('click',()=>{saveAll();toast('저장했어요');})
 $('#edPlay').addEventListener('click',()=>{saveAll();setMode('play');toast('저장하고 플레이');});
 $('#edUndo').addEventListener('click',undo);$('#edRedo').addEventListener('click',redo);
 $('#edRevert').addEventListener('click',()=>{pushUndo();applyState(savedSnap);toast('마지막으로 저장한 상태로 되돌렸어요');});
-$('#edResetAll').addEventListener('click',()=>{pushUndo();for(const m of Object.values(MODS))moveModule(m,-m.off);for(const c of CAMS)Object.assign(c.ref,JSON.parse(JSON.stringify(c.def)));for(const o of OBJS){objReset(o);if(o.col||o.img){o.col=null;o.img=null;applyObjLook(o);}}Object.assign(TONE,TONE_DEF);for(const x of spots){x.r=x.r0;setText(x,jcopy(x.lines0||[]));if(x.secret0)x.secret=jcopy(x.secret0);}
+$('#edResetAll').addEventListener('click',()=>{pushUndo();for(const o of userObjs())removeObj(o);for(const m of Object.values(MODS))moveModule(m,-m.off);for(const c of CAMS)Object.assign(c.ref,JSON.parse(JSON.stringify(c.def)));for(const o of OBJS){objReset(o);if(o.col||o.img){o.col=null;o.img=null;applyObjLook(o);}}Object.assign(TONE,TONE_DEF);for(const x of spots){x.r=x.r0;setText(x,jcopy(x.lines0||[]));if(x.secret0)x.secret=jcopy(x.secret0);}
   setZones(ZONES_DEF);zSel=null;for(const k in SH_DEF)Object.assign(SH[k],jcopy(SH_DEF[k]));changed();toast('전부 처음값으로 (저장하면 확정)');});
 $('#edExport').addEventListener('click',async()=>{const t=$('#edOut');t.value=exportText();t.select();let ok=false;
   try{await navigator.clipboard.writeText(t.value);ok=true;}catch(e){try{ok=document.execCommand('copy');}catch(e2){}}
@@ -1049,8 +1203,40 @@ $('#znCamGo').addEventListener('click',()=>{if(zSel)flyFrom(zSel.cam||SH.corner)
 $('#znReset').addEventListener('click',()=>{if(!zSel||zSel.user)return;const d=ZONES_DEF.find(x=>x.name===zSel.name);if(!d)return;pushUndo();
   Object.assign(zSel,{x0:d.x0,x1:d.x1,z0:d.z0,z1:d.z1,ymin:d.ymin,ymax:d.ymax});if(zSel.cam&&d.cam)Object.assign(zSel.cam,jcopy(d.cam));zoneChanged();});
 
+// ---- 에셋 보관함 (B): 가구 그림 목록에서 골라 꺼내기 ----
+const LIB_CATS=['전체',...new Set(LIB.map(L=>L.cat))];let libCat='전체';
+function libFilter(){document.querySelectorAll('#libGrid [data-lib]').forEach(b=>b.hidden=libCat!=='전체'&&LIB_BY[b.dataset.lib].cat!==libCat);
+  document.querySelectorAll('#libCats button').forEach(b=>b.classList.toggle('on',b.dataset.cat===libCat));}
+for(const c of LIB_CATS){const b=document.createElement('button');b.type='button';b.dataset.cat=c;b.textContent=c+(c==='전체'?` (${LIB.length})`:'');b.addEventListener('click',()=>{libCat=c;libFilter();});$('#libCats').appendChild(b);}
+for(const L of LIB){const b=document.createElement('button');b.type='button';b.dataset.lib=L.id;b.title=`${L.name} — 유니티 파일: ${L.file}`;b.innerHTML=`<img alt=""><span>${L.name}</span>`;
+  b.addEventListener('click',()=>libSpawn(L));$('#libGrid').appendChild(b);}
+libFilter();
+// 미리보기 그림: 보관함을 처음 열 때 한 번만 작은 화면에 하나씩 그려서 만든다
+let thumbsDone=false;
+function libTemp(L){const g=new THREE.Group(),pr=root,pc=curObj;curObj={sol:[]};root=g;try{L.b();}finally{root=pr;curObj=pc;}return g;}
+function buildThumbs(){if(thumbsDone)return;thumbsDone=true;
+  let r;try{r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});}catch(e){return;}
+  const W=132,H=104;r.setSize(W,H);r.setClearColor(0x2a2220);
+  const sc=new THREE.Scene();sc.add(new THREE.AmbientLight(0xffffff,.7));const dl=new THREE.DirectionalLight(0xffffff,.6);dl.position.set(2,4,3);sc.add(dl);
+  const cm=new THREE.PerspectiveCamera(30,W/H,.02,60),dir=new THREE.Vector3(.6,.5,1).normalize();
+  for(const L of LIB){const g=libTemp(L);sc.add(g);const bb=new THREE.Box3().setFromObject(g),c=bb.getCenter(new THREE.Vector3()),R=bb.getSize(new THREE.Vector3()).length()/2+.02;
+    cm.position.copy(c).addScaledVector(dir,R/Math.sin(13*D2R));cm.lookAt(c);r.render(sc,cm);
+    const img=document.querySelector(`#libGrid [data-lib="${L.id}"] img`);if(img)img.src=r.domElement.toDataURL();
+    sc.remove(g);g.traverse(m=>{if(m.isMesh)m.geometry.dispose();});}
+  r.dispose();if(r.forceContextLoss)r.forceContextLoss();}
+// 꺼낼 자리: 화면 가운데가 가리키는 바닥 (2층·1층 중 가까운 쪽). 못 찾으면 2.5m 앞
+function spawnPoint(){const d=new THREE.Vector3();cam.getWorldDirection(d);const o=cam.position;let best=null;
+  for(const h of[0,Y1]){if(Math.abs(d.y)<1e-3)continue;const t=(h-o.y)/d.y;if(t<=.3||t>25)continue;const x=o.x+d.x*t,z=o.z+d.z*t;
+    if(floorAt(x,z,h)===null)continue;if(!best||t<best.t)best={x,z,h,t};}
+  if(best)return best;const x=o.x+d.x*2.5,z=o.z+d.z*2.5;return{x,z,h:floorAt(x,z,0)??floorAt(x,z,Y1)??(o.y>-1.5?0:Y1)};}
+function libSpawn(L){if(mode!=='edit')return;pushUndo();const p=spawnPoint(),ry=Math.round(Math.atan2(cam.position.x-p.x,cam.position.z-p.z)/(Math.PI/2))*90; // 앞면이 카메라 쪽을 보게 (90도 단위)
+  const o=spawnObj(L.id,newSpawnName(L),{p:[r2(p.x),p.h+(L.y||0),r2(p.z)],ry,s:[1,1,1]});
+  setTool('obj');lastPickMesh=null;objSel(o);changed();toast(`${L.name} 꺼냄 — 끌어서 옮기세요`);}
+function delObj(){if(!oSel||!oSel.user)return;pushUndo();const n=oSel.name;removeObj(oSel);changed();toast(n.split('/').pop()+' 뺐어요 (Ctrl+Z로 되돌리기)');}
+$('#oDel').addEventListener('click',delObj);
+
 // ---- 모드 / 도구 전환 ----
-function setTool(t){const wasFly=flyTool();tool=t;const ed=mode==='edit';editing=ed&&t==='cam';oEditing=ed&&t==='obj';sEditing=ed&&t==='spot';zEditing=ed&&t==='zone';nEditing=ed&&t==='text';
+function setTool(t){const wasFly=flyTool();tool=t;const ed=mode==='edit';editing=ed&&t==='cam';oEditing=ed&&t==='obj';sEditing=ed&&t==='spot';zEditing=ed&&t==='zone';nEditing=ed&&t==='text';lEditing=ed&&t==='lib';if(lEditing)buildThumbs();
   if(flyTool()&&!wasFly)flyFromCam(); // 자유 카메라 도구로 들어오면 지금 보던 화면에서 시작
   zoneVis.visible=zEditing;if(zEditing)rebuildZoneVis();
   document.querySelectorAll('.edbar [data-tool]').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));
@@ -1107,13 +1293,13 @@ scrEl.addEventListener('wheel',e=>{if(mode!=='edit'||onUI(e))return;
   else if(flyTool()){e.preventDefault();const a=camAng(FLY),s=-e.deltaY*.004,d=[Math.sin(a.yaw)*Math.cos(a.pitch)*s,Math.sin(a.pitch)*s,Math.cos(a.yaw)*Math.cos(a.pitch)*s];for(let i=0;i<3;i++){FLY.p[i]+=d[i];FLY.t[i]+=d[i];}}},{passive:false});
 
 /* ================= 숫자키로 구역 이동 (플레이·편집 둘 다) ================= */
-const JUMPS=[{x:-3.1,y:0,z:2.4},{x:6,y:0,z:1},{x:14.5,y:0,z:1.5},{x:13,y:Y1,z:-9.5},{x:3,y:Y1,z:-8},{x:9,y:Y1,z:-13.3},{x:17,y:Y1,z:-13.3}]; // 1 소희방 … 7 손님방
+const JUMPS=[{x:-3.1,y:0,z:2.4},{x:6,y:0,z:1},{x:14.5,y:0,z:1.5},{x:13,y:Y1,z:-9.5},{x:3,y:Y1,z:-8},{x:9,y:Y1,z:-13.3},{x:17,y:Y1,z:-13.3},{x:9,y:Y1,z:-19.6}]; // 1 소희방 … 7 손님방, 8 부엌
 function jumpTo(i){
-  const n=['소희의 방','2층 복도','2층 로비','거실','서재','식당','손님방'][i],k=CAMS.findIndex(c=>c.name===n);
+  const n=['소희의 방','2층 복도','2층 로비','거실','서재','식당','손님방','부엌'][i],k=CAMS.findIndex(c=>c.name===n);
   if(editing){if(k>=0){sel=k;camSync();}return;}            // 카메라 도구: 그 카메라 고르기
   if(flyTool()){if(k>=0)flyFrom(CAMS[k].ref);return;} // 자유 카메라 도구: 그 구역 카메라 자리로
   if(!started)return;if(seq)skipSeq();if(dlg){dlg=null;$('#dlg').hidden=true;control=true;}
-  override=null;const j=JUMPS[i],m=[null,null,null,null,MODS.study,MODS.dining,MODS.guest][i],ox=m&&m.axis==='x'?m.off:0,oz=m&&m.axis==='z'?m.off:0; // 옮긴 방은 따라감
+  override=null;const j=JUMPS[i],m=[null,null,null,null,MODS.study,MODS.dining,MODS.guest,MODS.dining][i],ox=m&&m.axis==='x'?m.off:0,oz=m&&m.axis==='z'?m.off:0; // 옮긴 방은 따라감
   Object.assign(P,{x:j.x+ox,z:j.z+oz,fy:j.y,y:j.y});
   if(mode==='edit'&&tool==='tone'&&toneSel){toneSel=curZone()||toneSel;changed();}} // 톤 도구에서 구역을 고른 상태면 그 구역으로 같이 넘어감
 
@@ -1339,8 +1525,8 @@ addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&(e.code==='KeyZ'||e.code==='KeyY')){ // 되돌리기 / 다시 실행
     if(t&&t.tagName==='TEXTAREA')return;e.preventDefault();if(e.code==='KeyY'||e.shiftKey)redo();else undo();return;}
   if(inField)return;
-  if(/^Digit[1-7]$/.test(e.code)&&!e.repeat){jumpTo(+e.code.slice(5)-1);return;}
-  const toolKey={KeyC:'cam',KeyO:'obj',KeyT:'tone',KeyI:'spot',KeyV:'zone',KeyN:'text'}[e.code];
+  if(/^Digit[1-8]$/.test(e.code)&&!e.repeat){jumpTo(+e.code.slice(5)-1);return;}
+  const toolKey={KeyC:'cam',KeyO:'obj',KeyT:'tone',KeyI:'spot',KeyV:'zone',KeyN:'text',KeyB:'lib'}[e.code];
   if(toolKey&&!e.repeat){if(mode!=='edit')setMode('edit');setTool(toolKey);return;}
   if(mode==='edit'){ // 편집 모드: 키는 고른 카메라/물건을 움직인다 (소희는 멈춤)
     if(/^Key[WASDQERFZX]$|^Shift/.test(kc)){
@@ -1349,6 +1535,7 @@ addEventListener('keydown',e=>{
       if(editKey&&!e.repeat&&editKey.test(kc)&&!EK[kc]&&!Object.keys(EK).some(k=>EK[k]&&editKey.test(k)))pushUndo();
       EK[kc]=true;e.preventDefault();}
     if(e.code==='Escape'&&oEditing)objSel(null);
+    if((e.code==='Delete'||e.code==='Backspace')&&oEditing&&oSel&&oSel.user){e.preventDefault();delObj();}
     return;}
   if(keyMap[kc]){K[keyMap[kc]]=true;e.preventDefault();}
   if(e.repeat)return;

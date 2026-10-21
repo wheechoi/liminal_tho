@@ -91,6 +91,22 @@
 | 2층 | 작은 로비 | 남쪽 난간 너머로 거실이 내려다보임 |
 | — | 계단 | 로비에서 거실로 18단 |
 | 1층 | 거실 | 2층까지 뚫린 높은 천장, 벽난로·소파·큰 샹들리에·동쪽 큰 창 |
-| 1층 | 서재 / 식당 / 손님방 | **방 이름·가구는 임시.** 거실 서쪽 문 1개, 남쪽 문 2개 (E로 열기) |
+| 1층 | 서재 / 식당 / 손님방 | **방 이름·가구는 임시.** 거실 서쪽 문 1개, 남쪽 문 2개 (E로 열기). 방 모듈: 편집 모드에서 문을 끌면 방이 벽을 따라 이동 |
+| 1층 | 부엌 | 식당 남쪽 아치로 연결 (식당과 한 모듈). 양문형 냉장고·조리대·싱크대·오븐·후드·아일랜드·바 스툴·펜던트 조명·와인 장 |
 
 - 확인 필요: 복도 방문 2개가 누구 방인지, 열리는지 / 1층 방 3개의 정체 / 각 공간의 조사 포인트·대사
+
+### 에셋 보관함 (편집 모드 `B`, 2026-10-21~) — 유니티로 옮길 때 가구 하나 = 프리팹 파일 하나
+- 목업 코드의 `LIB` 목록 = 가구 하나씩 따로 만든 단위. 앞면은 +z, 기준점은 바닥 가운데, 단위 미터. 아래 `파일 이름`이 나중의 프리팹 이름 (지금은 목업에만 있음, 파일은 아직 안 만듦)
+- 꺼낸 물건은 이름이 `추가/가구 이름 n`. 위치·회전·크기는 편집 모드 `값 내보내기`의 `[보관함에서 꺼낸 물건]`에 파일 이름과 같이 나옴
+- 부엌(식당 남쪽 아치로 연결, 식당 모듈에 포함)의 가구는 전부 보관함 가구로 만듦
+
+| 분류 | 가구 (파일 이름) |
+|---|---|
+| 거실 | 3인 소파 `SP_Sofa_3Seat` · 2인 소파 `SP_Sofa_2Seat` · 안락의자 `SP_Armchair` · 커피 테이블 `SP_CoffeeTable` · 사이드 테이블 `SP_SideTable` · TV장과 TV `SP_TVStand` · 플로어 스탠드 `SP_FloorLamp` · 책장 `SP_Bookshelf` · 유리 장식장 `SP_DisplayCabinet` · 피아노 `SP_UprightPiano` · 괘종시계 `SP_GrandfatherClock` · 큰 화분 `SP_Plant_Large` · 작은 화분 `SP_Plant_Small` · 네모 러그 `SP_Rug_Rect` · 타원 러그 `SP_Rug_Oval` |
+| 벽 | 액자 (풍경) `SP_Painting_Landscape` · 액자 (초상화) `SP_Painting_Portrait` · 큰 액자 `SP_Painting_Large` · 벽거울 `SP_WallMirror` · 벽시계 `SP_WallClock` · 벽등 `SP_WallSconce` · 커튼 한 쌍 `SP_Curtain` |
+| 부엌 | 양문형 냉장고 `SP_Fridge` · 조리대 (하부장) `SP_Counter` · 작은 조리대 `SP_Counter_Small` · 싱크대 `SP_SinkCounter` · 가스레인지·오븐 `SP_Stove` · 상부장 `SP_UpperCabinet` · 레인지 후드 `SP_RangeHood` · 아일랜드 식탁 `SP_KitchenIsland` · 바 스툴 `SP_BarStool` · 전자레인지 `SP_Microwave` · 주전자 `SP_Kettle` · 과일 그릇 `SP_FruitBowl` · 펜던트 조명 `SP_PendantLight` · 와인 장 `SP_WineRack` |
+| 식당 | 6인 식탁 `SP_DiningTable_6` · 4인 식탁 `SP_DiningTable_4` · 식탁 의자 `SP_DiningChair` · 찬장 `SP_Sideboard` · 촛대 `SP_Candelabra` · 찻잔 세트 `SP_TeaSet` |
+| 침실 | 더블 침대 `SP_Bed_Double` · 싱글 침대 `SP_Bed_Single` · 협탁 (스탠드) `SP_Nightstand` · 옷장 `SP_Wardrobe` · 서랍장 `SP_Dresser` · 화장대 `SP_Vanity` · 전신 거울 `SP_StandMirror` |
+| 서재·기타 | 책상 `SP_Desk` · 서재 의자 `SP_DeskChair` · 신발장 `SP_ShoeCabinet` · 옷걸이 `SP_CoatRack` · 우산꽂이 `SP_UmbrellaStand` · 휴지통 `SP_TrashBin` · 지구본 `SP_Globe` · 다이얼 전화기 `SP_RotaryPhone` |
+| 욕실 | 욕조 `SP_Bathtub` · 세면대 `SP_Washbasin` · 변기 `SP_Toilet` · 수건걸이 `SP_TowelRack` |
