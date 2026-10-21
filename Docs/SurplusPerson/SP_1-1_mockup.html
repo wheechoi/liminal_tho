@@ -590,17 +590,26 @@ rebuildSol();
 const girl=group();const pose=group(0,.56,0,girl);const body=group(0,-.56,0,pose);
 const cm=hex=>lam({color:hex,side:THREE.DoubleSide},'d'+hex);
 const skin=cm(0xeee2d9),hair=cm(0x161112),gown=cm(0xe6cfc6),trim=cm(0xb27e86),eye=col(0x1b1414),lip=col(0xb98587);
-function lathe(m,pts,p,{seg=14,phi0=0,phiL=Math.PI*2,x=0,y=0,z=0,sz=1,ragged=0,seed=1}={}){
-  const g=new THREE.LatheGeometry(pts.map(a=>new THREE.Vector2(a[0],a[1])),seg,phi0,phiL);
-  if(ragged){const pa=g.attributes.position,n=pts.length,yt=pts[n-1][1];
-    for(let k=0;k<pa.count;k++){const i=Math.floor(k/n),f=1-k%n/(n-1);pa.setY(k,yt+(pa.getY(k)-yt)*(1+(noise(i,7,seed)-.5)*ragged*f*f));}
-    g.computeVertexNormals();}
+// folds: 치마 주름 (fy0 높이부터 fy1까지 점점 깊어짐, fwave = 밑단이 주름 따라 오르내리는 정도)
+function lathe(m,pts,p,{seg=14,phi0=0,phiL=Math.PI*2,x=0,y=0,z=0,sz=1,ragged=0,seed=1,folds=0,famp=0,fy0=0,fy1=0,fwave=0}={}){
+  const g=new THREE.LatheGeometry(pts.map(a=>new THREE.Vector2(a[0],a[1])),seg,phi0,phiL),pa=g.attributes.position;
+  if(ragged){const n=pts.length,yt=pts[n-1][1];
+    for(let k=0;k<pa.count;k++){const i=Math.floor(k/n),f=1-k%n/(n-1);pa.setY(k,yt+(pa.getY(k)-yt)*(1+(noise(i,7,seed)-.5)*ragged*f*f));}}
+  if(folds)for(let k=0;k<pa.count;k++){const px=pa.getX(k),py=pa.getY(k),pz=pa.getZ(k),ph=Math.atan2(px,pz),t=clamp((fy0-py)/(fy0-fy1),0,1),mm=1+famp*t*Math.sin(folds*ph);
+    pa.setXYZ(k,px*mm,py+fwave*t*t*Math.cos(folds*ph),pz*mm);}
+  if(ragged||folds)g.computeVertexNormals();
   const me=new THREE.Mesh(g,m);me.position.set(x,y,z);me.scale.z=sz;p.add(me);return me;}
 function torus(m,x,y,z,r,t,sz,p){const me=new THREE.Mesh(new THREE.TorusGeometry(r,t,5,18),m);me.position.set(x,y,z);me.rotation.x=Math.PI/2;me.scale.y=sz;p.add(me);return me;}
-// 몸통 + 원피스 (가슴 아래에서 A라인으로 퍼짐), 목둘레·밑단 장식, 가슴 리본
-lathe(gown,[[.2,.33],[.19,.42],[.165,.56],[.14,.7],[.12,.83],[.112,.9],[.124,.97],[.135,1.03],[.14,1.07],[.13,1.11],[.1,1.145],[.06,1.172],[.036,1.188]],body,{seg:18,sz:.8});
-torus(trim,0,.335,0,.198,.012,.8,body);torus(trim,0,1.17,0,.062,.012,.8,body);torus(trim,0,.9,0,.113,.007,.8,body);
-ball(trim,-.022,1.13,.094,.035,.024,.014,body);ball(trim,.022,1.13,.094,.035,.024,.014,body);
+// 몸통 + 원피스:가슴 아래 리본 허리선에서 주름이 잡히며 퍼지는 치마, 밑단 띠 + 레이스 프릴, 둥근 깃, 단추 3개, 허리 앞 리본
+const lace=cm(0xf4ebe4),SKIRT={folds:9,famp:.065,fy0:.88,fy1:.33,fwave:.012};
+lathe(gown,[[.2,.33],[.19,.42],[.17,.55],[.15,.68],[.132,.8],[.12,.87],[.112,.9],[.124,.97],[.135,1.03],[.14,1.07],[.13,1.11],[.1,1.145],[.06,1.172],[.036,1.188]],body,{seg:36,sz:.8,...SKIRT});
+lathe(trim,[[.1915,.44],[.1878,.462]],body,{seg:36,sz:.8,...SKIRT});                        // 밑단 위 띠
+lathe(lace,[[.24,.3],[.215,.33],[.17,.37]],body,{seg:48,sz:.8,folds:16,famp:.08,fy0:.37,fy1:.3,fwave:.006}); // 레이스 프릴
+torus(trim,0,.9,0,.113,.008,.8,body);                                                          // 허리 리본띠
+for(const s of[-1,1]){lathe(lace,[[.152,1.095],[.134,1.12],[.106,1.15],[.07,1.176]],body,{seg:8,sz:.8,phi0:s>0?.03*Math.PI:1.57*Math.PI,phiL:.4*Math.PI}); // 둥근 깃
+  ball(trim,s*.025,.905,.096,.04,.028,.014,body);ball(trim,s*.016,.85,.097,.014,.08,.008,body).rotation.z=s*.25;} // 허리 리본 고리·꼬리
+ball(trim,0,.903,.1,.016,.02,.014,body);
+for(const[by,bz]of[[1.05,.112],[.995,.105],[.945,.099]])ball(trim,0,by,bz,.016,.016,.01,body); // 단추
 lathe(skin,[[.036,1.12],[.032,1.19],[.036,1.24]],body,{seg:10}); // 목
 // 머리: 구를 갸름하게 (턱 쪽을 좁힘). 얼굴은 +z
 const hg=new THREE.SphereGeometry(.105,20,16),hp=hg.attributes.position;
@@ -608,10 +617,11 @@ for(let k=0;k<hp.count;k++){const y=hp.getY(k),t=y<0?-y/.105:0;hp.setXYZ(k,hp.ge
 hg.computeVertexNormals();const head=new THREE.Mesh(hg,skin);head.position.set(0,1.33,0);body.add(head);
 for(const s of[-1,1])ball(eye,s*.036,1.332,.099,.03,.017,.012,body); // 가늘고 긴 눈
 ball(skin,0,1.307,.102,.012,.02,.014,body);ball(lip,0,1.282,.095,.022,.006,.008,body);
-// 머리카락: 정수리 덮개 + 일자 앞머리(눈썹을 가릴 만큼) + 등 뒤로 내려오는 긴 머리 + 얼굴 옆으로 흘러내린 두 가닥
-{const cap=new THREE.Mesh(new THREE.SphereGeometry(.116,16,10,0,Math.PI*2,0,.42*Math.PI),hair);cap.position.set(0,1.34,-.006);cap.scale.y=1.1;body.add(cap);
- const bang=new THREE.Mesh(new THREE.SphereGeometry(.121,14,5,.1*Math.PI,.8*Math.PI,.28*Math.PI,.18*Math.PI),hair);bang.position.set(0,1.34,0);bang.scale.y=1.1;body.add(bang);}
-lathe(hair,[[.115,.8],[.125,.9],[.135,1.0],[.142,1.08],[.135,1.17],[.125,1.25],[.12,1.31],[.117,1.37]],body,{seg:16,phi0:.4*Math.PI,phiL:1.2*Math.PI,z:-.02,ragged:.35,seed:3});
+// 머리카락: 정수리~일자 앞머리를 한 덩어리로(앞쪽만 눈썹 높이에서 끊음) + 등 뒤로 내려오는 긴 머리 + 얼굴 옆으로 흘러내린 두 가닥
+{const cg=new THREE.SphereGeometry(.118,20,12,0,Math.PI*2,0,.5*Math.PI),ca=cg.attributes.position;
+ for(let k=0;k<ca.count;k++){const z=ca.getZ(k),f=clamp((z/.118-.15)/.3,0,1);ca.setY(k,Math.max(ca.getY(k),f*.008));}
+ cg.computeVertexNormals();const cap=new THREE.Mesh(cg,hair);cap.position.set(0,1.34,-.004);cap.scale.y=1.1;body.add(cap);}
+lathe(hair,[[.115,.8],[.125,.9],[.135,1.0],[.142,1.08],[.135,1.17],[.125,1.25],[.12,1.31],[.112,1.37]],body,{seg:16,phi0:.4*Math.PI,phiL:1.2*Math.PI,z:-.02,ragged:.35,seed:3});
 for(const s of[-1,1])lathe(hair,[[.15,1.0],[.152,1.07],[.14,1.16],[.126,1.25],[.12,1.31],[.118,1.37]],body,{seg:5,phi0:s>0?.15*Math.PI:1.67*Math.PI,phiL:.18*Math.PI,ragged:.5,seed:s>0?5:6});
 // 팔다리: 관절마다 그룹 (엉덩이→무릎→발, 어깨→팔꿈치→손)
 const hips=[],knees=[],shoulders=[],elbows=[];
