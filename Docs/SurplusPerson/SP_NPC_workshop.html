@@ -78,13 +78,16 @@ textarea{width:100%;box-sizing:border-box;background:#141010;color:var(--ink);bo
    - 도형을 붙이지 않고, 옆모습 윤곽선을 돌려 깎아(Lathe) 몸통·옷·팔다리·머리카락을 곡면으로 만든다
    - 사람마다 차림(look: basic 기본 / poor 가난)이 있고, 옷 재질을 따로 가져서 색을 바꿀 수 있음(setColor). 키는 전체 크기(setHeight)
    - 계층: root(위치·방향) → size(키) → pose(엉덩이 높이 회전축: 눕기/앉기) → body → 엉덩이/어깨 → 무릎/팔꿈치
+   - 유니티용 모델(.dae)은 Tools/NpcExport/export_npc_models.ps1이 이 블록(NPC-BLOCK 표시 사이)을 그대로 읽어서 만든다
    ===================================================================== */
+// <NPC-BLOCK>
 const NPC=(()=>{
 const TAU=Math.PI*2,PI=Math.PI,clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function noise(x,y,s){let h=(x*374761393+y*668265263+s*1442695041)|0;h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))&0xffff)/65535;}
 const mat=hex=>new THREE.MeshLambertMaterial({color:hex,side:THREE.DoubleSide});
 const FM={eye:mat(0x1b1414),brow:mat(0x2a1d1a),pearl:mat(0xf3eee6),gold:mat(0xc9a24a),frame:mat(0x2a2220),btnD:mat(0x2a2220),btnL:mat(0xe9e1d4),
   sock:mat(0x241c1a),sole:mat(0xd8d2c6),tape:mat(0xe9e4d8)};
+for(const k in FM)FM[k].name='SP_NPC_'+k;
 const BALL=new THREE.SphereGeometry(.5,12,9);
 function grp(p,x=0,y=0,z=0){const g=new THREE.Group();g.position.set(x,y,z);p.add(g);return g;}
 function ball(m,p,x,y,z,sx,sy=sx,sz=sx){const me=new THREE.Mesh(BALL,m);me.position.set(x,y,z);me.scale.set(sx,sy,sz);p.add(me);return me;}
@@ -261,7 +264,7 @@ dad:{name:'아빠',base:1.77,skin:0xe7d3c3,lip:0x9a6c68,rest:.1,looks:{
  poor:{note:'가난 버전. 얼룩진 러닝셔츠에 멜빵, 헐렁하고 밑단 접은 바지, 맨발에 슬리퍼. 부스스한 머리, 수염 자국, 테이프로 붙인 안경.',
   slots:[['shirt','러닝셔츠','#d2c9b6'],['stain','얼룩','#a8956f'],['braces','멜빵','#5b3b2c'],['pants','바지','#4d483d'],['shoes','슬리퍼','#3e4b58'],['hair','머리','#2e2622']],
   make(c){const{body:b,M}=c,TP=[[.17,.86],[.172,.95],[.178,1.06],[.185,1.17],[.19,1.28],[.192,1.36],[.18,1.41],[.15,1.45],[.1,1.48],[.065,1.5]];
-    lathe(M.pants,b,[[.15,.8],[.162,.88],[.168,.96],[.166,1.0]],{seg:18,sz:.8});
+    lathe(M.pants,b,[[.15,.8],[.158,.88],[.162,.96],[.16,1.0]],{seg:18,sz:.74});                       // 바지 허리 (러닝셔츠 밑으로 숨게)
     lathe(M.shirt,b,TP,{seg:24,sz:.74,folds:5,famp:.02,fy0:1.2,fy1:.86});                              // 늘어난 러닝셔츠
     ball(M.stain,b,-.05,1.15,.134,.06,.05,.01);ball(M.stain,b,.06,1.02,.13,.035,.03,.01);               // 얼룩
     const BP=TP.filter(p=>p[1]>=.95).map(([r,y])=>[r+.007,y]);                                          // 멜빵: 몸통 곡면을 따라 붙은 띠
@@ -315,9 +318,16 @@ function build(id,opts={}){
   c.M.skin=mat(d.skin);
   c.pose=grp(size);c.body=grp(c.pose);
   L.make(c);
+  // 이름표 (유니티로 내보냈을 때 관절·재질을 찾기 쉽게). hips[0]은 -x쪽 = +z를 보는 사람의 오른쪽
+  const Nm=id[0].toUpperCase()+id.slice(1),Lk=look[0].toUpperCase()+look.slice(1),side=k=>k?'L':'R';
+  root.name=`SP_${Nm}_${Lk}`;size.name='Size';c.pose.name='Pose';c.body.name='Body';
+  c.hips.forEach((g,k)=>g.name='Hip_'+side(k));c.knees.forEach((g,k)=>g.name='Knee_'+side(k));
+  c.shoulders.forEach((g,k)=>g.name='Shoulder_'+side(k));c.elbows.forEach((g,k)=>g.name='Elbow_'+side(k));
+  if(c.pony)c.pony.name='Ponytail';
+  for(const[k,m]of Object.entries(c.M))m.name=`SP_${Nm}_${Lk}_${k}`;c.lipM.name=`SP_${Nm}_lip`;
   const hy=c.hips[0].position.y;c.pose.position.y=hy;c.body.position.y=-hy;                          // 눕기/앉기 회전축 = 엉덩이 높이
   c.blob=new THREE.Mesh(new THREE.CircleGeometry(.24*d.base/1.45,16),new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.28,depthWrite:false}));
-  c.blob.rotation.x=-PI/2;c.blob.position.y=.012;root.add(c.blob);
+  c.blob.rotation.x=-PI/2;c.blob.position.y=.012;c.blob.name='Shadow';root.add(c.blob);
   c.P={tilt:0,hip:0,knee:0,armL:-d.rest,armR:d.rest};
   c.setColor=(k,hex)=>{if(c.M[k])c.M[k].color.set(hex);};
   c.setHeight=cm=>{c.height=cm;size.scale.setScalar(cm/100/d.base);};
@@ -334,6 +344,7 @@ function build(id,opts={}){
   return c;}
 return {DEFS,ORDER,LOOKS,build};
 })();
+// </NPC-BLOCK>
 
 /* ===================== 작업실 화면 ===================== */
 (function(){

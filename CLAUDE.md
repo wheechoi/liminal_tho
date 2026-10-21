@@ -52,6 +52,32 @@ Claude Code가 이 저장소에서 작업할 때 따르는 지침입니다.
 - 기능 단위로 브랜치를 따서 작업 (`feature/<이름>`), 커밋 메시지는 한국어 가능.
 - 커밋 전 확인: 컴파일 에러 없음, 불필요한 `Library/` 변경 없음.
 
+## 에셋 넣기 (사용자가 "이거 넣어줘" 할 때)
+
+사용자가 **로컬 파일·폴더 경로를 주며 넣어달라고 하면**, 종류를 보고 아래 폴더로 **복사**한다 (원본은 그대로 둠). 폴더가 없으면 만든다.
+
+| 종류 | 확장자 예 | 넣는 곳 | 파일 이름 |
+|---|---|---|---|
+| 인물 모델 (NPC·주인공) | `.fbx` `.dae` `.obj` `.blend` | `Assets/_Project/Meshes/SP/Characters/` | `SP_<인물>_<차림>` (예: `SP_Mom_Poor`) |
+| 가구·소품 모델 | 위와 같음 | `Assets/_Project/Meshes/SP/Props/` | `SP_<물건>` |
+| 건물·방 모델 | 위와 같음 | `Assets/_Project/Meshes/SP/Environment/` | `SP_<공간>` |
+| 텍스처·이미지 (게임에 쓰는 것) | `.png` `.jpg` `.tga` `.psd` | `Assets/_Project/Textures/SP/` (인물용은 `Textures/SP/Characters/`) | `T_SP_<이름>` |
+| UI 이미지·아이콘 | `.png` | `Assets/_Project/Textures/SP/UI/` | `UI_SP_<이름>` |
+| 재질 | `.mat` | `Assets/_Project/Materials/SP/` | `M_SP_<이름>` |
+| 애니메이션 | `.anim`, 애니메이션만 든 `.fbx` | `Assets/_Project/Animations/SP/` | `A_SP_<인물>_<동작>` |
+| 효과음 | `.wav` `.ogg` `.mp3` | `Assets/_Project/Audio/SP/SFX/` | `SFX_<이름>` |
+| 배경음 | 위와 같음 | `Assets/_Project/Audio/SP/BGM/` | `BGM_<이름>` |
+| 대사 음성 | 위와 같음 | `Assets/_Project/Audio/SP/Voice/` | `VO_<인물>_<번호>` |
+| 폰트 | `.ttf` `.otf` | `Assets/_Project/Fonts/` | 원래 이름 |
+| 그래픽 레퍼런스 (게임에 안 들어감) | 이미지 | `Docs/SurplusPerson/refs/` | 원래 이름 |
+| 에셋스토어·유니티 패키지 | `.unitypackage` | 직접 풀지 말 것 → 사용자에게 유니티에서 더블클릭해 Import 하도록 안내 | — |
+
+- 종류가 애매하면(예: 모델+텍스처가 든 압축 파일) 풀어서 각각 위 규칙대로 나누고, 그래도 모르겠으면 넣기 전에 물어본다.
+- 같은 이름이 이미 있으면 덮어쓰기 전에 물어본다.
+- `.meta`는 만들지 않는다. 유니티 에디터가 켜져 있으면 MCP `assets-refresh`로 읽어 들이게 해서 유니티가 만들게 한다 (만들어진 `.meta`는 에셋과 같이 커밋).
+- 넣은 뒤에는 **넣은 파일의 전체 경로 목록**과 폴더 `file:///` 링크를 사용자에게 알려주고, `Docs/SurplusPerson/ASSETS.md` 목록에 한 줄씩 추가한다.
+- NPC 모델은 작업실(`Docs/SurplusPerson/SP_NPC_workshop.html`)에서 만들고 `Tools/NpcExport/export_npc_models.ps1`로 다시 뽑는다 (작업실 "설정 복사" 값을 `-Settings`로 주면 고른 색·키 반영).
+
 ## 사용자 정보
 - 작업자는 서사/기획 쪽 배경. 코드 설명은 짧고 쉽게, 결과 위주로 보고할 것.
 - 응답 언어: 한국어

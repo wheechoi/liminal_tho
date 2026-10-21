@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>NPC 모델 내보내기</title></head><body>
+<!-- export_npc_models.ps1이 아래 두 자리(NPC 블록, 설정)를 채운 뒤, 브라우저를 화면 없이 띄워 결과를 읽어 간다. 직접 열 필요 없음 -->
+<pre id="log">RUNNING</pre>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/ColladaExporter.js"></script>
+<script>
+/*NPC_BLOCK*/
+</script>
+<script>
+const SETTINGS=/*SETTINGS*/null; // 작업실 "설정 복사" 값: {sohee:{키:145, 옷:{기본:{gown:'#..'}, 가난:{...}}}, ...}
+(function(){
+const log=document.getElementById('log');
+const cap=s=>s[0].toUpperCase()+s.slice(1);
+const b64=s=>btoa(unescape(encodeURIComponent(s)));
+// 옷·머리카락은 얇은 껍질이라 유니티(한쪽 면만 그림)에서 안쪽이 투명해짐 → 뒷면을 복사해 양면으로 굽는다
+function twoSided(g){const p=g.attributes.position,n=p.count,idx=g.index?Array.from(g.index.array):[...Array(n).keys()];
+  const pos=new Float32Array(n*6);pos.set(p.array);pos.set(p.array,n*3);
+  const I=idx.slice();for(let i=0;i<idx.length;i+=3)I.push(idx[i]+n,idx[i+2]+n,idx[i+1]+n);
+  const ng=new THREE.BufferGeometry();ng.setAttribute('position',new THREE.BufferAttribute(pos,3));ng.setIndex(I);ng.computeVertexNormals();return ng;}
+function isShell(g){const t=g.type,q=g.parameters||{};
+  return t==='LatheGeometry'||(t==='SphereGeometry'&&((q.thetaLength!==undefined&&q.thetaLength<Math.PI-1e-6)||(q.phiLength!==undefined&&q.phiLength<Math.PI*2-1e-6)));}
+try{
+  const done=[];
+  for(const id of NPC.ORDER)for(const look of Object.keys(NPC.LOOKS)){
+    const s=(SETTINGS&&SETTINGS[id])||{},cc=s.옷&&s.옷[NPC.LOOKS[look]];
+    const c=NPC.build(id,{look,height:s.키,colors:cc});
+    c.root.remove(c.blob);                                   // 발밑 그림자는 게임 쪽에서 따로
+    let i=0;c.root.traverse(o=>{if(!o.isMesh)return;
+      if(isShell(o.geometry))o.geometry=twoSided(o.geometry);
+      o.material.side=THREE.FrontSide;                       // 재질은 공유한 채로 (부위별 재질 1개 → 유니티에서도 1개)
+      o.name=o.material.name.replace(/^SP_[A-Za-z]+_(Basic_|Poor_)?/,'').replace(/^SP_NPC_/,'')+'_'+(i++);});
+    c.root.updateMatrixWorld(true);
+    const res=new THREE.ColladaExporter().parse(c.root,undefined,{author:'Surplus Person NPC workshop'});
+    const dae=res.data.replace(/\s*<reflective>[\s\S]*?<\/reflective>\s*<reflectivity>[\s\S]*?<\/reflectivity>/g,''); // 반사값 빼기 (유니티에서 번들거리지 않게)
+    const ta=document.createElement('textarea');ta.id='dae:'+c.root.name;ta.textContent=b64(dae);document.body.appendChild(ta);
+    done.push(c.root.name+' '+c.height+'cm');}
+  log.textContent='OK '+done.join(', ');
+}catch(e){log.textContent='ERROR '+(e&&e.stack||e);}
+})();
+</script>
+</body></html>
