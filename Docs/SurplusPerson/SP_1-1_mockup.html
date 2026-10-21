@@ -173,7 +173,8 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
     <div><b>가구</b>: <b>클릭</b>하면 골라지고 옆에 조작 버튼이 떠요 · 가구 드래그: 옮기기 · 휠: 크기 · <kbd>Z</kbd>/<kbd>X</kbd> 회전 · <kbd>R</kbd>/<kbd>F</kbd> 위/아래 · <kbd>Esc</kbd>/빈 곳 클릭: 선택 해제. 부딪히는 범위와 조사 지점도 같이 움직여요.</div>
   </div>
   <div class="tool" data-tool="tone" hidden>
-    <div class="row"><b>톤</b><button id="toneReset" type="button">톤 원래대로</button></div>
+    <div class="row"><b>편집할 톤</b><select id="toneZone"></select><span id="toneState"></span><button id="toneZoneClear" type="button" hidden>이 구역 톤 지우기 (기본 톤 따르기)</button><button id="toneReset" type="button">기본 톤 원래대로</button></div>
+    <div>구역을 고르면 그 구역 카메라로 보여요. 슬라이더를 움직이면 <b>그 구역만</b> 바뀌고, 안 건드린 값은 기본 톤을 따라가요(<b>굵은 글씨</b> = 이 구역만 따로 정한 값). 플레이 중엔 카메라가 컷될 때 톤도 같이 바뀌어요.</div>
     <div class="sl" id="toneSliders"></div>
     <div class="row" id="toneColors"></div>
   </div>
@@ -756,6 +757,7 @@ function curZone(){
 function updateCam(dt){
   if(editing){hide.visible=ext.visible=true;S.background=SKY;place(CAMS[sel].ref);return;} // 카메라 도구: 고른 카메라로 보기
   if(flyTool()){hide.visible=ext.visible=true;S.background=SKY;place(FLY);return;} // 물건·조사·구역·텍스트 도구: 자유 카메라 (게임 카메라와 별개)
+  if(mode==='edit'&&tool==='tone'&&toneSel){hide.visible=ext.visible=true;S.background=SKY;place(toneSel.cam||SH.corner);return;} // 톤 도구: 고른 구역의 카메라로 보기
   const shot=override||(view===1?curZone():view);if(shot!==lastShot){lastShot=shot;camCut++;}
   const cut=!override&&view===0;hide.visible=ext.visible=!cut;S.background=cut?DARK:SKY;
   if(override){place(override);return;}
@@ -779,7 +781,7 @@ const onUI=e=>e.target&&e.target.closest&&e.target.closest('.edbar,.chip,.dlg');
 // ---- 카메라 ---- (구역이 추가·삭제·이름 변경되면 목록을 다시 만든다)
 const CAMS=[],CAM_LS='sp11_cams_v1',ZONE_LS='sp11_zones_v1',jcopy=v=>JSON.parse(JSON.stringify(v));
 const SH_DEF={corner:jcopy(SH.corner),anchor:jcopy(SH.anchor),clock:jcopy(SH.clock)};
-const zoneSer=z=>({name:z.name,x0:z.x0,z0:z.z0,x1:z.x1,z1:z.z1,ymin:z.ymin,ymax:z.ymax,cam:z.cam?jcopy(z.cam):null,label:z.label||null,user:!!z.user,mod:z.mod||null});
+const zoneSer=z=>({name:z.name,x0:z.x0,z0:z.z0,x1:z.x1,z1:z.z1,ymin:z.ymin,ymax:z.ymax,cam:z.cam?jcopy(z.cam):null,label:z.label||null,user:!!z.user,mod:z.mod||null,tone:z.tone?Object.assign({},z.tone):null});
 for(const z of ZONES)z.camDef=z.cam?jcopy(z.cam):null;
 const ZONES_DEF=ZONES.map(zoneSer);zonesDefReady=true; // 처음 구역들 (원래대로용, 방을 옮기면 같이 옮겨짐)
 const ceSel=$('#ceSel'),ceIn={};
@@ -791,7 +793,7 @@ function rebuildCams(){const keep=CAMS[sel]&&CAMS[sel].name;CAMS.length=0;
   const k=CAMS.findIndex(c=>c.name===keep);sel=k>=0?k:0;}
 // 구역 목록 통째로 바꾸기 (불러오기·되돌리기·원래대로)
 function setZones(list){ZONES.length=0;for(const v of list){const d=!v.user&&ZONES_DEF.find(x=>x.name===v.name);
-    ZONES.push(Object.assign({},v,{cam:v.cam?jcopy(v.cam):null,camDef:d&&d.cam?jcopy(d.cam):(v.cam?jcopy(v.cam):null)}));}
+    ZONES.push(Object.assign({},v,{cam:v.cam?jcopy(v.cam):null,tone:v.tone?Object.assign({},v.tone):null,camDef:d&&d.cam?jcopy(d.cam):(v.cam?jcopy(v.cam):null)}));}
   zoneNow=null;lastShot=null;rebuildCams();}
 try{const zs=JSON.parse(localStorage.getItem(ZONE_LS)||'null');if(zs&&zs.length)setZones(zs);}catch(e){}
 rebuildCams();
@@ -890,19 +892,41 @@ const TONE=Object.assign({},TONE_DEF),TONE_LS='sp11_tone_v1';
 try{Object.assign(TONE,JSON.parse(localStorage.getItem(TONE_LS)||'{}'));}catch(e){}
 const LIGHTS=[];S.traverse(o=>{if(o.isLight)LIGHTS.push([o,o.intensity]);});
 let gradPreview=null; // 플레이 중 G키 미리보기
-function applyTone(){const u=post.uniforms;u.levels.value=TONE.levels;u.dither.value=TONE.dither;u.sat.value=TONE.sat;u.ink.value=TONE.ink;u.inkTh.value=TONE.inkTh;
-  u.grain.value=TONE.grain;u.vig.value=TONE.vig;u.grad.value=gradPreview??TONE.grad;u.g0.value.set(TONE.g0);u.g1.value.set(TONE.g1);u.g2.value.set(TONE.g2);
-  for(const[l,b]of LIGHTS)l.intensity=b*TONE.bright;
+// 구역별 톤: 구역(z.tone)에는 기본 톤과 다르게 정한 값만 들어 있고, 나머지는 기본 톤(TONE)을 따라감
+let toneSel=null,lastToneZ; // toneSel: 톤 도구에서 편집 중인 구역 (null = 기본 톤)
+const toneOf=z=>z&&z.tone?Object.assign({},TONE,z.tone):TONE;
+function toneZoneNow(){ // 지금 화면에 쓰는 톤의 구역
+  if(mode==='edit'){if(tool==='tone')return toneSel;
+    if(editing){const r=CAMS[sel]&&CAMS[sel].ref;return ZONES.find(z=>(z.cam||SH.corner)===r)||null;}
+    if(flyTool())return null;}
+  return override===SH.anchor?null:curZone();}
+function applyTone(){const u=post.uniforms,T=toneOf(toneZoneNow());lastToneZ=toneZoneNow();
+  u.levels.value=T.levels;u.dither.value=T.dither;u.sat.value=T.sat;u.ink.value=T.ink;u.inkTh.value=T.inkTh;
+  u.grain.value=T.grain;u.vig.value=T.vig;u.grad.value=gradPreview??T.grad;u.g0.value.set(T.g0);u.g1.value.set(T.g1);u.g2.value.set(T.g2);
+  for(const[l,b]of LIGHTS)l.intensity=b*T.bright;
   $('#dlg').style.fontSize=TONE.dlgSize+'cqw';$('#who').style.fontSize=(TONE.dlgSize*.68)+'cqw';}
+function setToneKey(k,v){if(toneSel){toneSel.tone=toneSel.tone||{};toneSel.tone[k]=v;}else TONE[k]=v;changed();}
 const toneIn={};
 for(const[k,label,mn,mx,st]of[['bright','전체 밝기',.3,2,.01],['levels','색 수 (적을수록 포스터처럼)',2,24,1],['dither','점묘(디더링) 세기',0,1.5,.01],['sat','채도',0,1.5,.01],
   ['ink','잉크선 진하기',0,1,.01],['inkTh','잉크선 기준 (낮을수록 선 많음)',.02,.6,.01],['grain','종이 질감',0,.15,.005],['vig','가장자리 어둡게',0,1,.01],['grad','공포 톤 (색조 덧씌우기)',0,1,.01]])
-  toneIn[k]=slider($('#toneSliders'),label,mn,mx,st,v=>{TONE[k]=v;changed();});
+  toneIn[k]=slider($('#toneSliders'),label,mn,mx,st,v=>setToneKey(k,v));
 for(const[k,label]of[['g0','공포 톤: 어두운 색'],['g1','중간 색'],['g2','밝은 색']]){const l=document.createElement('label');l.className='clr';l.innerHTML=`<span>${label}</span><input type="color">`;
-  const inp=l.querySelector('input');inp.addEventListener('pointerdown',pushUndo);inp.addEventListener('input',()=>{TONE[k]=inp.value;changed();});$('#toneColors').appendChild(l);toneIn[k]={inp,out:null};}
+  const inp=l.querySelector('input');inp.addEventListener('pointerdown',pushUndo);inp.addEventListener('input',()=>setToneKey(k,inp.value));$('#toneColors').appendChild(l);toneIn[k]={inp,out:null};}
 toneIn.dlgSize=slider($('#txSize'),'대사 글자 크기',1.8,5.5,.05,v=>{TONE.dlgSize=v;changed();}); // 텍스트 도구 패널에 있음
-function toneSync(){for(const k in toneIn){const{inp,out}=toneIn[k];if(document.activeElement!==inp)inp.value=TONE[k];if(out)out.textContent=k==='levels'?TONE[k]:k==='dlgSize'?Math.round(TONE[k]/3.1*100)+'%':(+TONE[k]).toFixed(2);}}
+function toneSync(){
+  if(toneSel&&!ZONES.includes(toneSel))toneSel=ZONES.find(z=>z.name===toneSel.name)||null; // 되돌리기 뒤에도 같은 구역 유지
+  const zs=$('#toneZone'),sig=ZONES.map(z=>z.name).join('|');
+  if(zs.dataset.sig!==sig){zs.dataset.sig=sig;zs.innerHTML='<option value="-1">기본 톤 (모든 구역)</option>'+ZONES.map((z,i)=>`<option value="${i}">구역: ${z.name}</option>`).join('');}
+  zs.value=toneSel?ZONES.indexOf(toneSel):-1;
+  const own=toneSel&&toneSel.tone?toneSel.tone:{},n=Object.keys(own).length;
+  $('#toneState').textContent=toneSel?(n?`이 구역만 따로 정한 값 ${n}개`:'아직 기본 톤 그대로'):'따로 정하지 않은 구역 전부에 쓰여요';
+  $('#toneZoneClear').hidden=!n;
+  for(const k in toneIn){const{inp,out}=toneIn[k],T=k==='dlgSize'?TONE:toneOf(toneSel);if(document.activeElement!==inp)inp.value=T[k];
+    if(out)out.textContent=k==='levels'?T[k]:k==='dlgSize'?Math.round(T[k]/3.1*100)+'%':(+T[k]).toFixed(2);
+    const lb=inp.closest('label');if(lb&&k!=='dlgSize')lb.style.fontWeight=k in own?'700':'';}}
 $('#toneReset').addEventListener('click',()=>{pushUndo();Object.assign(TONE,TONE_DEF);changed();});
+$('#toneZone').addEventListener('change',e=>{const i=+e.target.value;toneSel=i>=0?ZONES[i]:null;changed();});
+$('#toneZoneClear').addEventListener('click',()=>{if(!toneSel)return;pushUndo();toneSel.tone=null;changed();});
 
 // ---- 되돌리기 (Ctrl+Z) / 다시 실행 (Ctrl+Y) ----
 const UNDO=[],REDO=[];
@@ -932,6 +956,8 @@ function exportText(){const L=['[카메라]',...CAMS.map(c=>`${c.name}: p:[${c.r
   const ch=OBJS.filter(o=>{const g=o.g;return Math.abs(g.position.x-o.def.p[0])>.005||Math.abs(g.position.y-o.def.p[1])>.005||Math.abs(g.position.z-o.def.p[2])>.005||Math.abs(g.rotation.y-(o.def.ry||0)*D2R)>.001||Math.abs(g.scale.x-o.def.s[0])>.005||Math.abs(g.scale.y-o.def.s[1])>.005||Math.abs(g.scale.z-o.def.s[2])>.005;});
   L.push('[물건]',...(ch.length?ch.map(o=>{const g=o.g;return `${o.name}: p:[${[g.position.x,g.position.y,g.position.z].map(r2)}], ry:${Math.round(g.rotation.y/D2R)}, s:[${[g.scale.x,g.scale.y,g.scale.z].map(r2)}]`;}):['(바뀐 물건 없음)']));
   L.push('[톤]',Object.entries(TONE).map(([k,v])=>`${k}:${typeof v==='number'?r2(v):v}`).join(', '));
+  const zt=ZONES.filter(z=>z.tone&&Object.keys(z.tone).length);
+  L.push('[구역별 톤 (기본 톤과 다른 값만)]',...(zt.length?zt.map(z=>`${z.name}: `+Object.entries(z.tone).map(([k,v])=>`${k}:${typeof v==='number'?r2(v):v}`).join(', ')):['(따로 정한 구역 없음)']));
   const sc=spots.filter(x=>Math.abs(x.r-x.r0)>.005);
   L.push('[조사 범위 (반지름 m)]',...(sc.length?sc.map(x=>`${spotLabel(x)}: ${r2(x.r)} (원래 ${x.r0})`):['(바뀐 범위 없음)']));
   const mm=Object.values(MODS).filter(m=>Math.abs(m.off)>.005);
@@ -1068,7 +1094,8 @@ function jumpTo(i){
   if(flyTool()){if(k>=0)flyFrom(CAMS[k].ref);return;} // 자유 카메라 도구: 그 구역 카메라 자리로
   if(!started)return;if(seq)skipSeq();if(dlg){dlg=null;$('#dlg').hidden=true;control=true;}
   override=null;const j=JUMPS[i],m=[null,null,null,null,MODS.study,MODS.dining,MODS.guest][i],ox=m&&m.axis==='x'?m.off:0,oz=m&&m.axis==='z'?m.off:0; // 옮긴 방은 따라감
-  Object.assign(P,{x:j.x+ox,z:j.z+oz,fy:j.y,y:j.y});}
+  Object.assign(P,{x:j.x+ox,z:j.z+oz,fy:j.y,y:j.y});
+  if(mode==='edit'&&tool==='tone'&&toneSel){toneSel=curZone()||toneSel;changed();}} // 톤 도구에서 구역을 고른 상태면 그 구역으로 같이 넘어감
 
 
 /* ================= 사운드 (WebAudio 합성) ================= */
@@ -1366,12 +1393,13 @@ function frame(dt){T0+=dt;
   if(ns)$('#prompt').textContent=ns.kind==='door'?'[E] 문 열기':'[E] 조사';
   drawDlg(dt);
   updateCam(dt);updateChip();updateSpotVis();
+  const tz=toneZoneNow();if(tz!==lastToneZ){lastToneZ=tz;applyTone();} // 구역이 바뀌면 (카메라 컷) 톤도 같이
   R.setRenderTarget(RT);R.render(S,cam);R.setRenderTarget(null);R.render(postScene,postCam);}
 
 // 첫 화면: 타이틀 뒤로 돌하우스가 보이게
 savedSnap=snapState();applyTone();setMode('play');changed(); // 편집 모드 초기화 (저장된 값 기준)
 applyPose(0);setView(1);updateDev();tick(); // 시점 확정: 구석 고정 카메라 (플레이어 조작 불가)
-window.__sp={P,spots,FLAG,DOORS,curZone,cam,free,floorAt,solids,WALK,frame,CAMS,OBJS,ZONES,FLY,MODS,modSel,setModOffset,setMode,setTool,objSel,spotSel,textSel,zoneSel,objSpot,say,get spotVisOn(){return spotVis.visible},jumpTo,undo,redo,saveAll,TONE,get mode(){return mode},get SOL(){return SOL},get oSel(){return oSel},get editing(){return editing},skip:skipSeq,action,setView,get dlg(){return dlg},get control(){return control},K};
+window.__sp={P,spots,FLAG,DOORS,curZone,cam,free,floorAt,solids,WALK,frame,CAMS,OBJS,ZONES,FLY,MODS,modSel,setModOffset,setMode,setTool,get toneSel(){return toneSel},set toneSel(v){toneSel=v},toneZoneNow,objSel,spotSel,textSel,zoneSel,objSpot,say,get spotVisOn(){return spotVis.visible},jumpTo,undo,redo,saveAll,TONE,get mode(){return mode},get SOL(){return SOL},get oSel(){return oSel},get editing(){return editing},skip:skipSeq,action,setView,get dlg(){return dlg},get control(){return control},K};
 })();
 </script>
 </body></html>
