@@ -20,3 +20,10 @@ NPC 작업실(`Docs/SurplusPerson/SP_NPC_workshop.html`)에서 만든 모델. �
 - 모델 안 구조: `SP_<인물>_<차림>` → `Size` → `Pose` → `Body` → `Hip_L/R` → `Knee_L/R`, `Shoulder_L/R` → `Elbow_L/R` (미희는 `Ponytail` 추가). 관절 그룹을 돌리면 걷기·앉기 동작을 만들 수 있다 (뼈대·스킨 방식은 아님).
 - 재질은 옷 부위마다 하나 (예: `SP_Mom_Poor_apron`). 유니티에서 재질 색을 바꾸면 그 부위 색이 바뀐다.
 - 다시 뽑기: `powershell -ExecutionPolicy Bypass -File Tools\NpcExport\export_npc_models.ps1` (작업실 "설정 복사" 값을 파일로 저장해 `-Settings <파일>`로 주면 고른 색·키 반영). 같은 이름으로 덮어써서 `.meta`(GUID)는 유지된다.
+
+## 그래픽 레퍼런스 — `Docs/SurplusPerson/refs/` (게임에 안 들어감)
+
+| 파일 | 내용 | 넣은 날 |
+|---|---|---|
+| `1.webp` ~ `7.png` | 단면 저택 일러스트, 픽셀 어드벤처, 잉크·디더링 톤 등 첫 레퍼런스 7장 | 2026-10-10 |
+| `be9554f1f7376513f51e2fcd1a345539.jpg` | PS1풍 어두운 부엌 (초록빛 실내, 창밖 붉은 숲) — 저장소 맨 위 `이미지/`에 있던 것을 옮김 | 2026-10-22 |
