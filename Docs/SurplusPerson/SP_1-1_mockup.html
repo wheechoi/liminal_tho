@@ -190,7 +190,7 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
       <label class="clr"><span>층</span><select id="znLevel"><option value="2">2층</option><option value="1">1층</option><option value="s">계단</option></select></label>
       <button id="znCamSet" type="button">지금 보는 화면을 이 구역 카메라로</button><button id="znCamGo" type="button">이 구역 카메라 자리로 이동</button><button id="znReset" type="button">이 구역 원래대로</button></div>
     <div class="sl" id="znSliders"></div>
-    <div>바닥의 사각형 = 소희가 그 안에 들어가면 그 구역 카메라로 바뀌는 범위. 사각형을 <b>클릭</b>해서 고르고, 고른 사각형을 <b>끌면</b> 옮겨져요 · 슬라이더로 네 변 조절 · 겹치면 <b>나중에 추가한 구역이 먼저</b> · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <kbd>Q</kbd>/<kbd>E</kbd> 자유 이동 · <kbd>1</kbd>~<kbd>7</kbd> 그 구역으로 · "구역 추가"는 지금 보고 있는 화면을 그대로 새 구역의 카메라로 써요</div>
+    <div>바닥의 사각형 = 소희가 그 안에 들어가면 그 구역 카메라로 바뀌는 범위. 사각형을 <b>클릭</b>해서 고르고, 고른 사각형을 <b>끌면</b> 옮겨져요 · 고른 사각형의 <b>흰 동그라미 손잡이</b>(꼭짓점·변 가운데)를 끌면 크기 조절 (파워포인트처럼) · 슬라이더로도 네 변 조절 · 겹치면 <b>나중에 추가한 구역이 먼저</b> · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <kbd>Q</kbd>/<kbd>E</kbd> 자유 이동 · <kbd>1</kbd>~<kbd>7</kbd> 그 구역으로 · "구역 추가"는 지금 보고 있는 화면을 그대로 새 구역의 카메라로 써요</div>
   </div>
   <div class="tool" data-tool="text" hidden>
     <div class="row"><b>텍스트</b><span>대상: <span id="txName"></span></span><button id="txPreview" type="button">미리보기</button></div>
@@ -990,7 +990,7 @@ function labelTex(text,on){const c=document.createElement('canvas');c.width=256;
   g.fillStyle=on?'rgba(255,210,127,.95)':'rgba(20,16,16,.85)';g.fillRect(0,0,256,48);g.fillStyle=on?'#141010':'#efe3cf';
   g.font='bold 24px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(text,128,25);return new THREE.CanvasTexture(c);}
 function rebuildZoneVis(){
-  for(const c of[...zoneVis.children]){zoneVis.remove(c);c.traverse(o=>{if(o.material){if(o.material.map)o.material.map.dispose();o.material.dispose();}if(o.geometry)o.geometry.dispose();});}
+  for(const c of[...zoneVis.children]){zoneVis.remove(c);c.traverse(o=>{if(o.material){if(o.material.map&&o.material.map!==ZH_TEX)o.material.map.dispose();o.material.dispose();}if(o.geometry)o.geometry.dispose();});}
   if(!zEditing)return;
   ZONES.forEach((z,i)=>{const on=z===zSel,col=new THREE.Color().setHSL((i*.17)%1,.55,.6),w=Math.max(z.x1-z.x0,.05),d=Math.max(z.z1-z.z0,.05),y=zFloorY(z)+.05+i*.003;
     const g=new THREE.Group();
@@ -1000,8 +1000,23 @@ function rebuildZoneVis(){
     const lab=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTex(z.name,on),depthTest:false}));lab.position.set(rect.position.x,y+.5,rect.position.z);lab.scale.set(1.8,.34,1);
     g.add(rect,edge,lab);
     if(on){const c=z.cam||SH.corner,m=new THREE.Mesh(new THREE.ConeGeometry(.14,.34,8),new THREE.MeshBasicMaterial({color:0xffd27f}));
-      m.position.set(...c.p);m.lookAt(...c.t);m.rotateX(Math.PI/2);g.add(m);} // 고른 구역의 카메라 위치 (뾰족한 쪽이 보는 방향)
+      m.position.set(...c.p);m.lookAt(...c.t);m.rotateX(Math.PI/2);g.add(m); // 고른 구역의 카메라 위치 (뾰족한 쪽이 보는 방향)
+      // 크기 조절 손잡이 8개 (파워포인트 도형처럼): 꼭짓점 4 + 변 가운데 4. 화면에서 늘 같은 크기로 보임
+      const mx=(z.x0+z.x1)/2,mz=(z.z0+z.z1)/2;
+      for(const[hx,hz]of[['x0','z0'],['x1','z0'],['x0','z1'],['x1','z1'],['x0',null],['x1',null],[null,'z0'],[null,'z1']]){
+        const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:ZH_TEX,depthTest:false,sizeAttenuation:false}));sp.scale.set(.05,.05,1);sp.renderOrder=10;
+        sp.position.set(hx?z[hx]:mx,y+.02,hz?z[hz]:mz);sp.userData.zh={x:hx,z:hz};g.add(sp);}}
     zoneVis.add(g);});}
+const ZH_TEX=(()=>{const c=document.createElement('canvas');c.width=c.height=32;const g=c.getContext('2d');g.beginPath();g.arc(16,16,12,0,Math.PI*2);g.fillStyle='#ffffff';g.fill();g.lineWidth=4;g.strokeStyle='#3a2a20';g.stroke();return new THREE.CanvasTexture(c);})();
+// 손잡이 고르기 (고른 구역에만 있음): 화면에서 손잡이 둘레 몇 픽셀 안을 누르면 잡힘
+function pickZoneHandle(e){if(!zSel)return null;const rc=$('#game').getBoundingClientRect(),nx=(e.clientX-rc.left)/rc.width*2-1,ny=-((e.clientY-rc.top)/rc.height)*2+1;
+  zoneVis.updateMatrixWorld(true);let best=null,bd=1e9;
+  zoneVis.traverse(o=>{if(!o.userData.zh)return;const v=o.position.clone().project(cam),d=Math.hypot((v.x-nx)*rc.width/2,(v.y-ny)*rc.height/2);if(v.z<1&&d<bd){bd=d;best=o.userData.zh;}});
+  return bd<14?best:null;}
+// 마우스가 가리키는 바닥 지점 (구역 높이의 바닥면)
+function zoneFloorPoint(e,z){const rc=$('#game').getBoundingClientRect(),nd=new THREE.Vector2((e.clientX-rc.left)/rc.width*2-1,-((e.clientY-rc.top)/rc.height)*2+1);
+  ray.setFromCamera(nd,cam);const p=new THREE.Vector3();return ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),-zFloorY(z)),p)?p:null;}
+const zhCursor=h=>h.x&&h.z?'move':h.x?'ew-resize':'ns-resize';
 function pickZone(e){const rc=$('#game').getBoundingClientRect(),nd=new THREE.Vector2((e.clientX-rc.left)/rc.width*2-1,-((e.clientY-rc.top)/rc.height)*2+1);
   zoneVis.updateMatrixWorld(true);ray.setFromCamera(nd,cam);let best=null,ba=1e9;
   for(const h of ray.intersectObjects(zoneVis.children.map(g=>g.children[0]),false)){const z=h.object.userData.zone,a=(z.x1-z.x0)*(z.z1-z.z0);if(a<ba){ba=a;best=z;}} // 겹치면 작은 구역 우선
@@ -1061,15 +1076,20 @@ scrEl.addEventListener('pointerdown',e=>{if(mode!=='edit'||onUI(e))return;
     drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:md?(md===mSel?'mod':'fly'):(o&&o===oSel?'obj':'fly'),moved:0,pick:md?{mod:md}:o,undone:false,acc:0};
     try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}
   else if(sEditing){drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'fly',moved:0,pick:pickSpot(e)};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}} // 조사 도구: 클릭 = 범위 고르기, 끌기 = 둘러보기
-  else if(zEditing){const z=pickZone(e); // 구역 도구: 클릭 = 고르기, 고른 구역 위에서 끌기 = 옮기기, 그 외 끌기 = 둘러보기
-    drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:z&&z===zSel?'zone':'fly',moved:0,pick:z,undone:false};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}
+  else if(zEditing){const zh=pickZoneHandle(e),z=zh?zSel:pickZone(e); // 구역 도구: 클릭 = 고르기, 손잡이 끌기 = 크기, 고른 구역 위에서 끌기 = 옮기기, 그 외 끌기 = 둘러보기
+    drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:zh?'zh':z&&z===zSel?'zone':'fly',zh,moved:0,pick:z,undone:false};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}
   else if(nEditing){drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'fly',moved:0,pick:pickTextTarget(e)};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}}); // 텍스트 도구: 클릭 = 대상 고르기
-scrEl.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
+scrEl.addEventListener('pointermove',e=>{if(!drag&&mode==='edit'&&zEditing){const h=pickZoneHandle(e);scrEl.style.cursor=h?zhCursor(h):'';} // 손잡이 위에서는 커서 모양이 바뀜
+  if(!drag||e.pointerId!==drag.id)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
   if(drag.k==='cam'){const c=CAMS[sel].ref,a=camAng(c);camSetAng(c,a.yaw-dx*.005,a.pitch-dy*.005);changed();return;}
   drag.moved+=Math.abs(dx)+Math.abs(dy);if(drag.moved<4)return; // 살짝 흔들린 건 클릭으로 본다
   if(drag.k==='fly'){const a=camAng(FLY);camSetAng(FLY,a.yaw-dx*.005,a.pitch-dy*.005);}
   else if(drag.k==='zone'&&zSel){if(!drag.undone){pushUndo();drag.undone=true;}
     const{f,r}=screenAxes(),k=.02,mx=(r.x*dx-f.x*dy)*k,mz=(r.z*dx-f.z*dy)*k;zSel.x0+=mx;zSel.x1+=mx;zSel.z0+=mz;zSel.z1+=mz;zoneChanged();}
+  else if(drag.k==='zh'&&zSel){const p=zoneFloorPoint(e,zSel);if(!p)return;if(!drag.undone){pushUndo();drag.undone=true;} // 손잡이 끌기 → 그 변(꼭짓점이면 두 변)이 마우스 자리로
+    const sn=v=>Math.round(v/.05)*.05,h=drag.zh,MIN=.3;
+    if(h.x==='x0')zSel.x0=Math.min(sn(p.x),zSel.x1-MIN);if(h.x==='x1')zSel.x1=Math.max(sn(p.x),zSel.x0+MIN);
+    if(h.z==='z0')zSel.z0=Math.min(sn(p.z),zSel.z1-MIN);if(h.z==='z1')zSel.z1=Math.max(sn(p.z),zSel.z0+MIN);zoneChanged();}
   else if(drag.k==='mod'&&mSel){if(!drag.undone){pushUndo();drag.undone=true;} // 방 문 끌기 → 방 전체가 벽을 따라 이동
     const{f,r}=screenAxes(),k=.015,wx=(r.x*dx-f.x*dy)*k,wz=(r.z*dx-f.z*dy)*k;setModOffset(mSel,mSel.off+(mSel.axis==='x'?wx:wz));
     oBox.setFromObject(mSel.doors[0].leaf.parent);changed();}
