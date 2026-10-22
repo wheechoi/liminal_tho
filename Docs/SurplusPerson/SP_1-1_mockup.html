@@ -2173,8 +2173,8 @@ const spots=[
 for(const d of DOORS)spots.push({id:'door_'+d.name,kind:'door',door:d,x:d.cx,y:d.y,z:d.cz,r:1.3,seen:0}); // 문은 조금 멀리서도 열리게
 spotsReady=true; // 이제부터 방 모듈을 옮기면 문 조사 지점도 같이 옮김
 // 가구에 붙은 조사 지점은 가구를 옮기면 같이 따라간다
-for(const s of spots)if(s.obj){s.o=OBJS.find(o=>o.name===s.obj);if(s.o)s.off=[s.x-s.o.orig[0],s.z-s.o.orig[2]];}
-const spotXZ=s=>s.o?[s.o.g.position.x+s.off[0],s.o.g.position.z+s.off[1]]:[s.x,s.z];
+for(const s of spots)if(s.obj){s.o=OBJS.find(o=>o.name===s.obj);if(s.o)s.ofs=[s.x-s.o.orig[0],s.z-s.o.orig[2]];} // ofs = 가구 기준 위치 (off는 '없애기' 표시라 이름을 나눔)
+const spotXZ=s=>s.o?[s.o.g.position.x+s.ofs[0],s.o.g.position.z+s.ofs[1]]:[s.x,s.z];
 const bedroomSpots=spots.filter(s=>s.group==='bedroom');
 const allSeen=()=>bedroomSpots.every(s=>s.seen>0);
 // ---- 텍스트: 조사 지점마다 대사. 문은 문의 대사, 가구는 '가구 텍스트 지점'(kind:'text')을 만들어 붙인다 ----
@@ -2191,7 +2191,7 @@ for(const s of spots){s.lines0=jcopy(textOf(s)||[]);if(s.secret)s.secret0=jcopy(
 // 대사가 없던 가구에 대사를 쓰면 그 가구에 조사 지점을 만든다 (가구를 따라 움직임)
 function objSpot(o,create){let s=spots.find(x=>x.o===o||(o.door&&x.door===o.door));if(s||!create)return s||null; // 문 물건은 문의 조사 지점
   const bb=new THREE.Box3().setFromObject(o.g),rr=r2(Math.max(bb.max.x-bb.min.x,bb.max.z-bb.min.z)/2+.7); // 범위 = 가구 크기의 절반 + 0.7m
-  s={id:'obj:'+o.name,kind:'text',obj:o.name,o,off:[0,0],x:o.def.p[0],z:o.def.p[2],y:o.def.p[1]>-1.5?0:Y1,r:rr,r0:rr,seen:0,lines:[],lines0:[]};
+  s={id:'obj:'+o.name,kind:'text',obj:o.name,o,ofs:[0,0],x:o.def.p[0],z:o.def.p[2],y:o.def.p[1]>-1.5?0:Y1,r:rr,r0:rr,seen:0,lines:[],lines0:[]};
   spots.push(s);if(spotVisReady)makeSpotVis(s);return s;}
 const TEXT_LS='sp11_texts_v1';
 try{const tv=JSON.parse(localStorage.getItem(TEXT_LS)||'null');
@@ -2214,7 +2214,7 @@ const spotLabel=s=>SPOT_NAMES[s.id]||(s.kind==='text'?s.obj:s.id);
 for(const[id,r]of[['door_bedroom',.8],['door_hallA',.7],['door_hallB',.65]]){const s=spots.find(x=>x.id===id);if(s)s.r=r;} // 2026-10-21 직접 조정한 범위
 for(const s of spots)s.r0=s.r;
 try{const sv=JSON.parse(localStorage.getItem(SPOT_LS)||'{}');for(const s of spots)if(sv[s.id])s.r=sv[s.id];}catch(e){}
-const SPOTOFF_LS='sp11_spotoff_v1'; // 물건 도구에서 '없애기' 한 조사 범위
+const SPOTOFF_LS='sp11_spotoff_v2'; // v1은 가구 지점 전부가 잘못 '없앰'으로 저장되던 때의 값이라 버림 // 물건 도구에서 '없애기' 한 조사 범위
 try{const so=new Set(JSON.parse(localStorage.getItem(SPOTOFF_LS)||'[]'));for(const s of spots)if(so.has(s.id))s.off=true;}catch(e){}
 const spotVis=new THREE.Group();spotVis.visible=false;S.add(spotVis);
 const SPOT_COL=0xb98f8a,SPOT_SEL=0xffd27f;
