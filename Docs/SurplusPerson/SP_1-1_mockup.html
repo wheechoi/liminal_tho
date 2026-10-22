@@ -748,7 +748,7 @@ function libObj(id,name,x,y,z,ry=0){const L=LIB_BY[id];houseReg=false;beginObj(n
 
 // ---- 소희의 방: 바닥·문·카메라 ----
 walk(-4,0,4,6,0);
-walk(3.8,.6,4.4,1.6,0);                                   // 방문 문턱
+walk(3.7,.45,4.5,1.75,0);                                 // 방문 문턱 (문 구멍보다 조금 넓게 — 몸 둘레 판정 때문에 문턱에서 걸리던 것 완화)
 door('bedroom',4.075,.6,'z',1.0,Math.PI/2*.95,0,false);  // 복도 쪽으로 열림
 zone('소희의 방, 아침',-4.2,-.2,4.05,6.2,-1,2,null); // 카메라 = SH.corner (아래 카메라 구도에서 정의)
 
@@ -919,7 +919,7 @@ const gridG=new THREE.Group();S.add(gridG);
   quad(g0,cx,gy,cz,38,240,-Math.PI/2,0);quad(g0,cx,gy+h,cz,38,240,Math.PI/2,0);                         // 바닥·천장 (1m 그리드). 벽 없음. 동쪽으로 38m(그 너머는 어둠에 묻힘) — 살덩이 방·연구소(x 60~)와 안 겹치게
   root=pr;const l=new THREE.PointLight(0xffffff,.9,14,1);l.position.set(x0+3,gy+3.6,cz);gridG.add(l);  // 문 앞의 소희만 비추는 빛 (그리드는 빛과 상관없이 흼)
   walk(x0-.1,-16,x0+20,4,gy);
-  zone('가상 공간',x0+.15,-16.1,x0+20.1,4.1,gy-1,gy+2,{p:[x0+.7,gy+1.75,cz],t:[x0+30,gy+1.1,cz],fov:72});ZONES[ZONES.length-1].tone={sat:0,grad:0,ink:.2};} // 현관문 바로 밖에서 맞은편(동쪽) 소실점을 보는 1점 투시
+  zone('가상 공간 (현관 밖)',x0+.15,-16.1,x0+20.1,4.1,gy-1,gy+2,{p:[x0+.7,gy+1.75,cz],t:[x0+30,gy+1.1,cz],fov:72});ZONES[ZONES.length-1].tone={sat:0,grad:0,ink:.2};} // 현관문 바로 밖에서 맞은편(동쪽) 소실점을 보는 1점 투시. 이름을 바꾼 이유: 예전 '가상 공간'(x 40~54) 구역·카메라가 브라우저에 저장돼 있으면 그 값이 덮어쓰기 때문
 // 현관 앞뜰: 돌 포치 + 산울타리 + 잔디 (집이 백룸으로 변하기 전까지만 보임. 엄마·미희가 이리로 나감)
 const porchG=new THREE.Group();S.add(porchG);
 {const pr=root;root=porchG;
@@ -1227,6 +1227,8 @@ function rebuildCams(){const keep=CAMS[sel]&&CAMS[sel].name;CAMS.length=0;
 // 구역 목록 통째로 바꾸기 (불러오기·되돌리기·원래대로)
 function setZones(list){ZONES.length=0;for(const v of list){const d=!v.user&&ZONES_DEF.find(x=>x.name===v.name);
     ZONES.push(Object.assign({},v,{cam:v.cam?jcopy(v.cam):null,tone:v.tone?Object.assign({},v.tone):null,camDef:d&&d.cam?jcopy(d.cam):(v.cam?jcopy(v.cam):null)}));}
+  // 저장된 뒤에 새로 생긴 기본 구역(살덩이 방·연구소·현관 밖 그리드 등)은 저장 목록에 없으므로 기본값으로 끼워 넣음 — 없으면 그 방으로 이동해도 카메라가 안 바뀜
+  for(const d of ZONES_DEF)if(!ZONES.some(z=>z.name===d.name))ZONES.push(Object.assign({},d,{cam:d.cam?jcopy(d.cam):null,tone:d.tone?Object.assign({},d.tone):null,camDef:d.cam?jcopy(d.cam):null}));
   zoneNow=null;lastShot=null;rebuildCams();}
 try{const zs=JSON.parse(localStorage.getItem(ZONE_LS)||'null');if(zs&&zs.length)setZones(zs);}catch(e){}
 rebuildCams();
@@ -1613,7 +1615,7 @@ scrEl.addEventListener('wheel',e=>{if(mode!=='edit'||onUI(e))return;
 const JUMPS=[{x:-3.1,y:0,z:2.4},{x:6,y:0,z:1},{x:14.5,y:0,z:1.5},{x:13,y:Y1,z:-9.5},{x:3,y:Y1,z:-8},{x:9,y:Y1,z:-13.3},{x:17,y:Y1,z:-13.3},{x:9,y:Y1,z:-19.6},
   {x:22,y:Y1,z:-6.5},{x:67,y:0,z:-9.5},{x:90.5,y:0,z:-1.2}]; // 1 소희방 … 7 손님방, 8 부엌 / 따로 떨어진 공간: 9 가상 공간(현관문 밖), 0 살덩이 방, - 연구소
 function jumpTo(i){
-  const n=['소희의 방','2층 복도','2층 로비','거실','서재','식당','손님방','부엌','가상 공간','살덩이 방','연구소'][i],k=CAMS.findIndex(c=>c.name===n);
+  const n=['소희의 방','2층 복도','2층 로비','거실','서재','식당','손님방','부엌','가상 공간 (현관 밖)','살덩이 방','연구소'][i],k=CAMS.findIndex(c=>c.name===n);
   if(editing){if(k>=0){sel=k;camSync();}return;}            // 카메라 도구: 그 카메라 고르기
   if(flyTool()){if(k>=0)flyFrom(CAMS[k].ref);return;} // 자유 카메라 도구: 그 구역 카메라 자리로
   if(!started)return;if(seq)skipSeq();if(dlg){dlg=null;$('#dlg').hidden=true;control=true;}
@@ -1917,7 +1919,9 @@ mihee:{name:'미희 (언니)',base:1.60,skin:0xf0e3da,lip:0xb56f78,rest:.12,look
  basic:{note:'소희의 언니. 가디건 + 블라우스(둥근 깃·목 리본) + 주름치마, 흰 무릎양말에 로퍼. 옆으로 넘긴 앞머리에 묶은 머리. (설정은 임시 — 위키에 캐릭터 문서가 생기면 맞춤)',
   slots:[['cardi','가디건','#6d7a8c'],['blouse','블라우스·깃','#f1ece4'],['skirt','치마','#3f3a46'],['ribbon','리본·머리끈','#8e2f3a'],['socks','양말','#ebe5da'],['shoes','구두','#2a1e1b'],['hair','머리','#1b1415']],
   make(c){const{body:b,M}=c;
-    lathe(M.skirt,b,[[.215,.55],[.2,.64],[.17,.79],[.14,.92],[.12,.99],[.113,1.025]],{seg:48,sz:.82,folds:16,famp:.07,fy0:.97,fy1:.55,fwave:.004}); // 주름치마
+    lathe(M.skirt,b,[[.235,.55],[.218,.63],[.185,.77],[.15,.9],[.124,.99],[.113,1.025]],{seg:56,sz:.82,folds:18,famp:.1,fy0:.97,fy1:.55,fwave:.009}); // 주름치마 (더 퍼지고 주름 깊게)
+    lathe(FM.btnD,b,[[.238,.555],[.236,.575]],{seg:56,sz:.82,folds:18,famp:.1,fy0:.97,fy1:.55,fwave:.009});                        // 밑단 선
+    lathe(M.blouse,b,[[.182,.825],[.175,.85],[.164,.87]],{seg:48,sz:.8,folds:14,famp:.06,fy0:.87,fy1:.825,fwave:.005,ragged:.12,seed:21}); // 가디건 밑으로 삐져나온 블라우스 단
     lathe(M.blouse,b,[[.128,.93],[.12,.99],[.108,1.04],[.122,1.1],[.142,1.17],[.15,1.23],[.152,1.27],[.142,1.305],[.11,1.335],[.066,1.357],[.038,1.372]],{seg:24,sz:.78});
     lathe(M.cardi,b,[[.165,.86],[.15,.93],[.134,.99],[.125,1.04],[.135,1.1],[.155,1.17],[.163,1.23],[.165,1.27],[.155,1.305],[.124,1.335],[.085,1.356]],{seg:32,sz:.8,open:{g0:.3*PI,yTop:1.356,yBot:1.1}}); // 앞이 V로 열린 가디건
     torus(M.cardi,b,0,.865,0,.163,.008,.8);                                                            // 가디건 밑단 고무단
@@ -1950,11 +1954,14 @@ mihee:{name:'미희 (언니)',base:1.60,skin:0xf0e3da,lip:0xb56f78,rest:.12,look
 
 mom:{name:'엄마',base:1.62,skin:0xeedfd3,lip:0xa04a55,rest:.11,looks:{
  basic:{note:'블라우스(둥근 깃·단추) + 벨트 + 종아리까지 오는 A라인 치마, 진주 목걸이, 굽 낮은 구두. 뒤로 묶어 올린 머리. (설정은 임시)',
-  slots:[['top','블라우스','#e9dccb'],['skirt','치마','#5c3940'],['belt','벨트','#3a2622'],['shoes','구두','#2c1d1c'],['hair','머리','#2b1d19']],
+  slots:[['top','블라우스','#e9dccb'],['jacket','재킷','#6e4a52'],['skirt','치마','#5c3940'],['belt','벨트','#3a2622'],['shoes','구두','#2c1d1c'],['hair','머리','#2b1d19']],
   make(c){const{body:b,M}=c;
-    lathe(M.skirt,b,[[.25,.3],[.235,.4],[.205,.58],[.172,.76],[.145,.9],[.127,.99],[.12,1.035]],{seg:36,sz:.8,folds:8,famp:.055,fy0:.97,fy1:.3,fwave:.01});
+    lathe(M.skirt,b,[[.26,.3],[.243,.4],[.21,.58],[.175,.76],[.146,.9],[.127,.99],[.12,1.035]],{seg:48,sz:.8,folds:10,famp:.085,fy0:.97,fy1:.3,fwave:.012}); // A라인 치마 (주름 깊게)
     lathe(M.top,b,[[.13,.93],[.122,.99],[.116,1.04],[.13,1.1],[.15,1.17],[.158,1.23],[.16,1.27],[.152,1.31],[.12,1.345],[.075,1.37],[.044,1.385]],{seg:24,sz:.78});
     torus(M.belt,b,0,1.03,0,.121,.011,.8);ball(FM.gold,b,0,1.03,.1,.03,.025,.012);                       // 벨트 + 버클
+    lathe(M.jacket,b,[[.152,1.06],[.14,1.1],[.147,1.17],[.165,1.23],[.17,1.27],[.162,1.305],[.13,1.335],[.088,1.356]],{seg:32,sz:.8,open:{g0:.32*PI,yTop:1.356,yBot:1.12}}); // 앞이 V로 열린 짧은 재킷 (벨트 위까지)
+    for(const s of[-1,1])ball(M.jacket,b,s*.062,1.275,.138,.05,.095,.012).rotation.z=s*.55;              // 라펠
+    for(const[by,bz]of[[1.1,.146],[1.16,.15]])ball(FM.gold,b,0,by,bz,.015,.015,.01);                     // 재킷 단추
     for(const[by,bz]of[[1.25,.127],[1.19,.122],[1.13,.111],[1.07,.099]])ball(FM.btnL,b,0,by,bz,.012,.012,.008); // 블라우스 단추
     for(const s of[-1,1])lathe(M.top,b,[[.16,1.3],[.145,1.325],[.118,1.352],[.08,1.376]],{seg:8,sz:.78,phi0:s>0?.05*PI:1.53*PI,phiL:.42*PI}); // 둥근 깃
     for(let i=0;i<20;i++){const a=i/20*TAU,f=Math.pow(Math.max(0,Math.cos(a)),1.5);                    // 진주 목걸이 (앞으로 처짐)
@@ -1966,8 +1973,8 @@ mom:{name:'엄마',base:1.62,skin:0xeedfd3,lip:0xa04a55,rest:.11,looks:{
       thigh:g=>lathe(M.skin,g,[[.045,-.38],[.055,-.28],[.07,-.1],[.072,0]],{seg:10}),
       shin:g=>{lathe(M.skin,g,[[.027,-.385],[.031,-.33],[.045,-.2],[.042,-.07],[.04,0]],{seg:10});
         ball(M.shoes,g,0,-.41,.035,.062,.05,.155);ball(M.shoes,g,0,-.415,-.04,.03,.045,.03);},        // 구두 + 굽
-      upper:g=>{lathe(M.top,g,[[.036,-.29],[.042,-.2],[.048,-.08],[.052,0],[.036,.035],[.01,.045]],{seg:12});ball(M.top,g,0,-.02,0,.085,.1,.085);}, // 살짝 부푼 어깨
-      fore:g=>{lathe(M.top,g,[[.031,-.23],[.033,-.18],[.037,-.08],[.039,0]],{seg:12});torus(M.top,g,0,-.23,0,.032,.008);ball(M.skin,g,0,-.28,.004,.026,.09,.048);}});}},
+      upper:g=>{lathe(M.jacket,g,[[.04,-.29],[.045,-.2],[.05,-.08],[.054,0],[.038,.035],[.01,.045]],{seg:12});ball(M.jacket,g,0,-.02,0,.09,.1,.09);}, // 재킷 소매, 살짝 부푼 어깨
+      fore:g=>{lathe(M.jacket,g,[[.034,-.21],[.036,-.17],[.04,-.08],[.042,0]],{seg:12});torus(M.jacket,g,0,-.205,0,.035,.009);lathe(M.top,g,[[.031,-.245],[.032,-.21]],{seg:12});ball(M.skin,g,0,-.28,.004,.026,.09,.048);}});}}, // 소매 끝에 블라우스 커프스
  poor:{note:'가난 버전. 빛바랜 원피스에 앞치마, 걷어붙인 소매, 머릿수건 아래로 흘러내린 머리, 슬리퍼.',
   slots:[['dress','원피스','#8b7b6d'],['apron','앞치마','#cbbfa9'],['scarf','머릿수건','#7d4f45'],['shoes','슬리퍼','#5a5048'],['hair','머리','#2b1d19']],
   make(c){const{body:b,M}=c;
@@ -2215,7 +2222,7 @@ function spotApply(arr){if(!arr)return;const ids=new Set(arr.map(e=>e.id));
     s.r=e.r;setText(s,jcopy(e.l));if(e.sec&&s.secret)s.secret=jcopy(e.sec);}
   for(const e of arr){const s=spots.find(x=>x.id===e.id);if(s)s.off=!!e.off;} // 조사 범위 있음/없음
   for(const s of spots)if(!ids.has(s.id)&&s.kind==='text')setText(s,[]);} // 그 뒤에 만든 가구 텍스트는 비움
-function nearSpot(){let best=null,bd=1e9;for(const s of spots){if(s.off||(s.o&&s.o.removed))continue;if(s.kind==='door'&&s.door.target>0)continue;if(s.kind==='text'&&!hasText(s))continue;if(s.kind==='story'&&!s.on)continue;if(Math.abs(s.y-P.fy)>1)continue;const[sx,sz]=spotXZ(s);
+function nearSpot(){let best=null,bd=1e9;for(const s of spots){if(s.off||(s.o&&(s.o.removed||!s.o.g.visible)))continue;/* 치운 가구(텅 빈 집)의 조사도 없음 */if(s.kind==='door'&&s.door.target>0)continue;if(s.kind==='text'&&!hasText(s))continue;if(s.kind==='story'&&!s.on)continue;if(Math.abs(s.y-P.fy)>1)continue;const[sx,sz]=spotXZ(s);
   const d=Math.hypot(sx-P.x,sz-P.z);if(d<s.r&&d<bd){bd=d;best=s;}}return best;}
 /* ---- 편집 모드: 조사 범위 도구 (I) — 상호작용 범위를 바닥 위 원으로 보여 주고, 클릭해서 고른 뒤 휠/슬라이더로 반지름 조절 ---- */
 const SPOT_LS='sp11_spots_v1';
@@ -2508,23 +2515,26 @@ function stDeliver(){goal('');cs([{run:()=>{override={p:[15.2,Y1+2.3,-3.4],t:[19
     {run:()=>{Object.assign(P,{x:10.6,z:-6.5,a:Math.PI/2});override=null;tpSnap=true;pizzaAt(9.8,Y1+.46,-6.5,true);}},{d:.8,f:k=>setFade(1-k)},{say:LINES.full},{d:1.2}],stHeadache);}
 function stHeadache(){setStage('eat');goal('');cs([{run:()=>snd.beep(.35)},{d:2.6,f:k=>{FX.warp=k*.55;FX.tint=k*.22;}},{run:()=>{STORY.garble=.1;}},{say:LINES.beep},{d:.8}],stEye);}
 function stEye(){setStage('eye');goal('');
-  cs([{run:()=>{livingGlass(true);eyeShow(...LIVING_EYE);soheeWalk([[16.4,-8.8]],1.4);}},{wait:()=>!csWalk},
+  cs([{run:()=>{livingGlass(true);eyeShow(...LIVING_EYE);soheeWalk([[10.6,-9.0],[16.4,-8.8]],1.4);}},{wait:()=>!csWalk}, // 소파 남쪽으로 돌아서 창 앞으로 (소파를 안 뚫게)
     {run:()=>{P.a=Math.PI/2;override={p:[13.6,Y1+1.4,-8.3],t:[20,Y1+2.2,-8.8],fov:42};}},{d:1.6},{say:LINES.eye}, // 낮은 구도: 창 위쪽은 화면 밖, 눈이 창 가운데
     {run:()=>{override=null;tpSnap=true;Object.assign(P,{x:16.8,z:-7.8,a:Math.atan2(20-16.8,-6.5+7.8)});}}], // 연출이 끝나면 현관문이 보이는 거실 오른쪽 자리에서 시작
     ()=>{setStage('avoid');goal('눈을 피해 밖으로 나가자 — 현관문');});}
 function stLocked(){cs([{say:LINES.locked},{run:()=>{setStage('chase');STORY.mon=true;STORY.monPersist=true;monHome();D_BED.target=0; // 소희 방문은 닫혀 있음 (열면 바로 백룸)
-      Object.assign(mon,{x:19.2,z:-11.2,y:Y1,a:Math.atan2(P.x-19.2,P.z+11.2)});mon.alert=1;snd.roar();                        // 괴물은 현관 오른쪽(남동쪽) 구석에서 나옴 (동선을 안 막게)
-      override={p:[16.4,Y1+2.1,-4.2],t:[19.2,Y1+.7,-9.8],fov:60};P.a=Math.atan2(mon.x-P.x,mon.z-P.z);}},{d:1.4},{say:LINES.monster}, // 북서쪽에서 현관문 앞 소희와 구석의 괴물을 한 화면에
+      Object.assign(mon,{x:18.6,z:-2.6,y:Y1,a:Math.atan2(P.x-18.6,P.z+2.6)});mon.alert=1;snd.roar();snd.birds(0);             // 괴물은 현관 북쪽(화면 오른쪽) 구석에서 나옴 (동선을 안 막게). 이때부터 새소리 끔
+      override={p:[15.2,Y1+2.1,-10.2],t:[19.3,Y1+.7,-4.6],fov:60};P.a=Math.atan2(mon.x-P.x,mon.z-P.z);}},{d:1.4},{say:LINES.monster}, // 남서쪽에서 현관문 앞 소희와 구석의 괴물을 한 화면에
     {run:()=>{override=null;tpSnap=true;mon.state='chase';mon.grace=.6;mon.cp={x:16,z:-6.5,fy:Y1,a:-Math.PI/2};}}],()=>goal('도망쳐! 2층 내 방으로!'));}
 function stBackrooms(){STORY.monPersist=false;
   cs([{d:.35,f:k=>setFade(k)},{run:()=>{snd.slam();snd.beep(0);STORY.mon=false;monHome();brApply(true);eyeHide();livingGlass(false);FX.warp=0;FX.tint=0;STORY.garble=.05;
       Object.assign(P,{x:2.9,y:0,fy:0,z:1.1,a:-Math.PI/2});D_BED.target=0;D_BED.open=0;setStage('backrooms');tpSnap=true;}},{d:.5},{d:1.0,f:k=>setFade(1-k)},{d:.4},{say:LINES.bedroom}],
     ()=>{D_FRONT.locked=false;D_FRONT.lines=[];goal('집을 둘러보고 현관으로 나가자');});}
-function stGrid(){setStage('grid');cs([{d:.4},{say:LINES.grid}],()=>goal('문 안으로 돌아가자'));}
+function stGrid(){setStage('grid');goal('');cs([{d:.35,f:k=>setFade(k)},{run:()=>{Object.assign(P,{x:24,z:-6.5,a:Math.PI/2});tpSnap=true;}},{d:.3},{d:.6,f:k=>setFade(1-k)},{d:.4},{say:LINES.grid}],()=>goal('문 안으로 돌아가자'));} // 암전 뒤 그리드 세계 한가운데
 function stMihee(){setStage('mihee');goal('');const h=NPCS.mihee,dx=D_STUDY.cx,dz=D_STUDY.cz;
-  cs([{run:()=>{D_FRONT.target=0;D_FRONT.locked=true;D_FRONT.lines=[{t:'더는 열리지 않는다.'}];}},{d:.7},{run:()=>snd.slam()},{say:LINES.back},
+  cs([{d:.35,f:k=>setFade(k)},{run:()=>{Object.assign(P,{x:19.0,z:-6.5,a:-Math.PI/2});tpSnap=true;D_FRONT.target=0;D_FRONT.open=0;D_FRONT.locked=true;D_FRONT.lines=[{t:'더는 열리지 않는다.'}];}},{d:.3},{d:.6,f:k=>setFade(1-k)}, // 암전 뒤 거실 안, 문은 닫힘
+    {d:.3},{run:()=>snd.slam()},{say:LINES.back},
     {run:()=>{override={p:[16,Y1+2.4,-9.6],t:[8,Y1+.8,-8.4],fov:58};soheeWalk([[10.8,-8.0]],1.5);}},{wait:()=>!csWalk}, // 동쪽에서 서재 문 쪽을 봄
-    {run:()=>{P.a=-Math.PI/2;D_STUDY.target=1;snd.door();npcPlace(h,dx-2.6,Y1,dz,Math.PI/2);npcWalk(h,[[dx-.4,dz],[dx+1.1,dz+.3],[9.5,-8.1]],2.8);}},{wait:()=>!npcWalking(h)},
+    {run:()=>{P.a=-Math.PI/2;npcPlace(h,dx-2.6,Y1,dz,Math.PI/2);npcWalk(h,[[dx-.55,dz]],2.6);}},{wait:()=>!npcWalking(h)}, // 미희가 닫힌 서재 문 안쪽까지 뛰어와서
+    {run:()=>{D_STUDY.target=1;snd.door();}},{d:.5},                                                                       // 문을 열고
+    {run:()=>npcWalk(h,[[dx+1.1,dz+.3],[9.5,-8.1]],2.8)},{wait:()=>!npcWalking(h)},                                          // 뛰쳐나옴
     {run:()=>{npcFace(h,P.x,P.z);P.a=Math.atan2(h.root.position.x-P.x,h.root.position.z-P.z);}},{say:LINES.mihee},
     {run:()=>{override=null;tpSnap=true;FOL.c=h;FOL.on=true;FOL.trail=[];D_STUDY.target=0;D_A.locked=false;D_A.lines=[];}}],
     ()=>{setStage('search');goal('미희와 함께 문을 열어 보자 — 엄마 아빠를 찾자');});}
@@ -2550,7 +2560,7 @@ function storyInspect(s){const st=STORY.stage;
   if(s.kind==='story'){if(s.id==='mouth'&&st==='flesh')stLab();else if(s.id==='parents'&&st==='lab')stEnd();return true;}
   return false;}
 // 이야기의 추격: 소희가 다른 층에 있으면 계단을 거쳐 따라옴 (0 거실 · 1 계단 · 2 2층)
-function monPathTarget(){const reg=fy=>fy<-3?0:fy<-.1?1:2,rm=reg(mon.y),rp=reg(P.fy);
+function monPathTarget(){const reg=fy=>fy<Y1+.25?0:fy<-.1?1:2,rm=reg(mon.y),rp=reg(P.fy); // 계단 첫 단(Y1+.25 위)부터 '계단'으로 쳐야 첫 단에서 멈추지 않고 계속 올라감
   if(rm===rp)return{x:P.x,z:P.z};
   if(rp>rm)return rm===0?{x:14.5,z:-5.8}:{x:14.5,z:-.7};   // 올라감: 계단 첫 단 → 계단 꼭대기(로비)
   return rm===2?{x:14.5,z:-1.6}:{x:14.5,z:-6.8};}          // 내려감: 계단 첫 단 → 거실
@@ -2563,8 +2573,8 @@ function storyFrame(dt){csFrame(dt);npcFrame(dt);folFrame(dt);eyeFrame();brFrame
   if(mode!=='play'||!started||!control||dlg||CS||seq||phoneOpen)return;
   const st=STORY.stage,z=curZone();
   if(st==='wake'&&P.fy<-3&&P.x>=6&&P.x<=20.2&&P.z>=-12&&P.z<=-.9)stGreet();
-  else if(st==='backrooms'&&P.x>20.6)stGrid();
-  else if(st==='grid'&&P.x<19.75)stMihee();
+  else if(st==='backrooms'&&P.x>20.3)stGrid();   // 현관문 밖으로 한 걸음 → 암전 → 그리드 세계로 (카메라·자리 모두 바뀜)
+  else if(st==='grid'&&P.x<21.0)stMihee();       // 문 쪽으로 돌아오면 → 암전 → 거실 안
   else if(st==='search'){if(P.fy>-.5&&P.x>5.9&&P.x<7.1&&P.z>2.3)evLoopA();
     else if(z&&z.mod==='dining'&&P.z>-18.2&&P.z<-12.3)stFlesh();
     else if(z&&z.mod==='study'&&!STORY.seenStudy){STORY.seenStudy=1;say(LINES.study);}
@@ -2588,6 +2598,7 @@ function storyGoto(i){if(!started)start();if(seq)skipSeq();dlg=null;$('#dlg').hi
   if(i>=4&&i<=7)pizzaAt(9.8,Y1+.46,-6.5,true);                                                // 피자는 먹었음
   if(i>=5&&i<=7){STORY.garble=.1;snd.beep(.35);FX.warp=.5;FX.tint=.22;}                       // 두통
   if(i>=6&&i<=7){livingGlass(true);eyeShow(...LIVING_EYE);}                                   // 창밖의 눈
+  if(i>=7)snd.birds(0);else if(AC)snd.birds(.45);                                             // 괴물이 나온 뒤로는 새소리 없음
   if(i>=8){brApply(true);STORY.garble=.05;D_BED.target=D_BED.open=1;}                          // 집은 백룸
   if(i===8||i===9){D_FRONT.locked=false;D_FRONT.lines=[];}
   if(i>=10){D_FRONT.locked=true;D_FRONT.lines=[{t:'더는 열리지 않는다.'}];}
@@ -2602,7 +2613,7 @@ function storyGoto(i){if(!started)start();if(seq)skipSeq();dlg=null;$('#dlg').hi
     case 'avoid':at(16.8,Y1,-7.8,Math.atan2(3.2,1.3));setStage('avoid');goal('눈을 피해 밖으로 나가자 — 현관문');break;
     case 'chase':at(18.6,Y1,-6.5,-Math.PI/2);setStage('avoid');goal('');stLocked();break;
     case 'backrooms':at(2.9,0,1.1,-Math.PI/2);D_BED.target=D_BED.open=0;setStage('backrooms');cs([{say:LINES.bedroom}],()=>goal('집을 둘러보고 현관으로 나가자'));break;
-    case 'grid':at(21.4,Y1,-6.5,Math.PI/2);D_FRONT.target=D_FRONT.open=1;stGrid();break;
+    case 'grid':at(21.4,Y1,-6.5,Math.PI/2);D_FRONT.target=D_FRONT.open=1;snd.birds(0);stGrid();break;
     case 'mihee':at(19,Y1,-6.5,-Math.PI/2);stMihee();break;
     case 'search':at(10.8,Y1,-8.0,-Math.PI/2);folAt(9.6,-8.1,Y1,Math.PI/2);setStage('search');goal('미희와 함께 문을 열어 보자 — 엄마 아빠를 찾자');break;
     case 'flesh':at(67,0,-10.3,0);setStage('flesh');folAt(66,-10.8,0,0);cs([{say:LINES.flesh}],()=>{SP_MOUTH.on=true;goal('이빨 입 안으로 들어가자');});break;
