@@ -97,11 +97,17 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
   body.editing .edbar .pair button{flex:1;text-align:center}
   body.editing .edbar .dirty{margin:auto 0 0}
   body.editing .cedit{width:400px}
+  body.editing .cedit>*{flex:none} /* 내용이 길면 줄어들어 겹치지 말고 패널 안에서 스크롤 */
 }
 .edbar button:focus-visible,.chip button:focus-visible{outline:2px solid var(--ink)}
 .chip{position:absolute;transform:translate(-50%,-115%);display:flex;align-items:center;gap:.3cqw;padding:.4cqh .6cqw;background:rgba(20,16,16,.92);border:1px solid #ffd27f;font-size:1.6cqw;color:var(--ink);white-space:nowrap;z-index:4}
 .chip b{color:#ffd27f;margin-right:.3cqw;font-weight:400}
 .chip button{font-family:var(--f-text);font-size:1.6cqw;min-width:2.6cqw;background:#141010;color:var(--ink);border:1px solid var(--line);padding:.1cqh .5cqw;border-radius:3px;cursor:pointer}
+/* 괴물: 마주친 순간 붉은 테두리 번쩍 / 잡히면 붉은 화면 */
+.monalert{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(150,10,10,.75));z-index:3}
+.gameover{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2cqh;background:rgba(90,0,0,.82);color:#f3d9d2;font-family:var(--f-display);z-index:7;pointer-events:none}
+.gameover b{font-size:7cqw;font-weight:700;letter-spacing:.2em}
+.gameover small{font-size:2.2cqw;color:#d9a9a0}
 .toast{position:absolute;left:50%;bottom:3cqh;transform:translateX(-50%);background:var(--rose);color:#141010;font-size:1.9cqw;padding:.4cqh 1.4cqw;pointer-events:none;z-index:6}
 .cedit label.clr{display:flex;align-items:center;gap:8px;grid-template-columns:none}
 .cedit input[type=color]{width:42px;height:24px;padding:0;border:1px solid var(--line);background:none}
@@ -127,7 +133,7 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
 <div class="stage" id="stage">
 <div class="edbar" id="edbar" hidden>
   <b>편집 모드</b>
-  <button type="button" data-tool="cam">카메라 C</button><button type="button" data-tool="obj">물건 O</button><button type="button" data-tool="tone">톤 T</button><button type="button" data-tool="spot">조사 I</button><button type="button" data-tool="zone">구역 V</button><button type="button" data-tool="text">텍스트 N</button><button type="button" data-tool="lib">보관함 B</button>
+  <button type="button" data-tool="cam">카메라 C</button><button type="button" data-tool="obj">물건 O</button><button type="button" data-tool="tone">톤 T</button><button type="button" data-tool="spot">조사 I</button><button type="button" data-tool="zone">구역 V</button><button type="button" data-tool="lib">보관함 B</button><button type="button" data-tool="mon">괴물 K</button>
   <i></i>
   <span class="pair"><button type="button" id="edUndo" title="되돌리기 (Ctrl+Z)" aria-label="되돌리기">↶</button><button type="button" id="edRedo" title="다시 실행 (Ctrl+Y)" aria-label="다시 실행">↷</button></span>
   <i></i>
@@ -153,12 +159,14 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
     <button type="button" data-a="reset">원래대로</button>
   </div>
   <div class="toast" id="toast" hidden></div>
+  <div class="monalert" id="monAlert"></div>
+  <div class="gameover" id="over" hidden><b>잡혔다</b><small>마주치기 전으로 돌아갑니다…</small></div>
   <div class="fade" id="fade"></div>
   <button class="title" id="title" type="button">
     <span class="kicker">PLAYABLE MOCKUP · SCENE 1-1</span>
     <h1>잉여인간</h1>
     <span class="en">SURPLUS PERSON</span>
-    <p>완벽하게 평화로운 부잣집 아침.<br>소리가 먼저 들립니다. 소리를 켜 주세요.</p>
+    <p>완벽하게 평화로운 부잣집 아침.<br>소리는 꺼져 있어요. 아래 '소리 켜기'나 M키로 켤 수 있어요.</p>
     <span class="start">클릭하거나 Enter</span>
   </button>
 </div>
@@ -170,14 +178,25 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
     <div>화면 드래그: 방향 · 휠: 화각 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 앞뒤좌우 · <kbd>Q</kbd>/<kbd>E</kbd> 아래/위 · <kbd>Shift</kbd> 빠르게 · <kbd>1</kbd>~<kbd>7</kbd> 카메라 고르기</div>
   </div>
   <div class="tool" data-tool="obj" hidden>
-    <div class="row"><b>물건</b><span>선택: <span id="objName"></span></span><button id="oDel" type="button" disabled title="보관함에서 꺼낸 물건만 뺄 수 있어요">이 물건 빼기 (Delete)</button></div>
+    <div class="row"><b>물건</b><span>선택: <span id="objName"></span></span></div>
+    <div class="row"><span id="objAsset"></span></div>
+    <div class="row"><button id="oDup" type="button" disabled>복제 (Ctrl+D)</button><button id="oDel" type="button" disabled>이 물건 빼기 (Delete)</button></div>
     <div><b>둘러보기</b> (게임 카메라와 별개): <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 자유 이동 · <kbd>Q</kbd>/<kbd>E</kbd> 아래/위 · <kbd>Shift</kbd> 빠르게 · 빈 곳 드래그: 시선 돌리기 · <kbd>1</kbd>~<kbd>8</kbd> 그 구역으로</div>
     <div class="row"><label class="clr"><span>전체 색</span><input type="color" id="ocAll"></label>
       <label class="clr"><span>클릭한 부분 색</span><input type="color" id="ocPart"></label><button id="ocReset" type="button">색 원래대로</button>
       <span id="oImgRow"><label class="clr"><span>액자 그림</span><input type="file" id="oImg" accept="image/*"></label><button id="oImgReset" type="button">원래 그림</button></span></div>
     <div class="row" id="modRow" hidden><b id="modName"></b><span>— 문을 끌면 방 전체(벽·가구·조명·카메라)가 거실 벽을 따라 같이 움직여요</span><button id="modReset" type="button">방 위치 원래대로</button></div>
     <div><b>방 문</b>(서재·식당·손님방): 문을 <b>클릭</b>해서 고른 뒤 <b>끌면</b> 방이 통째로 따라와요 · 다른 방과 겹치거나 벽 밖으로는 안 나가요</div>
-    <div><b>가구</b>: <b>클릭</b>하면 골라지고 옆에 조작 버튼이 떠요 · 가구 드래그: 옮기기 · 휠: 크기 · <kbd>Z</kbd>/<kbd>X</kbd> 회전 · <kbd>R</kbd>/<kbd>F</kbd> 위/아래 · <kbd>Esc</kbd>/빈 곳 클릭: 선택 해제. 부딪히는 범위와 조사 지점도 같이 움직여요.</div>
+    <div><b>가구</b>: <b>클릭</b>하면 골라지고 옆에 조작 버튼이 떠요 · 가구 드래그: 옮기기 · 휠: 크기 · <kbd>Z</kbd>/<kbd>X</kbd> 회전 · <kbd>R</kbd>/<kbd>F</kbd> 위/아래 · <kbd>Esc</kbd>/빈 곳 클릭: 선택 해제. 부딪히는 범위와 조사 지점도 같이 움직여요. <b>문</b>은 벽 구멍과 붙어 있어서 옮기기·빼기는 안 되고 색·조사 범위·대사만 바꿔요.</div>
+    <div class="row"><b>조사 범위</b><button id="oSpotAdd" type="button">＋ 추가</button><button id="oSpotDel" type="button">없애기</button><span id="oSpotState"></span></div>
+    <div class="sl"><label><span>범위 (반지름)</span><input type="range" id="oSpotR" min=".2" max="4" step=".05"><output id="oSpotRout"></output></label></div>
+    <div class="row"><b>대사</b><button id="txPreview" type="button">미리보기</button><span id="txHint"></span></div>
+    <label style="display:block"><small>(빈 줄 = 다음 대사창 · 줄 맨 앞에 <code>이름: </code>을 쓰면 말하는 사람 · 길면 자동으로 다음 장)</small>
+      <textarea id="txMain" rows="4" style="margin-top:4px" aria-label="대사"></textarea></label>
+    <label id="txSecretWrap" style="display:block" hidden>숨은 대사 <small>(조건을 만족하고 다시 조사하면 나오는 대사)</small>
+      <textarea id="txSecret" rows="2" style="margin-top:4px" aria-label="숨은 대사"></textarea></label>
+    <div class="sl" id="txSize"></div>
+    <div>바닥의 원 = 소희가 그 안에서 <kbd>E</kbd>를 누르면 조사(문은 열기)가 되는 범위. 대사가 없던 물건도 대사를 쓰면 범위가 생겨요 · 대사창은 클릭해도 넘어가요</div>
   </div>
   <div class="tool" data-tool="tone" hidden>
     <div class="row"><b>편집할 톤</b><select id="toneZone"></select><span id="toneState"></span><button id="toneZoneClear" type="button" hidden>이 구역 톤 지우기 (기본 톤 따르기)</button><button id="toneReset" type="button">기본 톤 원래대로</button></div>
@@ -204,14 +223,22 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
     <div>그림을 누르면 <b>지금 보는 화면 가운데 바닥</b>에 놓이고 바로 <b>물건 도구</b>로 넘어가요 (벽에 거는 물건은 벽 높이로 · 선반 위 물건은 탁자 높이로). 꺼낸 물건도 옮기기·돌리기·크기·색·텍스트가 다 되고, 물건 도구의 <b>이 물건 빼기</b>(<kbd>Delete</kbd>)로 치워요 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <kbd>Q</kbd>/<kbd>E</kbd> 자유 이동 · <kbd>1</kbd>~<kbd>8</kbd> 그 구역으로 · 그림에 마우스를 올리면 나중에 유니티로 옮길 때의 파일 이름이 보여요</div>
     <div class="libgrid" id="libGrid"></div>
   </div>
-  <div class="tool" data-tool="text" hidden>
-    <div class="row"><b>텍스트</b><span>대상: <span id="txName"></span></span><button id="txPreview" type="button">미리보기</button></div>
-    <label style="display:block">대사 <small>(빈 줄 = 다음 대사창 · 줄 맨 앞에 <code>이름: </code>을 쓰면 말하는 사람 · 길면 자동으로 다음 장)</small>
-      <textarea id="txMain" rows="5" style="margin-top:4px" aria-label="대사"></textarea></label>
-    <label id="txSecretWrap" style="display:block" hidden>숨은 대사 <small>(조건을 만족하고 다시 조사하면 나오는 대사)</small>
-      <textarea id="txSecret" rows="2" style="margin-top:4px" aria-label="숨은 대사"></textarea></label>
-    <div class="sl" id="txSize"></div>
-    <div>화면에서 <b>가구</b>나 <b>조사 원</b>을 클릭하면 그 대사를 고칠 수 있어요 (대사가 없던 가구도 쓰면 조사할 수 있게 돼요) · 끌기: 둘러보기 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <kbd>Q</kbd>/<kbd>E</kbd> 자유 이동 · 대사창은 클릭해도 넘어가요</div>
+  <div class="tool" data-tool="mon" hidden>
+    <div class="row"><b>괴물</b><label class="clr"><input type="checkbox" id="mnOn"><span>괴물 켜기</span></label>
+      <label class="clr"><input type="checkbox" id="mnShow"><span>플레이 중에도 시야·히트박스 보이기</span></label></div>
+    <div class="row"><button id="mnSeeMon" type="button">괴물 보기</button><button id="mnSeeP" type="button">소희 보기</button>
+      <button id="mnRotL" type="button" title="괴물이 보는 방향">⟲ 15°</button><button id="mnRotR" type="button" title="괴물이 보는 방향">⟳ 15°</button><button id="mnReset" type="button">괴물 설정 원래대로</button></div>
+    <div class="sl"><label><span>이동 속도 (m/s)</span><input type="range" id="mnSpeed" min=".3" max="4" step=".05"><output id="mnSpeedOut"></output></label>
+      <label><span>톤 (어둡게↔밝게)</span><input type="range" id="mnTone" min="-1" max="1" step=".05"><output id="mnToneOut"></output></label>
+      <label><span>질감 세기</span><input type="range" id="mnTexAmt" min="0" max="1" step=".05"><output id="mnTexAmtOut"></output></label></div>
+    <div class="row"><label class="clr"><span>색상</span><input type="color" id="mnCol"></label>
+      <label class="clr"><span>질감</span><select id="mnTex"><option value="smooth">매끈한 살</option><option value="wrinkle">주름진 살</option><option value="vein">핏줄</option><option value="blotch">얼룩</option></select></label>
+      <span id="mnInfo"></span></div>
+    <div class="row"><b>괴물 전용 벽</b><button id="mnWallAdd" type="button">＋ 벽 추가 (화면 가운데)</button><button id="mnWallDel" type="button">고른 벽 삭제 (Delete)</button><span id="mnWallInfo"></span></div>
+    <div><b style="color:#b784ff">보라색 사각형</b> = 괴물만 막는 벽 (소희는 그냥 지나감). 사각형을 <b>클릭</b>해서 고르고 <b>끌면</b> 옮겨지고, 고른 벽의 <b>흰 손잡이</b>로 크기 조절.</div>
+    <div>바닥의 <b style="color:#e0726c">빨간 사각형</b> = 괴물 시야 (소희가 들어오면 쫓아옴) · <b>흰 사각형</b> = 괴물 크기 (몸에 닿는 범위) · <b style="color:#ffd27f">노란 사각형</b> = 소희 히트박스 (괴물 몸에 닿으면 게임오버).
+      <b>흰 동그라미 손잡이</b>(꼭짓점·변 가운데)를 끌어 크기 조절 · 괴물 몸을 끌면 자리 이동 · 빈 곳 드래그: 둘러보기 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <kbd>Q</kbd>/<kbd>E</kbd> 자유 이동 · <kbd>1</kbd>~<kbd>8</kbd> 그 구역으로.
+      잡히면 마주치기 약 1초 전 자리로 돌아가요.</div>
   </div>
   <div class="row"><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Ctrl</kbd>+<kbd>Y</kbd> 다시 실행 · <kbd>Tab</kbd> 플레이로</div>
   <div class="row"><button id="edExport" type="button">값 내보내기 (복사)</button><button id="edRevert" type="button">저장한 상태로 되돌리기</button><button id="edResetAll" type="button">전부 처음값으로</button><span id="edMsg"></span></div>
@@ -238,8 +265,9 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
     <span><kbd>G</kbd> 공포 톤 미리보기</span>
     <span><kbd>Tab</kbd> 편집 모드 ↔ 플레이 모드</span>
     <span><kbd>1</kbd>~<kbd>8</kbd> 구역 이동: 1 소희방 · 2 복도 · 3 로비 · 4 거실 · 5 서재 · 6 식당 · 7 손님방 · 8 부엌</span>
+    <span>따로 떨어진 공간: <kbd>9</kbd> 가상 공간 · <kbd>0</kbd> 살덩이 방 · <kbd>-</kbd> 연구소</span>
   </div>
-  <div class="btns"><button id="modeBtn" type="button">편집 모드 (Tab)</button><button id="restart" type="button">처음부터</button><button id="mute" type="button">소리 끄기</button></div>
+  <div class="btns"><button id="modeBtn" type="button">편집 모드 (Tab)</button><button id="restart" type="button">처음부터</button><button id="mute" type="button">소리 켜기</button></div>
 </div>
 <div class="ref">480×360 렌더 → 잉크선·디더링·색 제한 화면 효과. 레퍼런스: 단면 저택 일러스트, 픽셀 어드벤처, 1비트 만화, PS2 인형의 방. 오프닝 중 E = 건너뛰기(개발용).</div>
 
@@ -334,8 +362,51 @@ function endObj(){const o=curObj;root=o.prevRoot;curObj=null;o.g.updateMatrixWor
   for(const ch of o.g.children)ch.position.sub(pv);o.g.position.copy(pv);
   o.sol=o.sol.map(b=>({rel:[b[0]-pv.x,b[1]-pv.z,b[2]-pv.x,b[3]-pv.z],y0:(b.length>4?b[4]:-.6)-pv.y,y1:(b.length>4?b[5]:1.6)-pv.y}));
   o.orig=[pv.x,pv.y,pv.z]; // 처음 만들어진 자리 (가구에 붙은 조사 지점·누운 자리 계산 기준)
-  o.def={p:[pv.x,pv.y,pv.z],ry:0,s:[1,1,1]};if(curMod)o.mod=curMod.id;OBJS.push(o);return o;}
+  o.def={p:[pv.x,pv.y,pv.z],ry:0,s:[1,1,1]};if(curMod)o.mod=curMod.id;OBJS.push(o);if(houseReg)regHouseAsset(o);return o;}
 function O(name,fn){beginObj(name);fn();return endObj();}
+// ---- 에셋: 집에 처음부터 놓인 물건(가구·소품·문·창)도 전부 보관함 에셋. 만들어진 모양을 그대로 본떠 두었다가(tpl) 보관함에서 꺼내거나 복제할 때 똑같이 만든다 ----
+// 앞으로 새 물건도 이렇게 에셋으로 만든다: 보관함(LIB)에 넣고 libObj로 놓거나, O('방/이름',…)로 만들고 아래 ASSET_META에 [보관함 이름, 유니티 파일 이름, 분류]를 적는다
+// 같은 파일 이름 = 같은 에셋 (모양이 똑같은 물건끼리)
+const ASSET_META={
+  '소희방/창틀':['창틀 (소희방 창)','SP_WindowFrame_Bedroom','문·창'],'소희방/커튼':['커튼 (소희방)','SP_Curtain_Bedroom','벽'],
+  '소희방/침대':['소희 침대','SP_Bed_Sohee','침실'],'소희방/협탁':['협탁·알람시계','SP_Nightstand_Clock','침실'],'소희방/옷장':['옷장 (소희방)','SP_Wardrobe_Sohee','침실'],
+  '소희방/화장대':['화장대·거울','SP_Vanity_Sohee','침실'],'소희방/의자':['둥근 스툴','SP_Stool_Round','침실'],'소희방/서랍장':['서랍장·꽃병','SP_Dresser_Flowers','침실'],
+  '소희방/풍경화':['풍경화 (소희방)','SP_Painting_Landscape_Bedroom','벽'],'소희방/초상화':['초상화 (소희방)','SP_Painting_Portrait_Bedroom','벽'],
+  '소희방/안락의자':['안락의자 (소희방)','SP_Armchair_Sohee','거실'],'소희방/둥근 탁자':['둥근 탁자','SP_RoundTable','거실'],'소희방/스탠드':['플로어 스탠드 (소희방)','SP_FloorLamp_Bedroom','거실'],
+  '소희방/화분':['화분 (소희방)','SP_Plant_Bedroom','거실'],'소희방/러그':['타원 러그 (소희방)','SP_Rug_Oval_Bedroom','거실'],'소희방/샹들리에':['샹들리에 (작은)','SP_Chandelier_Small','거실'],
+  '소희방/방문':['방문 (옆벽)','SP_Door_Side','문·창'],
+  '복도/러너':['복도 러너','SP_Runner_Hall','거실'],'복도/콘솔':['콘솔 (복도)','SP_Console_Hall','거실'],'복도/풍경화':['풍경화 (복도)','SP_Painting_Landscape_Hall','벽'],
+  '복도/초상화':['초상화 (복도)','SP_Painting_Portrait_Hall','벽'],'복도/벽등1':['벽등 (복도)','SP_WallSconce_Hall','벽'],'복도/벽등2':['벽등 (복도)','SP_WallSconce_Hall','벽'],
+  '복도/문 A':['방문','SP_Door','문·창'],'복도/문 B':['방문','SP_Door','문·창'],
+  '로비/난간':['로비 난간','SP_Railing_Lobby','구조'],'로비/큰 그림':['큰 풍경화 (로비)','SP_Painting_Lobby','벽'],'로비/콘솔':['콘솔 (로비)','SP_Console_Lobby','거실'],
+  '로비/화분':['화분 (중간)','SP_Plant_Medium','거실'],'계단/난간':['계단 난간','SP_Railing_Stairs','구조'],
+  '거실/현관문':['현관문 (양문·채광창)','SP_Door_Front','문·창'],'거실/현관 매트':['현관 매트','SP_DoorMat','거실'],
+  '거실/큰 창1':['큰 창·커튼','SP_Window_Tall','문·창'],'거실/큰 창2':['큰 창·커튼','SP_Window_Tall','문·창'],'거실/벽난로':['벽난로','SP_Fireplace','거실'],
+  '거실/초상화':['초상화 (거실)','SP_Painting_Portrait_Living','벽'],'거실/러그':['타원 러그 (거실)','SP_Rug_Oval_Living','거실'],'거실/소파':['소파 (거실)','SP_Sofa_Living','거실'],
+  '거실/탁자':['낮은 탁자 (거실)','SP_CoffeeTable_Living','거실'],'거실/안락의자1':['안락의자 (거실 1)','SP_Armchair_Living1','거실'],'거실/안락의자2':['안락의자 (거실 2)','SP_Armchair_Living2','거실'],
+  '거실/화분1':['화분 (큰)','SP_Plant_Tall','거실'],'거실/화분2':['화분 (큰)','SP_Plant_Tall','거실'],'거실/화분3':['화분 (중간)','SP_Plant_Medium','거실'],
+  '거실/샹들리에':['큰 샹들리에','SP_Chandelier_Large','거실'],
+  '서재/문':['방문 (옆벽)','SP_Door_Side','문·창'],'서재/책장':['붙박이 책장 (서재)','SP_Bookshelf_Study','서재·기타'],'서재/책상':['책상 (서재)','SP_Desk_Study','서재·기타'],
+  '서재/의자':['서재 안락의자','SP_Armchair_Study','서재·기타'],'서재/지구본':['지구본 (서재)','SP_Globe_Study','서재·기타'],'서재/스탠드':['플로어 스탠드 (서재)','SP_FloorLamp_Study','서재·기타'],
+  '서재/그림':['풍경화 (서재)','SP_Painting_Landscape_Study','벽'],
+  '식당/문':['방문','SP_Door','문·창'],'식당/식탁':['긴 식탁·촛대','SP_DiningTable_Long','식당'],'식당/의자 6개':['식탁 의자 6개 세트','SP_DiningChairs_Set6','식당'],
+  '식당/찬장':['찬장 (식당)','SP_Sideboard_Dining','식당'],'식당/그림':['풍경화 (식당)','SP_Painting_Landscape_Dining','벽'],'식당/샹들리에':['샹들리에 (식당)','SP_Chandelier_Dining','식당'],
+  '부엌/창':['작은 창 (부엌)','SP_Window_Small','문·창'],
+  '손님방/문':['방문','SP_Door','문·창'],'손님방/침대':['손님 침대','SP_Bed_Guest','침실'],'손님방/협탁':['협탁·스탠드 (손님방)','SP_Nightstand_Guest','침실'],
+  '손님방/옷장':['옷장 (손님방)','SP_Wardrobe_Guest','침실'],'손님방/러그':['타원 러그 (손님방)','SP_Rug_Oval_Guest','거실'],'손님방/초상화':['초상화 (손님방)','SP_Painting_Portrait_Guest','벽'],
+  // 따로 떨어진 공간
+  '살덩이 방/거대한 눈':['거대한 눈 (살덩이 방)','SP_Flesh_GiantEye','살덩이 방'],'살덩이 방/이빨 입':['이빨 입 (살덩이 방)','SP_Flesh_TeethMouth','살덩이 방'],
+  '연구소/컴퓨터 기둥':['거대한 컴퓨터 기둥','SP_Lab_ComputerPillar','연구소'],'연구소/계기판1':['계기판','SP_Lab_Console','연구소'],'연구소/계기판2':['계기판','SP_Lab_Console','연구소'],
+  '연구소/계기판3':['계기판','SP_Lab_Console','연구소'],'연구소/계기판4':['계기판','SP_Lab_Console','연구소'],
+  '연구소/의자1':['연구소 의자','SP_Lab_Chair','연구소'],'연구소/의자2':['연구소 의자','SP_Lab_Chair','연구소'],'연구소/의자3':['연구소 의자','SP_Lab_Chair','연구소']};
+for(let i=1;i<=8;i++)ASSET_META['연구소/인큐베이터'+i]=['인큐베이터 (뚜껑·누운 사람)','SP_Lab_Incubator','연구소'];
+const HOUSE_LIB=[],houseIds=new Set();let houseReg=true,libReady=false; // houseReg=false: 보관함 에셋을 꺼내는 중 (다시 등록 안 함)
+function regHouseAsset(o){const m=ASSET_META[o.name]||[o.name.split('/').pop(),'SP_House_'+(houseIds.size+1),'기타'],id='h_'+m[1];o.lib=id;
+  if(houseIds.has(id))return;houseIds.add(id);
+  const tpl=o.g.clone(),sol=o.sol.map(b=>[...b.rel,b.y0,b.y1]),fy=o.def.p[1]>-1.5?0:-3.6; // -3.6 = 1층 바닥 (Y1은 아래에서 정의)
+  const L={id,file:m[1],name:m[0],cat:m[2],y:Math.max(0,Math.round((o.def.p[1]-fy)*100)/100),house:1, // y = 바닥에서 뜬 높이 (액자·벽등은 벽 높이로 꺼냄)
+    b(){for(const ch of tpl.children){const c=ch.clone();c.traverse(x=>{if(x.isMesh)x.geometry=x.geometry.clone();});root.add(c);}for(const b of sol)addSolid(b.slice());}};
+  if(libReady){LIB.push(L);LIB_BY[id]=L;}else HOUSE_LIB.push(L);}
 let root=S;
 function boxMM(m,x0,y0,z0,x1,y1,z1,p=root,solid=false){const me=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,y1-y0,z1-z0),m);me.position.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);p.add(me);if(solid)addSolid([x0,z0,x1,z1]);return me;}
 function cyl(m,x,y,z,r,h,p=root,seg=10){const me=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,seg),m);me.position.set(x,y,z);p.add(me);return me;}
@@ -504,7 +575,13 @@ function floorQ(m,x0,x1,z0,z1,y){return quad(m,(x0+x1)/2,y,(z0+z1)/2,x1-x0,z1-z0
 function ceilQ(x0,x1,z0,z1,y){return quad(col(0xf1e9dc),(x0+x1)/2,y,(z0+z1)/2,x1-x0,z1-z0,Math.PI/2,0);}
 // 문: 경첩(hx,hz)에서 axis 방향으로 폭 w. 열리면 swing 라디안만큼 돈다. locked면 대사만.
 const doorMat=tex(tWood,1,2);
+// 문도 물건(에셋)으로 묶는다: 고르면 색·조사 범위·대사를 바꿀 수 있음. 벽 구멍과 붙어 있어서 옮기기·돌리기·크기·빼기는 막음 (fixed)
+const DOOR_OBJ={bedroom:'소희방/방문',hallA:'복도/문 A',hallB:'복도/문 B',study:'서재/문',dining:'식당/문',guest:'손님방/문'};
 function door(name,hx,hz,axis,w,swing,y,locked,lines){
+  const own=!curObj;if(own)beginObj(DOOR_OBJ[name]||'문/'+name); // 현관문처럼 이미 물건을 만드는 중이면 그 물건에 들어감
+  const d=doorBody(name,hx,hz,axis,w,swing,y,locked,lines);
+  if(own){const o=endObj();o.door=d;d.o=o;o.fixed=true;}return d;}
+function doorBody(name,hx,hz,axis,w,swing,y,locked,lines){
   const g=group(hx,y,hz),leaf=group(0,0,0,g);
   if(axis==='z'){boxMM(doorMat,-.03,0,0,.03,2.15,w,leaf);boxMM(col(0x6a4636),-.035,.3,.12,.035,1.9,w-.12,leaf);ball(col(0xc9a24a),0,1.0,w-.12,.14,.07,.07,leaf);}
   else{boxMM(doorMat,0,0,-.03,w,2.15,.03,leaf);boxMM(col(0x6a4636),.12,.3,-.035,w-.12,1.9,.035,leaf);ball(col(0xc9a24a),w-.12,1.0,0,.07,.07,.14,leaf);}
@@ -625,8 +702,9 @@ const LIB=[
   {id:'towelRack',file:'SP_TowelRack',name:'수건걸이',cat:'욕실',wall:1,y:1.0,b(){B(L_GOLD,-.35,.3,-.06,.35,.32,-.04);B(lam({color:0xe8d9c2},'towel'),-.25,0,-.065,.25,.32,-.035);}},
 ];
 const LIB_BY=Object.fromEntries(LIB.map(L=>[L.id,L]));
+for(const L of HOUSE_LIB){LIB.push(L);LIB_BY[L.id]=L;}libReady=true; // 지금까지 만든 집 물건 에셋도 보관함에 (이후 것은 만들 때 바로 들어감)
 // 보관함 가구를 물건으로 만든다: (x,z)에 가운데, 바닥 높이 y, 회전 ry도
-function libObj(id,name,x,y,z,ry=0){const L=LIB_BY[id];beginObj(name);L.b();const o=endObj();o.lib=id;
+function libObj(id,name,x,y,z,ry=0){const L=LIB_BY[id];houseReg=false;beginObj(name);let o;try{L.b();}finally{o=endObj();houseReg=true;}o.lib=id;
   o.g.position.set(x,y,z);o.g.rotation.y=ry*D2R;o.def={p:[x,y,z],ry,s:[1,1,1]};o.orig=[x,y,z];o.g.updateMatrixWorld(true);return o;}
 
 // ---- 소희의 방: 바닥·문·카메라 ----
@@ -685,11 +763,12 @@ wallLine('x',-1.075,5.85,12,Y1,HH);wallLine('x',-1.075,12,17,Y1,-.3);wallLine('x
 // 서쪽·남쪽 벽은 방 모듈의 문 구멍이 있는 '허브 벽' → 아래 rebuildHubWalls()에서 문 위치에 맞춰 만든다
 
 wallLine('z',20.075,-12.15,-.925,Y1,HH,[[-7.3,-5.7,2.6]]); // 동쪽 벽: 현관문 자리 (큰 창 두 개 사이)
-// ---- 현관문 (양문). 밖으로 나가면 무엇이 나오는지는 미정 → 지금은 잠긴 문 + 임시 대사 (텍스트 도구로 수정 가능) ----
-{const fd=door('front',20.075,-7.3,'z',.8,0,Y1,true,[{t:'현관문이다. 밖으로 나가는 문.'},{t:'(밖에 무엇이 나올지는 아직 정하지 않았어요)'}]);
+// ---- 현관문 (양문). 밖으로 나가면 무엇이 나오는지는 미정 → 지금은 잠긴 문 + 임시 대사 (물건 도구에서 문을 골라 대사 수정 가능) ----
+{beginObj('거실/현관문');const fd=door('front',20.075,-7.3,'z',.8,0,Y1,true,[{t:'현관문이다. 밖으로 나가는 문.'},{t:'(밖에 무엇이 나올지는 아직 정하지 않았어요)'}]);
  fd.cx=19.55;fd.cz=-6.5;fd.block=[19.95,-7.3,20.2,-5.7];                                   // 조사 범위 중심 = 두 문짝 가운데, 문 바로 안쪽
  const rl=group(20.075,Y1,-5.7);boxMM(doorMat,-.03,0,-.8,.03,2.15,0,rl);boxMM(col(0x6a4636),-.035,.3,-.68,.035,1.9,-.12,rl);ball(col(0xc9a24a),0,1.0,-.12,.14,.07,.07,rl); // 오른쪽 문짝
  boxMM(glow(0xd7ecf8),20.02,Y1+2.17,-7.28,20.06,Y1+2.58,-5.72);boxMM(col(0x4a2f25),19.99,Y1+2.15,-7.3,20.08,Y1+2.19,-5.7); // 문 위 채광창
+ {const fo=endObj();fo.door=fd;fd.o=fo;fo.fixed=true;} // 양문 + 채광창 = 현관문 물건 하나
  O('거실/현관 매트',()=>quad(lam({color:0x6c2e35}),19.45,Y1+.012,-6.5,.9,1.6,-Math.PI/2,0));}                        // 현관 매트
 // 동쪽 큰 창 (밝은 하늘빛) + 커튼
 let winN=0;for(const zc of[-8.8,-4.2]){beginObj('거실/큰 창'+(++winN));boxMM(glow(0xd7ecf8),19.98,Y1+1,zc-.7,20,Y1+4.6,zc+.7);boxMM(col(0xf1ece2),19.93,Y1+1,zc-.04,20,Y1+4.6,zc+.04);
@@ -783,14 +862,134 @@ pLight(0xffe2b0,.9,7,17,Y1+2.3,-15);
 zone('손님방 (임시)',13.9,-18.1,20.1,-12.1,-4,-.5,{p:[19.7,Y1+2.75,-12.5],t:[15.6,Y1+.2,-16.6],fov:66});
 endMod();
 
+/* ================= 따로 떨어진 공간 (집과 연결 안 됨) — 씬을 진행하면서 문·연출로 이어 붙여 쓰는 방들 =================
+   숫자키 9 가상 공간 · 0 살덩이 방 · - 연구소 로 이동. 바닥 높이 0, 집에서 동쪽으로 멀리(x 40~) 떨어뜨려 둠.
+   방마다 구역(고정 카메라)·톤이 따로 있어서 구역·톤 도구로 바로 고칠 수 있음. 안의 큰 물건은 물건 도구로 옮길 수 있음 */
+const SPACE_FX=[]; // 매 프레임 움직이는 것 (따라 구르는 눈, 숨 쉬는 살덩이, 깜빡이는 화면)
+function spaceRoom(name,x0,x1,z0,z1,cam,tone){walk(x0,z0,x1,z1,0);zone(name,x0-.1,z0-.1,x1+.1,z1+.1,-1,2,cam);if(tone)ZONES[ZONES.length-1].tone=tone;}
+// ---- 가상 공간 (x 40~54, z -12~-1, 높이 5 · 거실 크기): 프로그램으로 만든 세계가 뼈대를 드러낸 느낌. 어두운 바탕 + 흰 그리드, 멀수록 어둠에 묻혀 끝없이 이어지는 듯 ----
+function gridMat(axis,cell=.5){return new THREE.ShaderMaterial({extensions:{derivatives:true},side:THREE.DoubleSide,uniforms:{cell:{value:cell},axis:{value:axis},col:{value:new THREE.Color(0xf2f2f2)}},
+  vertexShader:'varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}',
+  fragmentShader:'uniform float cell;uniform float axis;uniform vec3 col;varying vec3 vW;void main(){vec2 p=(axis<.5?vW.xz:axis<1.5?vW.zy:vW.xy)/cell;vec2 g=abs(fract(p-.5)-.5)/fwidth(p);'+
+    'float l=1.-min(min(g.x,g.y),1.);float f=exp(-distance(vW,cameraPosition)*.075);gl_FragColor=vec4(vec3(.012)+col*l*f,1.);}'});}
+{const x0=40,x1=54,z0=-12,z1=-1,h=5,cx=(x0+x1)/2,cz=(z0+z1)/2,W=x1-x0,D=z1-z0,g0=gridMat(0),g1=gridMat(1),g2=gridMat(2);
+  quad(g0,cx,0,cz,W,D,-Math.PI/2,0);quad(g0,cx,h,cz,W,D,Math.PI/2,0);                                   // 바닥·천장 (x·z 그리드)
+  quad(g2,cx,h/2,z0,W,h,0,0);quad(g2,cx,h/2,z1,W,h,0,Math.PI);quad(g1,x0,h/2,cz,D,h,0,Math.PI/2);quad(g1,x1,h/2,cz,D,h,0,-Math.PI/2); // 벽
+  pLight(0xffffff,.9,12,cx,3.6,cz);                                                                   // 소희만 비추는 빛 (그리드는 빛과 상관없이 흼)
+  spaceRoom('가상 공간',x0,x1,z0,z1,{p:[cx,2.3,z1-.4],t:[cx,1.3,z0+1],fov:72},{sat:0,grad:0,ink:.2});} // 한쪽 벽 가운데에서 맞은편을 보는 1점 투시
+// ---- 살덩이 방 (x 60~74, z -12~-1, 높이 4.2): 벽·천장이 내장으로 된 굴. 번들거리는 살덩이·창자·갈비뼈 아치, 북쪽 벽에 소희를 따라 구르는 거대한 눈과 이빨 입 ----
+const tFlesh=T(32,32,(g,w,h)=>{for(let y=0;y<h;y++)for(let x=0;x<w;x++){const n=noise(x>>1,y>>1,61),f=Math.sin((x+Math.sin(y*.4)*3)*.5)*.5+.5;
+    g.fillStyle=`rgb(${150+n*60-f*40|0},${40+n*30-f*15|0},${50+n*30-f*15|0})`;g.fillRect(x,y,1,1);}
+  g.strokeStyle='rgba(70,10,20,.7)';for(let i=0;i<5;i++){let x=noise(i,0,62)*w,y=0;g.beginPath();g.moveTo(x,y);for(let k=0;k<10;k++){x+=(noise(i,k,63)-.5)*6;y+=h/10;g.lineTo(x,y);}g.stroke();}}); // 핏줄
+{const x0=60,x1=74,z0=-12,z1=-1,h=4.2,cx=67,cz=-6.5,W=14,D=11;
+  const fl=n=>new THREE.MeshPhongMaterial({map:tFlesh(n,n),shininess:70,specular:0x6a3a3a}),fW=fl(3),fB=fl(1); // 번들거리는 젖은 살
+  const dark=new THREE.MeshPhongMaterial({color:0x2a0608,shininess:20}),bone=new THREE.MeshPhongMaterial({color:0xe8d6c0,shininess:30});
+  quad(fl(5),cx,0,cz,W,D,-Math.PI/2,0);quad(fW,cx,h,cz,W,D,Math.PI/2,0);
+  quad(fW,cx,h/2,z0,W,h,0,0);quad(fW,cx,h/2,z1,W,h,0,Math.PI);quad(fW,x0,h/2,cz,D,h,0,Math.PI/2);quad(fW,x1,h/2,cz,D,h,0,-Math.PI/2);
+  const pulse=[]; // 숨 쉬듯 부풀었다 줄어드는 혹
+  for(let i=0;i<80;i++){const side=i%4,t=noise(i,1,71),s=.5+noise(i,2,71)*1.1,y=noise(i,3,71)*h;let x,z; // 벽에 반쯤 묻힌 살덩이 혹
+    if(side===0){x=x0;z=lerp(z0,z1,t);}else if(side===1){x=x1;z=lerp(z0,z1,t);}else if(side===2){x=lerp(x0,x1,t);z=z0;}else{x=lerp(x0,x1,t);z=z1;}
+    if(side===3&&Math.abs(x-cx)<3.2)continue; // 북쪽 벽 가운데는 얼굴 자리
+    const b=ball(fB,x,y,z,s,s*(.7+noise(i,4,71)*.8),s);if(i%6===0)pulse.push({b,s0:b.scale.clone(),ph:i});}
+  for(let i=0;i<30;i++){const x=lerp(x0+.5,x1-.5,noise(i,5,72)),z=lerp(z0+.5,z1-.5,noise(i,6,72)),s=.6+noise(i,7,72)*1.2;ball(fB,x,h,z,s,s*.6,s); // 천장 혹
+    if(i%2===0){const L=.6+noise(i,8,72)*1.6;cyl(fB,x+.2,h-L/2,z,.03+noise(i,9,72)*.04,L);ball(fB,x+.2,h-L,z,.12,.18,.12);}}             // 늘어진 힘줄 + 맺힌 방울
+  for(let x=x0+1.5;x<x1-.5;x+=2.2){const r=new THREE.Mesh(new THREE.TorusGeometry(D/2-.15,.13,6,28,Math.PI),bone); // 갈비뼈 아치: 바닥에서 벽 타고 천장을 가로지름
+    r.rotation.y=Math.PI/2;r.position.set(x,0,cz);r.scale.set(1,(h-.25)/(D/2-.15),1);root.add(r);}
+  for(let k=0;k<6;k++){const wx=k<3?x0+.3:x1-.3,pts=[];for(let j=0;j<6;j++)pts.push(new THREE.Vector3(wx+(noise(k,j,73)-.5)*.3,.4+noise(k,j,74)*(h-.8),lerp(z0+.6,z1-.6,j/5)+(noise(k,j,75)-.5)));
+    root.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),48,.16+noise(k,0,76)*.1,8,false),fB));}              // 벽을 따라 늘어진 창자
+  let eye=null;
+  O('살덩이 방/거대한 눈',()=>{ball(fB,cx,3.0,z1,3.4,2.0,1.2);                                              // 눈두덩
+    eye=group(cx,3.0,z1-.3);ball(new THREE.MeshPhongMaterial({color:0xf2e6dc,shininess:90}),0,0,0,1.7,1.7,1.7,eye);
+    for(const[r,zz,c]of[[.45,.8,0x8c1a2a],[.2,.84,0x0c0203]]){const d=cyl(new THREE.MeshPhongMaterial({color:c,shininess:60}),0,0,zz,r,.05,eye,20);d.rotation.x=Math.PI/2;} // 홍채·동공
+    ball(fB,cx,3.95,z1-.4,2.5,.6,.85);ball(fB,cx,2.05,z1-.4,2.3,.5,.75);});                                  // 위·아래 눈꺼풀
+  O('살덩이 방/이빨 입',()=>{boxMM(dark,cx-2.2,0,z1-.3,cx+2.2,1.75,z1-.05);                                  // 입 안 어둠 (나중에 통로로 쓸 수 있음)
+    const lip=new THREE.Mesh(new THREE.TorusGeometry(1,.26,8,28),fB);lip.scale.set(2.4,.95,.6);lip.position.set(cx,.95,z1-.25);root.add(lip);
+    const tooth=new THREE.MeshPhongMaterial({color:0xe9dfc8,shininess:50});
+    for(let i=0;i<8;i++){const x=cx-1.75+i*.5,u=noise(i,1,77)*.25,d=noise(i,2,77)*.2; // 이빨 길이가 제각각
+      boxMM(tooth,x-.22,1.25-u,z1-.52,x+.22,1.78,z1-.25);boxMM(tooth,x-.2,.1,z1-.5,x+.2,.55+d,z1-.25);}
+    solid(cx-2.6,z1-.8,cx+2.6,z1,0);});
+  pLight(0xff8a7a,1.0,10,cx,3.2,cz);pLight(0xffb59a,.9,8,cx,1.6,z1-2.2);pLight(0x9a2030,.7,9,cx,2,z0+1.5);
+  SPACE_FX.push(()=>{if(eye)eye.lookAt(P.x,P.y+1.2,P.z);for(const p of pulse){const k=1+Math.sin(T0*1.6+p.ph)*.06;p.b.scale.copy(p.s0).multiplyScalar(k);}});
+  spaceRoom('살덩이 방',x0,x1,z0,z1,{p:[cx,2.5,z0+.5],t:[cx,1.7,z1-1],fov:68},{sat:1.2,vig:.7});}
+// ---- 연구소 (x 80~96, z -14~2, 높이 7): 가운데 거대한 컴퓨터 기둥, 둘레에 뚜껑 달린 인큐베이터 8개(안에 누운 사람), 벽엔 계기판, 위엔 철제 통로 (STEM 장치 느낌) ----
+const tLab=T(32,32,(g,w,h)=>{g.fillStyle='#4f5a55';g.fillRect(0,0,w,h);g.fillStyle='#3a433f';g.fillRect(0,0,w,1);g.fillRect(0,0,1,h);
+  g.fillStyle='#7c8a84';for(const[x,y]of[[3,3],[28,3],[3,28],[28,28]])g.fillRect(x,y,1,1);jit(g,w,h,81,.08);});              // 리벳 박힌 철판
+const tLabFloor=T(32,32,(g,w,h)=>{g.fillStyle='#4a4d4b';g.fillRect(0,0,w,h);g.fillStyle='#2e302f';g.fillRect(0,0,w,1);g.fillRect(0,0,1,h);jit(g,w,h,82,.1);});
+const tLabWin=T(16,16,(g,w,h)=>{g.fillStyle='#cfe8d6';g.fillRect(0,0,w,h);g.fillStyle='#55665d';g.fillRect(0,0,w,1);g.fillRect(0,0,1,h);g.fillRect(0,8,w,1);});
+{const x0=80,x1=96,z0=-14,z1=2,h=7,cx=88,cz=-6,W=16,D=16;
+  const wall=tex(tLab,W/2,h/2,{color:0xb8c8bf}),steel=lam({color:0x5d6662}),dk=lam({color:0x2b302e}),red=new THREE.MeshBasicMaterial({color:0xff3b3b});
+  quad(tex(tLabFloor,W/1.5,D/1.5),cx,0,cz,W,D,-Math.PI/2,0);quad(dk,cx,h,cz,W,D,Math.PI/2,0);
+  quad(wall,cx,h/2,z0,W,h,0,0);quad(wall,cx,h/2,z1,W,h,0,Math.PI);quad(wall,x0,h/2,cz,D,h,0,Math.PI/2);quad(wall,x1,h/2,cz,D,h,0,-Math.PI/2);
+  const win=new THREE.MeshBasicMaterial({map:tLabWin(12,2)});quad(win,cx,5.6,z0+.02,W-1,1.8,0,0);quad(win,x0+.02,5.6,cz,D-1,1.8,0,Math.PI/2); // 높은 창 (희뿌연 초록빛)
+  // 바닥의 붉은 빛 선: 기둥을 둘러싼 고리 + 방사선 (레퍼런스의 붉은 격자)
+  for(const r of[3.2,6.3]){const t=new THREE.Mesh(new THREE.TorusGeometry(r,.025,4,64),red);t.rotation.x=Math.PI/2;t.position.set(cx,.012,cz);root.add(t);}
+  for(let i=0;i<16;i++){const a=i*Math.PI/8,l=new THREE.Mesh(new THREE.PlaneGeometry(.04,3.1),red);l.rotation.set(-Math.PI/2,0,a);l.position.set(cx+Math.sin(a)*4.75,.013,cz+Math.cos(a)*4.75);root.add(l);}
+  // 위쪽 철제 통로 (벽을 따라 한 바퀴, 높이 3.6) + 난간
+  const cw=1.3,cy=3.6;for(const[a0,a1,b0,b1]of[[x0,x1,z0,z0+cw],[x0,x1,z1-cw,z1],[x0,x0+cw,z0+cw,z1-cw],[x1-cw,x1,z0+cw,z1-cw]]){boxMM(dk,a0,cy-.08,b0,a1,cy,b1);}
+  for(let x=x0+cw;x<=x1-cw+.01;x+=.6)for(const z of[z0+cw,z1-cw]){boxMM(steel,x-.02,cy,z-.02,x+.02,cy+1,z+.02);}
+  for(let z=z0+cw;z<=z1-cw+.01;z+=.6)for(const x of[x0+cw,x1-cw]){boxMM(steel,x-.02,cy,z-.02,x+.02,cy+1,z+.02);}
+  boxMM(steel,x0+cw,cy+1,z0+cw-.03,x1-cw,cy+1.05,z0+cw+.03);boxMM(steel,x0+cw,cy+1,z1-cw-.03,x1-cw,cy+1.05,z1-cw+.03);
+  boxMM(steel,x0+cw-.03,cy+1,z0+cw,x0+cw+.03,cy+1.05,z1-cw);boxMM(steel,x1-cw-.03,cy+1,z0+cw,x1-cw+.03,cy+1.05,z1-cw);
+  for(const[px,pz]of[[cx-4.5,cz-4.5],[cx+4.5,cz-4.5],[cx-4.5,cz+4.5],[cx+4.5,cz+4.5]]){cyl(dk,px,h-.6,pz,.01,1.2);cone(dk,px,h-1.3,pz,.08,.38,.3);ball(glow(0xeaf7ee),px,h-1.42,pz,.5,.06,.5);} // 매달린 갓등
+  const blink=[]; // 깜빡이는 화면·불빛
+  const scr=c=>{const m=new THREE.MeshBasicMaterial({color:c});blink.push({m,c:new THREE.Color(c),ph:Math.random()*9,sp:.5+Math.random()*3});return m;};
+  // 가운데 거대한 컴퓨터 기둥: 천장까지 닿는 원통 + 둘레의 작은 화면·불빛 + 띠 + 꼭대기에서 퍼지는 굵은 케이블
+  O('연구소/컴퓨터 기둥',()=>{cyl(dk,cx,.25,cz,2.1,.5,root,24);cyl(steel,cx,.6,cz,1.8,.2,root,24);cyl(lam({color:0x3d4642}),cx,h/2,cz,1.45,h,root,20);
+    for(const y of[1.2,2.9,4.6,6.2]){const t=new THREE.Mesh(new THREE.TorusGeometry(1.48,.07,6,32),steel);t.rotation.x=Math.PI/2;t.position.set(cx,y,cz);root.add(t);}
+    for(let i=0;i<14;i++){const a=i*Math.PI*2/14;for(let r=0;r<6;r++){const y=1.45+r*.75+(i%2)*.2;if(y>h-.6)continue;
+      const s=quad(scr([0x9fe8d8,0x7fd0ff,0xb8ffb0,0xffd27f][(i+r)%4]),cx+Math.sin(a)*1.47,y,cz+Math.cos(a)*1.47,.32,.22,0,a);
+      if((i+r)%3===0)ball(scr(r%2?0xff4a3a:0x6cff8a),cx+Math.sin(a+.12)*1.47,y-.18,cz+Math.cos(a+.12)*1.47,.05);}}
+    for(let i=0;i<10;i++){const a=i*Math.PI/5,e=new THREE.Vector3(cx+Math.sin(a)*(5+i%3),h,cz+Math.cos(a)*(5+i%3));
+      root.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(cx+Math.sin(a)*1.2,h-.3,cz+Math.cos(a)*1.2),new THREE.Vector3(cx+Math.sin(a)*3,h-1.6-(i%3)*.4,cz+Math.cos(a)*3),e]),20,.07,6,false),dk));}
+    solid(cx-2.1,cz-2.1,cx+2.1,cz+2.1,0);});
+  // 인큐베이터 8개: 기둥을 둘러 방사형. 받침 + 욕조 + 반투명 뚜껑 + 안에 누운 사람 + 머리맡 화면 + 기둥으로 가는 케이블
+  const glass=new THREE.MeshPhongMaterial({color:0x9fd8e0,transparent:true,opacity:.3,shininess:100,depthWrite:false,side:THREE.DoubleSide});
+  for(let i=0;i<8;i++){const a=i*Math.PI/4+Math.PI/8,R=4.7,px=cx+Math.sin(a)*R,pz=cz+Math.cos(a)*R;
+    O('연구소/인큐베이터'+(i+1),()=>{const p=group(px,0,pz);p.rotation.y=a; // 머리 = 기둥 쪽(-z)
+      boxMM(dk,-.45,0,-1.1,.45,.45,1.1,p);boxMM(lam({color:0xd8dcd6}),-.48,.45,-1.15,.48,.85,1.15,p);boxMM(lam({color:0xeef2ee}),-.4,.8,-1.05,.4,.84,1.05,p); // 받침·욕조·안쪽
+      ball(lam({color:0xc9b8a8}),0,.9,-.75,.2,.22,.24,p);boxMM(lam({color:0x2f3a4a}),-.2,.84,-.5,.2,.98,.55,p);ball(lam({color:0x2f3a4a}),0,.9,.75,.24,.14,.4,p); // 누운 사람
+      const lid=new THREE.Mesh(new THREE.CylinderGeometry(.48,.48,2.3,16,1,true,-Math.PI/2,Math.PI),glass);lid.rotation.x=-Math.PI/2;lid.position.set(0,.85,0);p.add(lid); // 둥근 유리 뚜껑
+      boxMM(steel,-.5,.85,-1.2,.5,1.0,-1.12,p);boxMM(steel,-.5,.85,1.12,.5,1.0,1.2,p);
+      boxMM(dk,-.3,.45,-1.45,.3,1.35,-1.2,p);quad(scr([0x9fe8d8,0xb8ffb0][i%2]),0,1.1,-1.455,.42,.3,0,Math.PI,p);                          // 머리맡 계기 + 화면
+      p.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0,.3,-1.45),new THREE.Vector3(.2,.05,-2.0),new THREE.Vector3(0,.05,-2.6)]),12,.05,6,false),dk));
+      solid(px-1.1,pz-1.1,px+1.1,pz+1.1,0);});}
+  // 벽 쪽 계기판 (화면·눈금판) + 의자
+  for(const[k,x,z,ry]of[[1,x0+.45,cz-3,Math.PI/2],[2,x0+.45,cz+3,Math.PI/2],[3,x1-.45,cz-3,-Math.PI/2],[4,cx-3.5,z0+.45,0]]){
+    O('연구소/계기판'+k,()=>{const p=group(x,0,z);p.rotation.y=ry;boxMM(steel,-1.2,0,-.35,1.2,1.0,.35,p);boxMM(steel,-1.2,1.0,-.35,1.2,2.2,-.15,p);
+      for(let i=0;i<4;i++){quad(scr([0x9fe8d8,0x7fd0ff,0xb8ffb0][i%3]),-.85+i*.57,1.65,-.14,.42,.3,0,0,p);
+        const d=cyl(lam({color:0xe8e4d8}),-.85+i*.57,1.2,-.14,.09,.02,p,12);d.rotation.x=Math.PI/2;}
+      for(let i=0;i<10;i++)ball(scr(i%3?0x6cff8a:0xff4a3a),-1.0+i*.22,.92,.2,.04,.04,.04,p);
+      solid(x-1.2,z-1.2,x+1.2,z+1.2,0);});}
+  for(const[k,x,z]of[[1,x0+1.6,cz-2.6],[2,x0+1.7,cz+3.4],[3,x1-1.5,cz-2.2]])O('연구소/의자'+k,()=>{const p=group(x,0,z);p.rotation.y=k*1.3;
+    boxMM(lam({color:0x4a3022}),-.25,.45,-.25,.25,.52,.25,p);boxMM(lam({color:0x4a3022}),-.25,.52,.18,.25,1.05,.25,p);cyl(dk,0,.22,0,.03,.44,p);cyl(dk,0,.03,0,.28,.04,p,10);});
+  pLight(0xd6f0e0,1.1,14,cx,6,cz);pLight(0xbfe8d0,.8,10,x0+2,4,z0+2);pLight(0xbfe8d0,.8,10,x1-2,4,z1-2);pLight(0xff4040,.6,6,cx,.4,cz);
+  SPACE_FX.push(()=>{for(const b of blink){const v=Math.sin(T0*b.sp+b.ph)>-.6?1:.25;b.m.color.copy(b.c).multiplyScalar(v*(.85+.15*Math.sin(T0*23+b.ph)));}}); // 화면 깜빡임
+  spaceRoom('연구소',x0,x1,z0,z1,{p:[x1-2.1,5.6,z1-2.1],t:[cx-1.5,.4,cz-1.5],fov:66},{sat:.6});} // 카메라는 철제 통로 안쪽 위 (난간에 안 가림)
+
+// ---- 구조물도 고를 수 있게: 아직 물건이 아닌 벽·바닥·천장·계단·장식 메쉬를 구역(방)별로 묶어 '구조/방 이름' 고정 물건으로 ----
+// 물건 도구로 클릭하면 골라지고 색(전체/클릭한 부분)을 바꿀 수 있음. 옮기기·빼기는 막음 (fixed). 허브 벽(방 문 구멍 벽)은 방을 옮길 때 다시 만들어져서 제외
+{const objG=new Set(OBJS.map(o=>o.g)),groups=new Map(),bb=new THREE.Box3(),c=new THREE.Vector3();
+  const zoneName=(x,y,z)=>{const inXZ=(q,m=0)=>x>=q.x0-m&&x<=q.x1+m&&z>=q.z0-m&&z<=q.z1+m,inY=q=>y>=q.ymin-.5&&y<=q.ymax+.5;
+    const q=ZONES.find(q=>inXZ(q)&&inY(q))||ZONES.find(q=>inXZ(q))||ZONES.find(q=>inXZ(q,.6)&&inY(q)); // 방 경계에 걸친 벽·창틀은 바로 옆 방으로
+    return q?(q.label||q.name).replace(' (임시)','').replace(', 아침',''):'집 바깥';};
+  const scan=(par,m)=>{for(const ch of[...par.children])if(ch.isMesh&&!objG.has(ch)){bb.setFromObject(ch).getCenter(c);const k=(m?m.id+'|':'|')+zoneName(c.x,bb.min.y,c.z);
+    if(!groups.has(k))groups.set(k,{m,list:[]});groups.get(k).list.push(ch);}};
+  scan(S,null);for(const m of Object.values(MODS))scan(m.group,m);
+  houseReg=false; // 구조물은 보관함 에셋으로 넣지 않음 (방 통째라 꺼내 쓸 일이 없음)
+  for(const[k,{m,list}]of groups){let n='구조/'+k.split('|')[1]+(m&&!k.endsWith(m.name)?' ('+m.name+')':''),i=2;while(OBJS.some(o=>o.name===n))n=n.replace(/ \d+$/,'')+' '+i++; // 이름이 겹치면 번호
+    beginObj(n);for(const me of list)root.attach(me);const o=endObj();o.fixed=true;o.struct=true;if(m)o.mod=m.id;}
+  houseReg=true;}
 // ---- 허브 벽: 거실 서쪽·남쪽 벽. 방 모듈의 문 위치에 맞춰 문 구멍을 뚫어 다시 만든다 ----
 const HUB={west:{c:5.925,axis:'z',a0:-12.15,a1:-.925},south:{c:-12.075,axis:'x',a0:5.85,a1:20.15}};
 let hubG=null;
+// 허브 벽도 고를 수 있는 구조물 (방을 옮길 때마다 안의 벽만 새로 만들고, 물건 자체와 바꾼 색은 그대로)
+const hubObj={name:'구조/거실 벽 (방 문 쪽)',g:new THREE.Group(),sol:[],orig:[0,0,0],def:{p:[0,0,0],ry:0,s:[1,1,1]},fixed:true,struct:true};S.add(hubObj.g);OBJS.push(hubObj);
 function rebuildHubWalls(){
-  if(hubG){S.remove(hubG);hubG.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material&&o.material.map&&!Object.values(MC).includes(o.material))o.material.map.dispose();});}
-  hubG=new THREE.Group();S.add(hubG);const pr=root;root=hubG;const holes={west:[],south:[]};
+  if(hubG){hubObj.g.remove(hubG);hubG.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material&&o.material.map&&!Object.values(MC).includes(o.material))o.material.map.dispose();});}
+  hubG=new THREE.Group();hubObj.g.add(hubG);const pr=root;root=hubG;const holes={west:[],south:[]};
   for(const id in MODS){const m=MODS[id],c=m.door0+m.off;holes[m.wall].push([c-.5,c+.5,2.2]);}
-  for(const k in HUB){const h=HUB[k];wallLine(h.axis,h.c,h.a0,h.a1,Y1,HH,holes[k]);}root=pr;}
+  for(const k in HUB){const h=HUB[k];wallLine(h.axis,h.c,h.a0,h.a1,Y1,HH,holes[k]);}root=pr;
+  hubObj.meshes=null;if(hubObj.col)applyObjLook(hubObj);}
 // 방 모듈을 벽을 따라 d만큼 옮긴다: 방 전체(바닥·벽·천장·문) + 걷는 바닥 + 충돌 + 조명 + 구역·카메라 + 가구 + 문 조사 지점
 function moveModule(m,d){if(!d)return;const dx=m.axis==='x'?d:0,dz=m.axis==='z'?d:0;m.off+=d;
   m.group.position.x+=dx;m.group.position.z+=dz;
@@ -815,7 +1014,7 @@ rebuildHubWalls();
 
 // 충돌 상자 최종 목록: 고정 상자 + 물건별 상자(물건의 위치·회전·크기를 반영). 물건이 바뀔 때마다 다시 계산
 let SOL=[];
-function rebuildSol(){SOL=solids.slice();for(const o of OBJS){const g=o.g,c=Math.cos(g.rotation.y),s=Math.sin(g.rotation.y);
+function rebuildSol(){SOL=solids.slice();for(const o of OBJS){if(o.removed)continue;const g=o.g,c=Math.cos(g.rotation.y),s=Math.sin(g.rotation.y);
   for(const b of o.sol){let x0=1e9,z0=1e9,x1=-1e9,z1=-1e9;
     for(const[x,z]of[[b.rel[0],b.rel[1]],[b.rel[2],b.rel[1]],[b.rel[0],b.rel[3]],[b.rel[2],b.rel[3]]]){
       const sx=x*g.scale.x,sz=z*g.scale.z,wx=g.position.x+sx*c+sz*s,wz=g.position.z-sx*s+sz*c;
@@ -842,6 +1041,11 @@ const spawnSer=()=>userObjs().map(o=>({lib:o.lib,name:o.name,def:jcopyB(o.def)})
 function syncSpawns(list){const want=list.map(u=>u.name).join('|'),have=userObjs().map(o=>o.name).join('|');if(want===have)return;
   for(const o of userObjs())removeObj(o);for(const u of list)if(LIB_BY[u.lib])spawnObj(u.lib,u.name,u.def);}
 try{for(const u of JSON.parse(localStorage.getItem(SPAWN_LS)||'[]'))if(LIB_BY[u.lib]&&!OBJS.some(o=>o.name===u.name))spawnObj(u.lib,u.name,u.def);}catch(e){}
+// ---- 처음부터 있던 물건 빼기: 지우지 않고 숨김 (되돌리기·저장 가능). 꺼낸 물건은 removeObj로 진짜 뺌 ----
+const RM_LS='sp11_removed_v1';
+function setRemoved(o,v){o.removed=!!v;o.g.visible=!v;}
+const removedNames=()=>OBJS.filter(o=>o.removed).map(o=>o.name);
+try{const rm=new Set(JSON.parse(localStorage.getItem(RM_LS)||'[]'));for(const o of OBJS)if(rm.has(o.name)&&!o.fixed)setRemoved(o,true);}catch(e){}
 // 저장된 방 위치 먼저 (그다음 불러오는 가구·구역·카메라 값은 옮긴 뒤의 실제 위치라서 두 번 밀리지 않음)
 try{const mo=JSON.parse(localStorage.getItem(MOD_LS)||'{}');for(const id in mo)if(MODS[id])setModOffset(MODS[id],mo[id]);}catch(e){}
 try{const s=JSON.parse(localStorage.getItem(OBJ_LS)||'{}');for(const o of OBJS){const v=s[o.name];if(!v)continue;o.g.position.set(...v.p);o.g.rotation.y=v.ry*D2R;o.g.scale.set(...v.s);}}catch(e){}
@@ -948,8 +1152,8 @@ function setView(v){view=v;tpSnap=true;$('#viewName').textContent='[V] 시점: '
    Tab: 플레이 ↔ 편집. 편집 모드에서는 소희가 멈추고, 도구 3개로 고친다.
      카메라(C): 구역별 카메라 구도   물건(O): 화면에서 가구 클릭 → 옮기기·회전·크기   톤(T): 화면 효과·밝기
    '저장'해야 새로고침 후에도 남는다(이 브라우저에 저장). 플레이로 돌아가면 편집한 그대로 플레이된다. */
-let mode='play',tool='cam',editing=false,oEditing=false,sEditing=false,zEditing=false,nEditing=false,lEditing=false,sel=0;const EK={}; // s: 조사 범위, z: 카메라 구역, n: 텍스트
-const flyTool=()=>oEditing||sEditing||zEditing||nEditing||lEditing; // 자유 카메라를 쓰는 도구들
+let mode='play',tool='obj',editing=false,oEditing=false,sEditing=false,zEditing=false,nEditing=false,lEditing=false,mEditing=false,sel=0;const EK={}; // s: 조사 범위, z: 카메라 구역, n: 텍스트, m: 괴물
+const flyTool=()=>oEditing||sEditing||zEditing||nEditing||lEditing||mEditing; // 자유 카메라를 쓰는 도구들
 const scrEl=$('#screen'),r2=v=>Math.round(v*100)/100;
 const toastEl=$('#toast');let toastT=0;function toast(msg,ms=1400){toastEl.textContent=msg;toastEl.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>toastEl.hidden=true,ms);}
 const onUI=e=>e.target&&e.target.closest&&e.target.closest('.edbar,.chip,.dlg');
@@ -994,7 +1198,9 @@ function editMove(dt){const c=CAMS[sel].ref,a=camAng(c),sp=(EK.ShiftLeft||EK.Shi
 
 // ---- 물건 (화면에서 바로 클릭) ----
 let oSel=null;const oBox=new THREE.BoxHelper(new THREE.Object3D(),0xffd27f);oBox.visible=false;S.add(oBox);
-function objSel(o){oSel=o;oPart=o&&lastPickMesh&&objMeshes(o).includes(lastPickMesh)?lastPickMesh:null;if(typeof objLookSync==='function')objLookSync();if(o){oBox.setFromObject(o.g);$('#chipName').textContent=o.name.split('/').pop();$('#objName').textContent=o.name;}else $('#objName').textContent='(없음 — 화면에서 가구를 클릭하세요)';oBox.visible=oEditing&&!!o;}
+let objSelHook=null; // 물건을 고르면 조사 범위·대사 칸도 그 물건으로 (아래 텍스트 코드에서 연결)
+function selBoxOf(o){return o.struct&&oPart?oPart:o.g;} // 구조물(방 통째)은 클릭한 부분만 노란 상자로
+function objSel(o){if(objSelHook)objSelHook(o||null);oSel=o;oPart=o&&lastPickMesh&&objMeshes(o).includes(lastPickMesh)?lastPickMesh:null;if(typeof objLookSync==='function')objLookSync();if(o){oBox.setFromObject(selBoxOf(o));$('#chipName').textContent=o.name.split('/').pop();$('#objName').textContent=o.name;}else $('#objName').textContent='(없음 — 화면에서 가구를 클릭하세요)';oBox.visible=oEditing&&!!o;}
 function objReset(o){o.g.position.set(...o.def.p);o.g.rotation.y=(o.def.ry||0)*D2R;o.g.scale.set(...(o.def.s||[1,1,1]));}
 // ---- 가구 색 바꾸기 (전체 / 클릭한 부분) · 액자에 그림 넣기 ----
 const COL_LS='sp11_colors_v1',IMG_LS='sp11_imgs_v1';let oPart=null;
@@ -1003,7 +1209,8 @@ function applyObjLook(o){const c=o.col||{};
   objMeshes(o).forEach((m,i)=>{if(!m.userData.m0)m.userData.m0=m.material;
     if(m.userData.canvas&&o.img){setCanvasImage(m,o.img);return;}                 // 액자: 넣은 그림
     const want=(c.parts&&c.parts[i])||c.all||null;
-    if(want){if(!m.userData.tint){m.userData.tint=m.userData.m0.clone();}m.userData.tint.color.set(want);m.material=m.userData.tint;}
+    const m0=m.userData.m0,can=m0.color||(m0.uniforms&&m0.uniforms.col); // 색을 바꿀 수 있는 재질만 (그리드 셰이더는 선 색 col)
+    if(want&&can){if(!m.userData.tint){m.userData.tint=m0.clone();}const t=m.userData.tint;if(t.color)t.color.set(want);else t.uniforms.col.value.set(want);m.material=t;}
     else m.material=m.userData.m0;});}
 function setCanvasImage(m,url){if(m.userData.imgUrl===url&&m.userData.imgMat){m.material=m.userData.imgMat;return;}
   const im=new Image();im.onload=()=>{const t=new THREE.Texture(im);t.magFilter=t.minFilter=THREE.NearestFilter;t.generateMipmaps=false;t.needsUpdate=true;
@@ -1016,7 +1223,8 @@ function fitImageToFrame(file,w,h,cb){const rd=new FileReader();rd.onload=()=>{c
     const g=cv.getContext('2d'),s=Math.max(cw/im.width,ch/im.height),dw=im.width*s,dh=im.height*s;g.drawImage(im,(cw-dw)/2,(ch-dh)/2,dw,dh);cb(cv.toDataURL('image/png'));};
     im.src=rd.result;};rd.readAsDataURL(file);}
 const canvasOf=o=>objMeshes(o).find(m=>m.userData.canvas);
-function objLookSync(){const o=oSel,has=!!o;$('#ocAll').disabled=$('#ocReset').disabled=!has;$('#oDel').disabled=!(has&&o.user);$('#ocPart').disabled=!has||!oPart;
+function objLookSync(){const o=oSel,has=!!o,L=has&&LIB_BY[o.lib];$('#ocAll').disabled=$('#ocReset').disabled=!has;$('#oDel').disabled=!(has&&!o.fixed);$('#oDup').disabled=!L;$('#ocPart').disabled=!has||!oPart;
+  $('#objAsset').textContent=L?`에셋: ${L.name} → 유니티 파일 ${L.file}`+(o.fixed?' · (문: 옮기기·빼기 막힘)':''):'';
   const cv=has&&canvasOf(o);$('#oImgRow').hidden=!cv;$('#oImgReset').disabled=!(cv&&o.img);}
 $('#ocAll').addEventListener('pointerdown',pushUndo);$('#ocPart').addEventListener('pointerdown',pushUndo);
 $('#ocAll').addEventListener('input',()=>{if(!oSel)return;oSel.col={all:$('#ocAll').value,parts:{}};applyObjLook(oSel);changed();});
@@ -1030,7 +1238,7 @@ try{const cs=JSON.parse(localStorage.getItem(COL_LS)||'{}'),is=JSON.parse(localS
   for(const o of OBJS){if(cs[o.name])o.col=cs[o.name];if(is[o.name])o.img=is[o.name];if(o.col||o.img)applyObjLook(o);}}catch(e){}
 function screenAxes(){const f=new THREE.Vector3();cam.getWorldDirection(f);f.y=0;f.normalize();const r=new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,0);r.y=0;r.normalize();return{f,r};}
 // 물건 도구: 고른 물건 회전(Z/X)·높이(R/F). W/A/S/D/Q/E는 자유 카메라 이동에 쓴다
-function objMove(dt){if(!oSel)return;const g=oSel.g,fast=EK.ShiftLeft||EK.ShiftRight?3:1;
+function objMove(dt){if(!oSel||oSel.fixed)return;const g=oSel.g,fast=EK.ShiftLeft||EK.ShiftRight?3:1;
   const rot=(EK.KeyX?1:0)-(EK.KeyZ?1:0),up=(EK.KeyR?1:0)-(EK.KeyF?1:0);if(!rot&&!up)return;
   g.position.y+=up*.6*fast*dt;g.rotation.y-=rot*fast*dt*1.5;changed();}
 // 물건 도구 전용 자유 카메라 (게임 카메라 구도와 별개): W/A/S/D 보는 방향으로 이동, Q/E 아래/위, Shift 빠르게, 빈 곳 드래그로 둘러보기
@@ -1042,16 +1250,16 @@ function flyMove(dt){const a=camAng(FLY),sp=(EK.ShiftLeft||EK.ShiftRight?6:2.5)*
   const my=(EK.KeyW?1:0)-(EK.KeyS?1:0),mx=(EK.KeyD?1:0)-(EK.KeyA?1:0),mz=(EK.KeyE?1:0)-(EK.KeyQ?1:0);if(!mx&&!my&&!mz)return;
   const d=[(fx*my+rx*mx)*sp,(fy*my+mz)*sp,(fz*my+rz*mx)*sp];for(let i=0;i<3;i++){FLY.p[i]+=d[i];FLY.t[i]+=d[i];}}
 // 물건 옆에 뜨는 작은 조작 버튼
-document.querySelectorAll('#chip button').forEach(b=>b.addEventListener('click',()=>{if(!oSel)return;pushUndo();const g=oSel.g;
+document.querySelectorAll('#chip button').forEach(b=>b.addEventListener('click',()=>{if(!oSel||oSel.fixed)return;pushUndo();const g=oSel.g;
   ({rotL:()=>g.rotation.y+=15*D2R,rotR:()=>g.rotation.y-=15*D2R,smaller:()=>g.scale.multiplyScalar(1/1.1),bigger:()=>g.scale.multiplyScalar(1.1),
     up:()=>g.position.y+=.05,down:()=>g.position.y-=.05,reset:()=>objReset(oSel)})[b.dataset.a]();changed();}));
 const chipEl=$('#chip'),chipV=new THREE.Vector3(),chipB=new THREE.Box3();
-function updateChip(){if(!oEditing||!oSel){chipEl.hidden=true;return;}chipB.setFromObject(oSel.g);chipV.set((chipB.min.x+chipB.max.x)/2,chipB.max.y,(chipB.min.z+chipB.max.z)/2).project(cam);
+function updateChip(){if(!oEditing||!oSel||oSel.fixed){chipEl.hidden=true;return;}chipB.setFromObject(oSel.g);chipV.set((chipB.min.x+chipB.max.x)/2,chipB.max.y,(chipB.min.z+chipB.max.z)/2).project(cam);
   if(chipV.z>1||Math.abs(chipV.x)>1.2||Math.abs(chipV.y)>1.2){chipEl.hidden=true;return;}
   chipEl.hidden=false;chipEl.style.left=clamp((chipV.x+1)/2*100,8,92)+'%';chipEl.style.top=clamp((1-chipV.y)/2*100,12,96)+'%';}
 const ray=new THREE.Raycaster();
 function pickObj(e){const rc=$('#game').getBoundingClientRect(),nd=new THREE.Vector2((e.clientX-rc.left)/rc.width*2-1,-((e.clientY-rc.top)/rc.height)*2+1);
-  ray.setFromCamera(nd,cam);const hits=ray.intersectObjects(OBJS.map(o=>o.g),true);
+  ray.setFromCamera(nd,cam);const hits=ray.intersectObjects(OBJS.filter(o=>!o.removed).map(o=>o.g),true);
   for(const h of hits){let n=h.object;while(n&&!OBJS.some(o=>o.g===n))n=n.parent;if(n){lastPickMesh=h.object;lastPickDist=h.distance;return OBJS.find(o=>o.g===n);}}return null;}
 let lastPickMesh=null,lastPickDist=1e9; // 마지막으로 클릭한 가구의 '부분' (색 바꾸기용)
 // 방 모듈의 문 클릭 (가구보다 가까이 있을 때만)
@@ -1088,7 +1296,7 @@ for(const[k,label,mn,mx,st]of[['bright','전체 밝기',.3,2,.01],['levels','색
   toneIn[k]=slider($('#toneSliders'),label,mn,mx,st,v=>setToneKey(k,v));
 for(const[k,label]of[['g0','공포 톤: 어두운 색'],['g1','중간 색'],['g2','밝은 색']]){const l=document.createElement('label');l.className='clr';l.innerHTML=`<span>${label}</span><input type="color">`;
   const inp=l.querySelector('input');inp.addEventListener('pointerdown',pushUndo);inp.addEventListener('input',()=>setToneKey(k,inp.value));$('#toneColors').appendChild(l);toneIn[k]={inp,out:null};}
-toneIn.dlgSize=slider($('#txSize'),'대사 글자 크기',1.8,5.5,.05,v=>{TONE.dlgSize=v;changed();}); // 텍스트 도구 패널에 있음
+toneIn.dlgSize=slider($('#txSize'),'대사 글자 크기',1.8,5.5,.05,v=>{TONE.dlgSize=v;changed();}); // 물건 도구 패널(대사)에 있음
 function toneSync(){
   if(toneSel&&!ZONES.includes(toneSel))toneSel=ZONES.find(z=>z.name===toneSel.name)||null; // 되돌리기 뒤에도 같은 구역 유지
   const zs=$('#toneZone'),sig=ZONES.map(z=>z.name).join('|');
@@ -1108,13 +1316,16 @@ $('#toneZoneClear').addEventListener('click',()=>{if(!toneSel)return;pushUndo();
 const UNDO=[],REDO=[];
 function snapState(){return{o:OBJS.map(o=>[o.g.position.x,o.g.position.y,o.g.position.z,o.g.rotation.y,o.g.scale.x,o.g.scale.y,o.g.scale.z,o.col?jcopy(o.col):null,o.img||null]),
   z:ZONES.map(zoneSer),c:{corner:jcopy(SH.corner),anchor:jcopy(SH.anchor),clock:jcopy(SH.clock)},t:Object.assign({},TONE),s:spotSnap(),
-  m:Object.fromEntries(Object.values(MODS).map(m=>[m.id,m.off])),u:spawnSer()};}
+  m:Object.fromEntries(Object.values(MODS).map(m=>[m.id,m.off])),u:spawnSer(),mon:monReady?jcopy(MON):null,rm:removedNames()};}
 function applyState(s){if(s.m)for(const id in s.m)if(MODS[id])moveModule(MODS[id],s.m[id]-MODS[id].off); // 방 위치 먼저 (가구·구역은 아래에서 저장된 값으로 덮어씀)
   if(s.u){const keep=oSel&&oSel.name;syncSpawns(s.u);if(keep&&!OBJS.includes(oSel))objSel(OBJS.find(o=>o.name===keep)||null);} // 꺼낸 물건 목록 맞추기
   OBJS.forEach((o,i)=>{const v=s.o[i];if(!v)return;o.g.position.set(v[0],v[1],v[2]);o.g.rotation.y=v[3];o.g.scale.set(v[4],v[5],v[6]);
     const lc=JSON.stringify(o.col||null)!==JSON.stringify(v[7]||null)||(o.img||null)!==(v[8]||null);o.col=v[7]?jcopy(v[7]):null;o.img=v[8]||null;if(lc)applyObjLook(o);});
+  {const rm=new Set(s.rm||[]);for(const o of OBJS)if(!o.user)setRemoved(o,rm.has(o.name));if(oSel&&oSel.removed)objSel(null);} // 뺀 물건
   setZones(s.z);if(zSel)zSel=ZONES.find(z=>z.name===zSel.name)||null;for(const k in s.c)Object.assign(SH[k],jcopy(s.c[k]));
-  Object.assign(TONE,s.t);spotApply(s.s);changed();}
+  Object.assign(TONE,s.t);spotApply(s.s);
+  if(s.mon&&monReady){Object.assign(MON,jcopy(s.mon));monLook();monHome();} // 괴물 설정
+  changed();}
 function pushUndo(){UNDO.push(snapState());if(UNDO.length>200)UNDO.shift();REDO.length=0;}
 let lastWheel=0;function wheelUndo(){const now=performance.now();if(now-lastWheel>500)pushUndo();lastWheel=now;} // 휠을 연달아 굴린 건 한 번으로
 function undo(){if(!UNDO.length){toast('더 되돌릴 게 없어요');return;}REDO.push(snapState());applyState(UNDO.pop());toast(`되돌림 (남은 단계 ${UNDO.length})`);}
@@ -1125,9 +1336,9 @@ let savedSnap=null;
 function isDirty(){return JSON.stringify(snapState())!==JSON.stringify(savedSnap);}
 function saveAll(){try{const c={};for(const x of CAMS)c[x.name]={p:x.ref.p,t:x.ref.t,fov:x.ref.fov};localStorage.setItem(CAM_LS,JSON.stringify(c));
     const o={};for(const x of OBJS){const g=x.g;o[x.name]={p:[g.position.x,g.position.y,g.position.z],ry:g.rotation.y/D2R,s:[g.scale.x,g.scale.y,g.scale.z]};}localStorage.setItem(OBJ_LS,JSON.stringify(o));
-    localStorage.setItem(TONE_LS,JSON.stringify(TONE));const sr={};for(const x of spots)sr[x.id]=x.r;localStorage.setItem(SPOT_LS,JSON.stringify(sr));
+    localStorage.setItem(TONE_LS,JSON.stringify(TONE));const sr={};for(const x of spots)sr[x.id]=x.r;localStorage.setItem(SPOT_LS,JSON.stringify(sr));localStorage.setItem(SPOTOFF_LS,JSON.stringify(spots.filter(x=>x.off).map(x=>x.id)));
     localStorage.setItem(ZONE_LS,JSON.stringify(ZONES.map(zoneSer)));saveTexts();localStorage.setItem(MOD_LS,JSON.stringify(Object.fromEntries(Object.values(MODS).map(m=>[m.id,m.off]))));
-    const cs={},is={};for(const o of OBJS){if(o.col)cs[o.name]=o.col;if(o.img)is[o.name]=o.img;}localStorage.setItem(COL_LS,JSON.stringify(cs));localStorage.setItem(IMG_LS,JSON.stringify(is));localStorage.setItem(SPAWN_LS,JSON.stringify(spawnSer()));}catch(e){toast('이 창에서는 저장이 막혀 있어요 (일반 브라우저로 열어 주세요)',2600);}
+    const cs={},is={};for(const o of OBJS){if(o.col)cs[o.name]=o.col;if(o.img)is[o.name]=o.img;}localStorage.setItem(COL_LS,JSON.stringify(cs));localStorage.setItem(IMG_LS,JSON.stringify(is));localStorage.setItem(SPAWN_LS,JSON.stringify(spawnSer()));if(monReady)localStorage.setItem(MON_LS,JSON.stringify(MON));localStorage.setItem(RM_LS,JSON.stringify(removedNames()));}catch(e){toast('이 창에서는 저장이 막혀 있어요 (일반 브라우저로 열어 주세요)',2600);}
   savedSnap=snapState();changed();}
 function exportText(){const L=['[카메라]',...CAMS.map(c=>`${c.name}: p:[${c.ref.p.map(r2)}], t:[${c.ref.t.map(r2)}], fov:${Math.round(c.ref.fov)}`)];
   const ch=OBJS.filter(o=>{const g=o.g;return Math.abs(g.position.x-o.def.p[0])>.005||Math.abs(g.position.y-o.def.p[1])>.005||Math.abs(g.position.z-o.def.p[2])>.005||Math.abs(g.rotation.y-(o.def.ry||0)*D2R)>.001||Math.abs(g.scale.x-o.def.s[0])>.005||Math.abs(g.scale.y-o.def.s[1])>.005||Math.abs(g.scale.z-o.def.s[2])>.005;});
@@ -1145,16 +1356,20 @@ function exportText(){const L=['[카메라]',...CAMS.map(c=>`${c.name}: p:[${c.r
   L.push('[색·그림]',...(lk.length?lk.map(o=>`${o.name}: ${o.col&&o.col.all?'전체 '+o.col.all:''}${o.col&&o.col.parts&&Object.keys(o.col.parts).length?' 부분 '+Object.entries(o.col.parts).map(([i,c])=>'#'+i+'='+c).join(' '):''}${o.img?' (그림 넣음 — 파일로 따로 보내 주세요)':''}`):['(바뀐 색·그림 없음)']));
   L.push('[카메라 구역]',...ZONES.map(z=>`${z.user?'(추가) ':''}${z.name}: x ${r2(z.x0)}~${r2(z.x1)}, z ${r2(z.z0)}~${r2(z.z1)}, 높이 ${r2(z.ymin)}~${r2(z.ymax)}`));
   const tc=spots.filter(x=>JSON.stringify(textOf(x)||[])!==JSON.stringify(x.lines0||[])||JSON.stringify(x.secret||null)!==JSON.stringify(x.secret0||null));
-  L.push('[텍스트]',...(tc.length?tc.map(x=>`■ ${spotLabel(x)}\n${linesToText(textOf(x))}${x.secret?'\n(숨은 대사) '+linesToText(x.secret):''}`):['(바뀐 텍스트 없음)']));return L.join('\n');}
+  L.push('[텍스트]',...(tc.length?tc.map(x=>`■ ${spotLabel(x)}\n${linesToText(textOf(x))}${x.secret?'\n(숨은 대사) '+linesToText(x.secret):''}`):['(바뀐 텍스트 없음)']));
+  const rmn=removedNames();L.push('[뺀 물건 (처음부터 있던 것)]',...(rmn.length?rmn:['(뺀 물건 없음)']));
+  if(monReady)L.push(...monExport());return L.join('\n');}
 // 무엇이든 바뀌면: 충돌·표시 갱신 (저장은 '저장' 버튼으로)
-function changed(){rebuildSol();if(oSel)oBox.setFromObject(oSel.g);applyTone();camSync();toneSync();spotSync();zoneSync();textSync();$('#edOut').value=exportText();
+function changed(){rebuildSol();if(oSel)oBox.setFromObject(selBoxOf(oSel));applyTone();camSync();toneSync();spotSync();zoneSync();textSync();oSpotSync();monSync();$('#edOut').value=exportText();
   const d=savedSnap&&isDirty();$('#edDirty').hidden=!d;}
 $('#edSave').addEventListener('click',()=>{saveAll();toast('저장했어요');});
 $('#edPlay').addEventListener('click',()=>{saveAll();setMode('play');toast('저장하고 플레이');});
 $('#edUndo').addEventListener('click',undo);$('#edRedo').addEventListener('click',redo);
 $('#edRevert').addEventListener('click',()=>{pushUndo();applyState(savedSnap);toast('마지막으로 저장한 상태로 되돌렸어요');});
 $('#edResetAll').addEventListener('click',()=>{pushUndo();for(const o of userObjs())removeObj(o);for(const m of Object.values(MODS))moveModule(m,-m.off);for(const c of CAMS)Object.assign(c.ref,JSON.parse(JSON.stringify(c.def)));for(const o of OBJS){objReset(o);if(o.col||o.img){o.col=null;o.img=null;applyObjLook(o);}}Object.assign(TONE,TONE_DEF);for(const x of spots){x.r=x.r0;setText(x,jcopy(x.lines0||[]));if(x.secret0)x.secret=jcopy(x.secret0);}
-  setZones(ZONES_DEF);zSel=null;for(const k in SH_DEF)Object.assign(SH[k],jcopy(SH_DEF[k]));changed();toast('전부 처음값으로 (저장하면 확정)');});
+  setZones(ZONES_DEF);zSel=null;for(const k in SH_DEF)Object.assign(SH[k],jcopy(SH_DEF[k]));
+  if(monReady){Object.assign(MON,jcopy(MON_DEF));monLook();monHome();}for(const o of OBJS)setRemoved(o,false);
+  for(const s of spots)s.off=false;changed();toast('전부 처음값으로 (저장하면 확정)');});
 $('#edExport').addEventListener('click',async()=>{const t=$('#edOut');t.value=exportText();t.select();let ok=false;
   try{await navigator.clipboard.writeText(t.value);ok=true;}catch(e){try{ok=document.execCommand('copy');}catch(e2){}}
   $('#edMsg').textContent=ok?'복사했어요. 채팅에 붙여 주시면 파일에 확정할게요.':'아래 칸을 직접 복사해 주세요 (Ctrl+C).';});
@@ -1257,11 +1472,16 @@ function spawnPoint(){const d=new THREE.Vector3();cam.getWorldDirection(d);const
 function libSpawn(L){if(mode!=='edit')return;pushUndo();const p=spawnPoint(),ry=Math.round(Math.atan2(cam.position.x-p.x,cam.position.z-p.z)/(Math.PI/2))*90; // 앞면이 카메라 쪽을 보게 (90도 단위)
   const o=spawnObj(L.id,newSpawnName(L),{p:[r2(p.x),p.h+(L.y||0),r2(p.z)],ry,s:[1,1,1]});
   setTool('obj');lastPickMesh=null;objSel(o);changed();toast(`${L.name} 꺼냄 — 끌어서 옮기세요`);}
-function delObj(){if(!oSel||!oSel.user)return;pushUndo();const n=oSel.name;removeObj(oSel);changed();toast(n.split('/').pop()+' 뺐어요 (Ctrl+Z로 되돌리기)');}
-$('#oDel').addEventListener('click',delObj);
+function delObj(){if(!oSel||oSel.fixed)return;pushUndo();const o=oSel,n=o.name;if(o.user)removeObj(o);else{setRemoved(o,true);objSel(null);}changed();toast(n.split('/').pop()+' 뺐어요 (Ctrl+Z로 되돌리기)');}
+// 복제: 같은 에셋을 하나 더 꺼내 옆(화면 오른쪽 0.6m)에 놓는다. 회전·크기·색도 그대로
+function dupObj(){const src=oSel,L=src&&LIB_BY[src.lib];if(!L)return;pushUndo();const g=src.g,{r}=screenAxes();
+  const o=spawnObj(L.id,newSpawnName(L),{p:[r2(g.position.x+r.x*.6),r2(g.position.y),r2(g.position.z+r.z*.6)],ry:Math.round(g.rotation.y/D2R),s:[g.scale.x,g.scale.y,g.scale.z]});
+  if(src.col){o.col=jcopy(src.col);applyObjLook(o);}if(src.img){o.img=src.img;applyObjLook(o);}
+  lastPickMesh=null;objSel(o);changed();toast(`${L.name} 복제 — 끌어서 옮기세요`);}
+$('#oDel').addEventListener('click',delObj);$('#oDup').addEventListener('click',dupObj);
 
 // ---- 모드 / 도구 전환 ----
-function setTool(t){const wasFly=flyTool();tool=t;const ed=mode==='edit';editing=ed&&t==='cam';oEditing=ed&&t==='obj';sEditing=ed&&t==='spot';zEditing=ed&&t==='zone';nEditing=ed&&t==='text';lEditing=ed&&t==='lib';if(lEditing)buildThumbs();
+function setTool(t){const wasFly=flyTool();tool=t;const ed=mode==='edit';editing=ed&&t==='cam';oEditing=ed&&t==='obj';sEditing=ed&&t==='spot';zEditing=ed&&t==='zone';nEditing=ed&&t==='text';lEditing=ed&&t==='lib';mEditing=ed&&t==='mon';if(lEditing)buildThumbs();
   if(flyTool()&&!wasFly)flyFromCam(); // 자유 카메라 도구로 들어오면 지금 보던 화면에서 시작
   zoneVis.visible=zEditing;if(zEditing)rebuildZoneVis();
   document.querySelectorAll('.edbar [data-tool]').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));
@@ -1269,6 +1489,7 @@ function setTool(t){const wasFly=flyTool();tool=t;const ed=mode==='edit';editing
   if(editing){const cur=override||(curZone()&&(curZone().cam||SH.corner))||SH.corner;const i=CAMS.findIndex(c=>c.ref===cur);if(i>=0)sel=i;camSync();}
   modSel(null);objSel(oSel);for(const k in EK)EK[k]=false;}
 function setMode(m){if(m==='edit'&&!started)start();mode=m;const ed=m==='edit';
+  if(monReady){if(mon.state==='caught'){control=true;$('#over').hidden=true;}monHome();} // 모드를 바꾸면 괴물은 제자리에서 다시
   $('#edbar').hidden=!ed;$('#edPanel').hidden=!ed;$('#modeBtn').textContent=ed?'플레이 모드로 (Tab)':'편집 모드 (Tab)';scrEl.classList.toggle('editing',ed);document.body.classList.toggle('editing',ed);
   if(ed){gradPreview=null;applyTone();}else if(isDirty())toast('저장 안 한 편집이 있어요 — 새로고침하면 사라져요',2600);
   for(const k in K)K[k]=false;setTool(tool);if(!ed){chipEl.hidden=true;oBox.visible=false;}}
@@ -1281,18 +1502,26 @@ $('#modeBtn').addEventListener('click',()=>setMode(mode==='edit'?'play':'edit'))
 //             끌기 = 둘러보기(자유 카메라). 단, '이미 고른 가구' 위에서 끌면 그 가구를 옮긴다
 //             휠 = 고른 가구 크기 (없으면 앞뒤 이동)
 let drag=null;
-scrEl.addEventListener('pointerdown',e=>{if(mode!=='edit'||onUI(e))return;
+scrEl.addEventListener('pointerdown',e=>{if(mode!=='edit'||onUI(e)||e.button!==0)return; // 왼쪽 버튼만 (오른쪽 클릭 메뉴 때문에 끌기가 안 끝나는 일 방지)
   if(editing){pushUndo();drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'cam'};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}
-  else if(oEditing){lastPickDist=1e9;const o=pickObj(e),dh=pickModDoor(e),md=dh&&(!o||dh.dist<lastPickDist)?dh.m:null; // 방 문이 가구보다 앞에 있으면 문
-    drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:md?(md===mSel?'mod':'fly'):(o&&o===oSel?'obj':'fly'),moved:0,pick:md?{mod:md}:o,undone:false,acc:0};
+  else if(oEditing){lastPickDist=1e9;const o=pickObj(e),dh=pickModDoor(e),om=o&&o.door?Object.values(MODS).find(m=>m.doors.includes(o.door)):null; // 방 모듈의 문 = 문 물건이면서 방 손잡이
+    const md=om||(dh&&(!o||dh.dist<lastPickDist)?dh.m:null); // 방 문이 가구보다 앞에 있으면 문
+    drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:md?(md===mSel?'mod':'fly'):(o&&o===oSel&&!o.fixed?'obj':'fly'),moved:0,pick:md?{modPick:md,o:om?o:(md.doors[0]&&md.doors[0].o)||null}:o, /* 방 문은 modPick (물건의 o.mod는 '방 안 물건' 표시라 따로) */undone:false,acc:0};
     try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}
   else if(sEditing){drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'fly',moved:0,pick:pickSpot(e)};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}} // 조사 도구: 클릭 = 범위 고르기, 끌기 = 둘러보기
   else if(zEditing){const zh=pickZoneHandle(e),z=zh?zSel:pickZone(e); // 구역 도구: 클릭 = 고르기, 손잡이 끌기 = 크기, 고른 구역 위에서 끌기 = 옮기기, 그 외 끌기 = 둘러보기
     drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:zh?'zh':z&&z===zSel?'zone':'fly',zh,moved:0,pick:z,undone:false};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}
-  else if(nEditing){drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'fly',moved:0,pick:pickTextTarget(e)};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}}); // 텍스트 도구: 클릭 = 대상 고르기
+  else if(nEditing){drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'fly',moved:0,pick:pickTextTarget(e)};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}} // 텍스트 도구: 클릭 = 대상 고르기
+  else if(mEditing){const mh=pickMonHandle(e);let off=null,wo=null;if(!mh&&pickMon(e)){const p=monFloorPoint(e,MON.y);if(p)off={x:p.x-MON.x,z:p.z-MON.z};} // 괴물 도구: 손잡이 끌기 = 크기, 몸 끌기 = 자리 이동
+    else if(!mh){const wi=pickMonWall(e);if(wi>=0){mwSel=wi;const w=MON.walls[wi],p=monFloorPoint(e,w.y+.05);if(p)wo={x:p.x-w.x0,z:p.z-w.z0};changed();}} // 괴물 전용 벽: 누르면 고르기, 끌면 옮기기
+    drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:mh?'mh':off?'mon':wo?'mw':'fly',mh,off,wo,moved:0,undone:false};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}
+  else{drag={id:e.pointerId,x:e.clientX,y:e.clientY,k:'fly',moved:0,any:true};try{scrEl.setPointerCapture(e.pointerId);}catch(_){}}}); // 톤·보관함 도구: 끌기 = 둘러보기, 클릭 = 물건·괴물 고르기
 scrEl.addEventListener('pointermove',e=>{if(!drag&&mode==='edit'&&zEditing){const h=pickZoneHandle(e);scrEl.style.cursor=h?zhCursor(h):'';} // 손잡이 위에서는 커서 모양이 바뀜
-  if(!drag||e.pointerId!==drag.id)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
-  if(drag.k==='cam'){const c=CAMS[sel].ref,a=camAng(c);camSetAng(c,a.yaw-dx*.005,a.pitch-dy*.005);changed();return;}
+  if(!drag&&mode==='edit'&&mEditing){const h=pickMonHandle(e);scrEl.style.cursor=h?zhCursor(h.h):(pickMon(e)||pickMonWall(e)>=0)?'grab':'';}
+  if(!drag||e.pointerId!==drag.id)return;
+  if(!e.buttons){drag=null;return;} // 버튼을 뗐는데 떼는 신호를 놓쳤으면 끌기 끝 — 카메라·가구는 누르고 있을 때만 움직임
+  const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
+  if(drag.k==='cam'){drag.moved=(drag.moved||0)+Math.abs(dx)+Math.abs(dy);const c=CAMS[sel].ref,a=camAng(c);camSetAng(c,a.yaw-dx*.005,a.pitch-dy*.005);changed();return;}
   drag.moved+=Math.abs(dx)+Math.abs(dy);if(drag.moved<4)return; // 살짝 흔들린 건 클릭으로 본다
   if(drag.k==='fly'){const a=camAng(FLY);camSetAng(FLY,a.yaw-dx*.005,a.pitch-dy*.005);}
   else if(drag.k==='zone'&&zSel){if(!drag.undone){pushUndo();drag.undone=true;}
@@ -1304,33 +1533,228 @@ scrEl.addEventListener('pointermove',e=>{if(!drag&&mode==='edit'&&zEditing){cons
   else if(drag.k==='mod'&&mSel){if(!drag.undone){pushUndo();drag.undone=true;} // 방 문 끌기 → 방 전체가 벽을 따라 이동
     const{f,r}=screenAxes(),k=.015,wx=(r.x*dx-f.x*dy)*k,wz=(r.z*dx-f.z*dy)*k;setModOffset(mSel,mSel.off+(mSel.axis==='x'?wx:wz));
     oBox.setFromObject(mSel.doors[0].leaf.parent);changed();}
+  else if(drag.k==='mh'){if(!drag.undone){pushUndo();drag.undone=true;}monHandleDrag(e,drag.mh);} // 괴물 도구: 사각형 손잡이
+  else if(drag.k==='mon'){if(!drag.undone){pushUndo();drag.undone=true;}monDragTo(e,drag.off);}  // 괴물 도구: 자리 옮기기
+  else if(drag.k==='mw'){if(!drag.undone){pushUndo();drag.undone=true;}monWallDrag(e,drag.wo);}  // 괴물 도구: 괴물 전용 벽 옮기기
   else if(oSel){if(!drag.undone){pushUndo();drag.undone=true;} // 실제로 옮기기 시작할 때만 되돌리기 한 단계
     const{f,r}=screenAxes(),k=.012;oSel.g.position.x+=(r.x*dx-f.x*dy)*k;oSel.g.position.z+=(r.z*dx-f.z*dy)*k;changed();}});
 ['pointerup','pointercancel'].forEach(ev=>scrEl.addEventListener(ev,e=>{if(!drag||e.pointerId!==drag.id)return;
-  if(ev==='pointerup'&&drag.k!=='cam'&&drag.moved<4){ // 클릭 = 고르기 (빈 곳이면 해제)
+  if(ev==='pointerup'&&(drag.moved||0)<4){const any=drag.k==='cam'||drag.any||(mEditing&&drag.k==='fly'),oc=oEditing&&drag.k!=='mod'; // 어느 도구에서든 클릭: 물건이면 물건 도구, 괴물이면 괴물 도구로 바꿔서 고름
+    if(any||oc){lastPickDist=1e9;const o=pickObj(e),od=o?lastPickDist:1e9,md=monHitDist(e);
+      if(md<od&&!mEditing){setTool('mon');drag=null;return;}
+      if(any&&o){setTool('obj');objSel(o);drag=null;return;}}}
+  if(ev==='pointerup'&&mEditing&&drag.k==='fly'&&drag.moved<4&&mwSel>=0){mwSel=-1;changed();} // 괴물 도구: 빈 곳 클릭 = 벽 선택 해제
+  if(ev==='pointerup'&&drag.k!=='cam'&&drag.moved<4&&!mEditing){ // 클릭 = 고르기 (빈 곳이면 해제)
     if(sEditing)spotSel(drag.pick);else if(zEditing)zoneSel(drag.pick);else if(nEditing)textSel(drag.pick);
-    else if(drag.pick&&drag.pick.mod){objSel(null);modSel(drag.pick.mod);}else{modSel(null);objSel(drag.pick);}}
+    else if(drag.pick&&drag.pick.modPick){objSel(drag.pick.o||null);modSel(drag.pick.modPick);}else{modSel(null);objSel(drag.pick);}} // 방 문: 문 물건(색·조사·대사) + 방 끌기 둘 다
   drag=null;}));
+addEventListener('blur',()=>{drag=null;}); // 창을 벗어나면 끌기 끝
 scrEl.addEventListener('wheel',e=>{if(mode!=='edit'||onUI(e))return;
   if(editing){e.preventDefault();wheelUndo();const c=CAMS[sel].ref;c.fov=clamp(c.fov*Math.exp(e.deltaY*.0006),20,110);changed();}
-  else if(oEditing&&oSel){e.preventDefault();wheelUndo();oSel.g.scale.multiplyScalar(Math.exp(-e.deltaY*.0006));changed();}
+  else if(oEditing&&oSel&&!oSel.fixed){e.preventDefault();wheelUndo();oSel.g.scale.multiplyScalar(Math.exp(-e.deltaY*.0006));changed();}
   else if(sEditing&&sSel){e.preventDefault();wheelUndo();sSel.r=clamp(sSel.r*Math.exp(-e.deltaY*.0008),.2,4);changed();} // 조사 범위 크기
   else if(flyTool()){e.preventDefault();const a=camAng(FLY),s=-e.deltaY*.004,d=[Math.sin(a.yaw)*Math.cos(a.pitch)*s,Math.sin(a.pitch)*s,Math.cos(a.yaw)*Math.cos(a.pitch)*s];for(let i=0;i<3;i++){FLY.p[i]+=d[i];FLY.t[i]+=d[i];}}},{passive:false});
 
 /* ================= 숫자키로 구역 이동 (플레이·편집 둘 다) ================= */
-const JUMPS=[{x:-3.1,y:0,z:2.4},{x:6,y:0,z:1},{x:14.5,y:0,z:1.5},{x:13,y:Y1,z:-9.5},{x:3,y:Y1,z:-8},{x:9,y:Y1,z:-13.3},{x:17,y:Y1,z:-13.3},{x:9,y:Y1,z:-19.6}]; // 1 소희방 … 7 손님방, 8 부엌
+const JUMPS=[{x:-3.1,y:0,z:2.4},{x:6,y:0,z:1},{x:14.5,y:0,z:1.5},{x:13,y:Y1,z:-9.5},{x:3,y:Y1,z:-8},{x:9,y:Y1,z:-13.3},{x:17,y:Y1,z:-13.3},{x:9,y:Y1,z:-19.6},
+  {x:47,y:0,z:-5},{x:67,y:0,z:-9.5},{x:90.5,y:0,z:-1.2}]; // 1 소희방 … 7 손님방, 8 부엌 / 따로 떨어진 공간: 9 가상 공간, 0 살덩이 방, - 연구소
 function jumpTo(i){
-  const n=['소희의 방','2층 복도','2층 로비','거실','서재','식당','손님방','부엌'][i],k=CAMS.findIndex(c=>c.name===n);
+  const n=['소희의 방','2층 복도','2층 로비','거실','서재','식당','손님방','부엌','가상 공간','살덩이 방','연구소'][i],k=CAMS.findIndex(c=>c.name===n);
   if(editing){if(k>=0){sel=k;camSync();}return;}            // 카메라 도구: 그 카메라 고르기
   if(flyTool()){if(k>=0)flyFrom(CAMS[k].ref);return;} // 자유 카메라 도구: 그 구역 카메라 자리로
   if(!started)return;if(seq)skipSeq();if(dlg){dlg=null;$('#dlg').hidden=true;control=true;}
   override=null;const j=JUMPS[i],m=[null,null,null,null,MODS.study,MODS.dining,MODS.guest,MODS.dining][i],ox=m&&m.axis==='x'?m.off:0,oz=m&&m.axis==='z'?m.off:0; // 옮긴 방은 따라감
-  Object.assign(P,{x:j.x+ox,z:j.z+oz,fy:j.y,y:j.y});
+  Object.assign(P,{x:j.x+ox,z:j.z+oz,fy:j.y,y:j.y});if(monReady)monHome(); // 순간이동하면 괴물도 처음부터 (돌아갈 자리 기록도 새로)
   if(mode==='edit'&&tool==='tone'&&toneSel){toneSel=curZone()||toneSel;changed();}} // 톤 도구에서 구역을 고른 상태면 그 구역으로 같이 넘어감
+
+/* ================= 괴물 (추격자) — 임시 모형. 나중에 진짜 모델로 바꿀 자리 (monB 아래 몸통·팔다리) =================
+   규칙: 괴물 시야(빨간 사각형)에 소희 히트박스(노란 사각형)가 들어오면 쫓아온다
+   → 괴물 몸(흰 사각형)이 소희 히트박스에 닿으면 게임오버 → 마주치기 약 1초 전 자리로 돌아가고 괴물은 제자리로.
+   편집 모드 '괴물 K' 도구: 사각형 손잡이를 끌어 크기 조절, 괴물 몸을 끌어 자리 이동, 속도·색·톤·질감은 패널에서 */
+var monReady=false; // 아래 설정이 준비되기 전에 저장·되돌리기 코드가 부르면 건너뜀
+const MON_LS='sp11_monster_v1';
+const MON_DEF={on:true,x:17.4,y:Y1,z:-10.6,ry:-55,speed:1.2,scale:1,color:'#b39a8f',tone:0,tex:'wrinkle',texAmt:.6,
+  vis:{x0:-1.5,x1:1.5,z0:0,z1:5},   // 시야: 괴물 기준 (앞 = +z), m
+  hit:{x0:-.22,x1:.22,z0:-.22,z1:.22}, // 소희 히트박스: 소희 기준, m
+  walls:[],                         // 괴물 전용 벽: 괴물만 막고 소희는 지나감 [{x0,z0,x1,z1,y(바닥 높이)}], 월드 좌표
+  show:false};
+const MON=jcopy(MON_DEF);
+try{const v=JSON.parse(localStorage.getItem(MON_LS)||'null');if(v)Object.assign(MON,v);}catch(e){}
+const MON_FOOT={x0:-.45,x1:.45,z0:-.8,z1:.7}; // 크기 ×1일 때 몸이 바닥을 차지하는 범위 (= 몸에 닿는 범위)
+const monSize=()=>({x0:MON_FOOT.x0*MON.scale,x1:MON_FOOT.x1*MON.scale,z0:MON_FOOT.z0*MON.scale,z1:MON_FOOT.z1*MON.scale});
+// ---- 모양: 창백한 살덩이. 크게 벌린 입이 위를 향한 머리, 긴 목, 늘어진 몸통, 거미처럼 꺾인 팔다리 ----
+const monMat=new THREE.MeshLambertMaterial({color:0xffffff}),monIn=new THREE.MeshLambertMaterial({color:0x2a0b0b}),monEye=new THREE.MeshBasicMaterial({color:0x120606});
+const monCv=document.createElement('canvas');monCv.width=monCv.height=64;const monTex=new THREE.CanvasTexture(monCv);
+monTex.magFilter=THREE.NearestFilter;monTex.wrapS=monTex.wrapT=THREE.RepeatWrapping;monTex.repeat.set(2,2);monMat.map=monTex;
+function monPaint(){const g=monCv.getContext('2d'),W=64,a=MON.texAmt;
+  for(let y=0;y<W;y++)for(let x=0;x<W;x++){let v=1+(noise(x,y,41)-.5)*(MON.tex==='smooth'?.12:.3)*a;
+    if(MON.tex==='wrinkle')v-=Math.pow(Math.max(0,Math.sin((y+Math.sin(x*.35)*3+noise(x>>2,0,42)*4)*.9)),6)*.5*a;
+    if(MON.tex==='blotch'){const b=noise(x>>3,y>>3,43)*.6+noise(x>>2,y>>2,44)*.4;if(b>.6)v-=(b-.6)*1.8*a;}
+    const c=Math.round(clamp(v,0,1)*255);g.fillStyle=`rgb(${c},${c},${c})`;g.fillRect(x,y,1,1);}
+  if(MON.tex==='vein'){g.strokeStyle=`rgba(120,25,35,${.8*a})`;g.lineWidth=1;
+    for(let i=0;i<8;i++){let x=noise(i,1,45)*W,y=noise(i,2,45)*W;g.beginPath();g.moveTo(x,y);for(let k=0;k<16;k++){x+=(noise(i,k,46)-.5)*8;y+=2+noise(i,k,47)*3;g.lineTo(x,y);}g.stroke();}}
+  monTex.needsUpdate=true;}
+// 색 + 톤(밝기) + 질감을 재질에 반영
+function monLook(){const c=new THREE.Color(MON.color),h={};c.getHSL(h);c.setHSL(h.h,h.s,clamp(h.l+MON.tone*.3,0,1));monMat.color.copy(c);monPaint();}
+const mon={g:group(0,0,0,S),x:0,y:Y1,z:0,a:0,state:'idle',phase:0,k:0,hist:[],histT:0,cp:null,t:0,twT:0,tw:{x:-.5,y:0,z:0},spT:2,alert:0};
+const monB=group(0,0,0,mon.g),monBody=group(0,0,0,monB); // monB = 크기, monBody = 숨쉬기·흔들림
+ball(monMat,0,.38,-.45,.6,.44,.64,monBody);                                   // 엉덩이·불룩한 배
+const monTorso=group(0,.5,-.2,monBody);monTorso.rotation.x=.15;
+ball(monMat,0,.28,.02,.54,.74,.44,monTorso);                                  // 늘어진 상체
+ball(monMat,.12,.12,.19,.24,.28,.16,monTorso);ball(monMat,-.1,.4,.17,.18,.22,.14,monTorso); // 혹
+const monNeck=group(0,.6,.04,monTorso);cyl(monMat,0,.13,0,.09,.28,monNeck,8);
+const monHead=group(0,.24,0,monNeck);
+ball(monMat,0,.06,0,.32,.4,.34,monHead);                                      // 큰 머리
+const monMouth=ball(monIn,0,0,.13,.12,.26,.1,monHead);                        // 세로로 찢어지게 벌린 입
+for(const s of[-1,1])ball(monEye,s*.08,.15,.13,.05,.018,.03,monHead);         // 가는 눈
+const _v1=new THREE.Vector3(),_v2=new THREE.Vector3(),_v3=new THREE.Vector3(),YV=new THREE.Vector3(0,1,0);
+// 팔다리: 어깨(s)에서 바닥의 손발 자리(r)까지 두 마디. 관절은 pole 쪽(바깥·위)으로 튀어나옴 → 거미 같은 실루엣
+const MON_LIMBS=[
+  {s:[.25,.95,.1],r:[.6,0,.78],a:.62,b:.78,ra:.07,rb:.055,pole:[1,1.1,.1],off:0,hand:1},
+  {s:[-.25,.95,.1],r:[-.6,0,.78],a:.62,b:.78,ra:.07,rb:.055,pole:[-1,1.1,.1],off:Math.PI,hand:1},
+  {s:[.22,.4,-.62],r:[.74,0,-.95],a:.52,b:.56,ra:.09,rb:.065,pole:[1,1.2,-.3],off:Math.PI+.35},
+  {s:[-.22,.4,-.62],r:[-.74,0,-.95],a:.52,b:.56,ra:.09,rb:.065,pole:[-1,1.2,-.3],off:.35}];
+function monSeg(r0,r1){const m=new THREE.Mesh(new THREE.CylinderGeometry(r1,r0,1,7),monMat);monB.add(m);return m;} // r0 = 시작 쪽 굵기
+function segTo(m,A,B){const d=_v1.copy(B).sub(A),L=d.length();m.position.copy(A).addScaledVector(d,.5);m.scale.set(1,Math.max(L,.001),1);m.quaternion.setFromUnitVectors(YV,d.normalize());}
+for(const L of MON_LIMBS){const side=Math.sign(L.s[0]);
+  ball(monMat,...L.s,L.ra*2.6,L.ra*2.6,L.ra*2.6,monBody);                     // 어깨·골반 혹
+  L.up=monSeg(L.ra,L.ra*.8);L.lo=monSeg(L.rb,L.rb*.65);L.j=ball(monMat,0,0,0,L.ra*2.2,L.ra*2.2,L.ra*2.2,monB);
+  L.hd=group(0,0,0,monB);ball(monMat,0,.01,.03,L.ra*2.8,L.ra*1.1,L.ra*3.2,L.hd); // 손바닥·발
+  const nf=L.hand?4:3;for(let i=0;i<nf;i++){const f=cyl(monMat,(i-(nf-1)/2)*L.ra*.9,.01,.1,L.ra*.3,L.hand?.22:.13,L.hd,5);f.rotation.set(Math.PI/2-.2,0,(i-(nf-1)/2)*-.3);} // 긴 손가락
+  L.hd.rotation.y=side*(L.hand?.35:.7);
+  L.S=new THREE.Vector3();L.E=new THREE.Vector3();L.F=new THREE.Vector3();L.P=new THREE.Vector3(...L.pole).normalize();L.fid=0;L.sp=0;}
+// 두 마디 관절 계산: 어깨 S에서 손발 F까지, 팔꿈치 E는 pole 쪽으로
+function monIK(S,F,a,b,pole,E){const d=_v2.copy(F).sub(S);let L=d.length()||1e-4;d.divideScalar(L);
+  if(L>a+b-.002){L=a+b-.002;F.copy(S).addScaledVector(d,L);}
+  const ca=clamp((a*a+L*L-b*b)/(2*a*L),-1,1),sa=Math.sqrt(1-ca*ca),p=_v3.copy(pole).addScaledVector(d,-pole.dot(d));
+  if(p.lengthSq()<1e-6)p.set(0,1,0);p.normalize();E.copy(S).addScaledVector(d,ca*a).addScaledVector(p,sa*a);}
+// 움직임: 대각선 짝(오른팔+왼다리)으로 기어가되 박자가 불규칙하게 휘청, 머리는 갑자기 꺾이고, 가끔 관절 하나가 반대로 꺾임
+function monPose(dt,v){mon.k+=((v>0?1:0)-mon.k)*Math.min(1,dt*6);const k=mon.k,stride=.42,lift=.16;
+  if(v>0)mon.phase+=dt*2*Math.PI*.62*v/(stride*MON.scale)*(1+.35*Math.sin(T0*2.3)+.2*Math.sin(T0*5.7));
+  monBody.position.y=.035*Math.sin(mon.phase*2)*k+.012*Math.sin(T0*1.9);
+  monBody.rotation.z=.1*Math.sin(mon.phase)*k+.03*Math.sin(T0*.7);monBody.rotation.x=.05*Math.sin(mon.phase*2+1)*k;monBody.updateMatrix();
+  if(T0>mon.twT){mon.twT=T0+.2+Math.random()*(v>0?.6:1.6);mon.tw={x:-.55+(Math.random()-.5)*.7,y:(Math.random()-.5)*1.4,z:(Math.random()-.5)*1}; } // 머리 경련
+  const hs=Math.min(1,dt*22);monHead.rotation.x+=(mon.tw.x-monHead.rotation.x)*hs;monHead.rotation.y+=(mon.tw.y-monHead.rotation.y)*hs;
+  monHead.rotation.z+=(mon.tw.z-monHead.rotation.z)*hs+Math.sin(T0*47)*.02;monNeck.rotation.z=Math.sin(T0*1.3)*.15;
+  monMouth.scale.set(.12*(1+.1*Math.sin(T0*2.1)),.26*(1+.18*Math.sin(T0*1.7)),.1);
+  mon.spT-=dt;if(mon.spT<=0){mon.spT=1.2+Math.random()*3;MON_LIMBS[Math.floor(Math.random()*4)].sp=.28;} // 관절 하나가 반대로 꺾이는 경련
+  MON_LIMBS.forEach((L,i)=>{let u=((mon.phase+L.off)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)/(2*Math.PI),fz=0,fy=0;
+    if(u<.62)fz=lerp(.5,-.5,u/.62)*stride;else{const t=(u-.62)/.38;fz=lerp(-.5,.5,t)*stride;fy=Math.sin(Math.PI*t)*lift;}
+    fz*=k;fy*=k;
+    if(L.fid>0){L.fid-=dt;fy+=Math.sin((1-L.fid/.45)*Math.PI)*.14*(1-k);}else if(Math.random()<dt*.35*(1-k))L.fid=.45; // 가만히 있을 때 손발 하나씩 들썩
+    L.S.set(...L.s).applyMatrix4(monBody.matrix);
+    L.F.set(L.r[0]+Math.sin(T0*31+i)*.006,fy,L.r[2]+fz);
+    if(L.sp>0){L.sp-=dt;_v1.set(-L.P.x*.3,-1,.2).normalize();}else _v1.copy(L.P);const pole=_v1.clone();
+    monIK(L.S,L.F,L.a,L.b,pole,L.E);segTo(L.up,L.S,L.E);segTo(L.lo,L.E,L.F);L.j.position.copy(L.E);L.hd.position.copy(L.F);});}
+// ---- 시야·크기·히트박스 사각형 (바닥에 그림, 흰 동그라미 손잡이 8개) ----
+const MH=[['x0','z0'],['x1','z0'],['x0','z1'],['x1','z1'],['x0',null],['x1',null],[null,'z0'],[null,'z1']];
+function rectVis(color){const g=new THREE.Group();
+  const pl=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.2,depthWrite:false,side:THREE.DoubleSide}));pl.rotation.x=-Math.PI/2;
+  const ed=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(1,1)),new THREE.LineBasicMaterial({color,depthTest:false}));ed.rotation.x=-Math.PI/2;ed.renderOrder=9;
+  g.add(pl,ed);const hs=MH.map(([x,z])=>{const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:ZH_TEX,depthTest:false,sizeAttenuation:false}));sp.scale.set(.045,.045,1);sp.renderOrder=10;sp.userData.h={x,z};g.add(sp);return sp;});
+  g.visible=false;S.add(g);return{g,pl,ed,hs};}
+function rectSet(v,r){const w=Math.max(r.x1-r.x0,.01),d=Math.max(r.z1-r.z0,.01),cx=(r.x0+r.x1)/2,cz=(r.z0+r.z1)/2;
+  v.pl.scale.set(w,d,1);v.pl.position.set(cx,.04,cz);v.ed.scale.set(w,d,1);v.ed.position.set(cx,.045,cz);
+  for(const sp of v.hs){const h=sp.userData.h;sp.position.set(h.x?r[h.x]:cx,.06,h.z?r[h.z]:cz);}}
+const mvVis=rectVis(0xe0726c),mvSize=rectVis(0xffffff),mvHit=rectVis(0xffd27f);
+// 괴물 전용 벽 (보라색): 괴물만 막고 소희는 지나감. 고른 벽에만 손잡이가 보임
+const mwVis=[];let mwSel=-1;
+function monVisSync(){const ed=mode==='edit'&&mEditing,show=MON.on&&(ed||(mode==='play'&&MON.show));
+  for(const v of[mvVis,mvSize,mvHit]){v.g.visible=show;for(const h of v.hs)h.visible=ed;}
+  while(mwVis.length<MON.walls.length)mwVis.push(rectVis(0xb784ff));
+  mwVis.forEach((v,i)=>{const w=MON.walls[i];v.g.visible=show&&!!w;if(!v.g.visible)return;const on=i===mwSel;
+    v.g.position.set(0,w.y,0);rectSet(v,w);v.pl.userData.wi=i;v.pl.material.opacity=on?.42:.22;for(const h of v.hs)h.visible=ed&&on;});
+  if(!show)return;
+  for(const v of[mvVis,mvSize]){v.g.position.set(mon.x,mon.y,mon.z);v.g.rotation.y=mon.a;}
+  rectSet(mvVis,MON.vis);rectSet(mvSize,monSize());mvHit.g.position.set(P.x,P.fy,P.z);rectSet(mvHit,MON.hit);}
+// 괴물 기준 사각형 r(괴물 자리 ox,oz · 방향 oa)과 소희 기준 사각형 hr(소희 자리 hx,hz)이 겹치는지
+function monRectHit(r,ox,oz,oa,hx,hz,hr){const c=Math.cos(oa),s=Math.sin(oa),H=[hx+hr.x0,hz+hr.z0,hx+hr.x1,hz+hr.z1];
+  const inR=(x,z)=>{const dx=x-ox,dz=z-oz,l=dx*c-dz*s,m=dx*s+dz*c;return l>=r.x0&&l<=r.x1&&m>=r.z0&&m<=r.z1;};
+  for(const[x,z]of[[H[0],H[1]],[H[2],H[1]],[H[0],H[3]],[H[2],H[3]],[(H[0]+H[2])/2,(H[1]+H[3])/2]])if(inR(x,z))return true;
+  for(const[l,m]of[[r.x0,r.z0],[r.x1,r.z0],[r.x0,r.z1],[r.x1,r.z1]]){const x=ox+l*c+m*s,z=oz-l*s+m*c;if(x>=H[0]&&x<=H[2]&&z>=H[1]&&z<=H[3])return true;}
+  return false;}
+// 괴물이 갈 수 있는 자리 (바닥 위 · 가구·닫힌 문에 안 막힘)
+function monFree(x,z){const rr=Math.max(.18,.28*MON.scale),c=floorAt(x,z,mon.y);if(c===null)return null;
+  for(const b of SOL){const y0=b.length>4?b[4]:-.6,y1=b.length>4?b[5]:1.6;if(c<y0||c>y1)continue;if(x>b[0]-rr&&x<b[2]+rr&&z>b[1]-rr&&z<b[3]+rr)return null;}
+  for(const d of DOORS){if(d.target>0||Math.abs(c-d.y)>1)continue;const b=d.block;if(x>b[0]-rr&&x<b[2]+rr&&z>b[1]-rr&&z<b[3]+rr)return null;}
+  for(const w of MON.walls){if(Math.abs(c-w.y)>1.2)continue;if(x>w.x0-rr&&x<w.x1+rr&&z>w.z0-rr&&z<w.z1+rr)return null;} // 괴물 전용 벽
+  return c;}
+function monHome(){mon.x=MON.x;mon.z=MON.z;mon.y=MON.y;mon.a=MON.ry*D2R;mon.state='idle';mon.hist=[];mon.histT=0;}
+// 마주침: 쫓기 시작. 돌아올 자리 = 약 1초 이상 전, 시야 밖이던 마지막 자리
+function monSpot(){const H=mon.hist;let cp=null;for(let i=H.length-11;i>=0;i--){const h=H[i];if(!monRectHit(MON.vis,mon.x,mon.z,mon.a,h.x,h.z,MON.hit)){cp=h;break;}}
+  mon.cp=cp||H[0]||{x:P.x,z:P.z,fy:P.fy,a:P.a};mon.state='chase';mon.alert=1;}
+function monCatch(){mon.state='caught';mon.t=1.8;control=false;for(const k in K)K[k]=false;$('#over').hidden=false;}
+function monRespawn(){const c=mon.cp;if(c)Object.assign(P,{x:c.x,z:c.z,fy:c.fy,y:c.fy,a:c.a});monHome();control=true;$('#over').hidden=true;}
+function monFrame(dt){mon.g.visible=MON.on;let v=0;
+  if(MON.on&&mode==='play'&&started){
+    if(mon.state==='caught'){mon.t-=dt;if(mon.t<=0)monRespawn();}
+    else if(control&&!dlg&&!seq){const same=Math.abs(P.fy-mon.y)<1.2;
+      if(mon.state==='idle'){mon.histT-=dt;if(mon.histT<=0){mon.histT=.1;mon.hist.push({x:P.x,z:P.z,fy:P.fy,a:P.a});if(mon.hist.length>40)mon.hist.shift();}
+        if(same&&monRectHit(MON.vis,mon.x,mon.z,mon.a,P.x,P.z,MON.hit))monSpot();}
+      else if(mon.state==='chase'){const dx=P.x-mon.x,dz=P.z-mon.z,d=Math.hypot(dx,dz)||1,ta=Math.atan2(dx,dz);
+        const da=((ta-mon.a+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI;mon.a+=clamp(da,-5*dt,5*dt);
+        const st=MON.speed*dt;let y=monFree(mon.x+dx/d*st,mon.z);if(y!==null){mon.x+=dx/d*st;mon.y=y;v=MON.speed;}
+        y=monFree(mon.x,mon.z+dz/d*st);if(y!==null){mon.z+=dz/d*st;mon.y=y;v=MON.speed;}
+        if(same&&monRectHit(monSize(),mon.x,mon.z,mon.a,P.x,P.z,MON.hit))monCatch();}}}
+  mon.g.position.set(mon.x,mon.y,mon.z);mon.g.rotation.y=mon.a;monB.scale.setScalar(MON.scale);
+  monPose(dt,v);monVisSync();mon.alert=Math.max(0,mon.alert-dt*1.5);$('#monAlert').style.opacity=mon.alert;}
+// ---- 편집: 손잡이 끌기 / 몸 끌어서 자리 옮기기 ----
+const ndcOf=e=>{const rc=$('#game').getBoundingClientRect();return{rc,x:(e.clientX-rc.left)/rc.width*2-1,y:-((e.clientY-rc.top)/rc.height)*2+1};};
+function pickMonHandle(e){if(!MON.on)return null;const n=ndcOf(e);let best=null,bd=1e9;
+  for(const[k,v]of[['vis',mvVis],['size',mvSize],['hit',mvHit],...(mwVis[mwSel]&&MON.walls[mwSel]?[['wall',mwVis[mwSel]]]:[])]){if(!v.g.visible)continue;v.g.updateMatrixWorld(true);
+    for(const sp of v.hs){sp.getWorldPosition(_v1).project(cam);const d=Math.hypot((_v1.x-n.x)*n.rc.width/2,(_v1.y-n.y)*n.rc.height/2);if(_v1.z<1&&d<bd){bd=d;best={k,h:sp.userData.h};}}}
+  return bd<14?best:null;}
+function monHitDist(e){if(!MON.on||!mon.g.visible)return 1e9;const n=ndcOf(e);ray.setFromCamera(new THREE.Vector2(n.x,n.y),cam);const h=ray.intersectObject(mon.g,true)[0];return h?h.distance:1e9;} // 화면에서 누른 곳까지 괴물 거리
+function pickMon(e){if(!MON.on)return false;const n=ndcOf(e);ray.setFromCamera(new THREE.Vector2(n.x,n.y),cam);return ray.intersectObject(mon.g,true).length>0;}
+function monFloorPoint(e,y){const n=ndcOf(e);ray.setFromCamera(new THREE.Vector2(n.x,n.y),cam);const p=new THREE.Vector3();return ray.ray.intersectPlane(new THREE.Plane(YV,-y),p)?p:null;}
+// 괴물 전용 벽 고르기: 화면에서 누른 곳의 보라색 사각형 번호 (없으면 -1)
+function pickMonWall(e){if(!MON.on)return -1;const n=ndcOf(e);ray.setFromCamera(new THREE.Vector2(n.x,n.y),cam);
+  const h=ray.intersectObjects(mwVis.filter(v=>v.g.visible).map(v=>v.pl),false)[0];return h?h.object.userData.wi:-1;}
+function monWallDrag(e,off){const w=MON.walls[mwSel];if(!w)return;const p=monFloorPoint(e,w.y+.05);if(!p)return; // 끌어서 옮기기 (크기 그대로)
+  const sn=v=>Math.round(v/.05)*.05,wd=w.x1-w.x0,dp=w.z1-w.z0;w.x0=r2(sn(p.x-off.x));w.x1=r2(w.x0+wd);w.z0=r2(sn(p.z-off.z));w.z1=r2(w.z0+dp);changed();}
+function monWallAdd(){pushUndo();const p=spawnPoint(); // 지금 보는 화면 가운데 바닥에 2m × 0.5m
+  MON.walls.push({x0:r2(p.x-1),z0:r2(p.z-.25),x1:r2(p.x+1),z1:r2(p.z+.25),y:p.h});mwSel=MON.walls.length-1;changed();toast('괴물 전용 벽 추가 — 끌어서 옮기고 손잡이로 크기 조절');}
+function monWallDel(){if(!MON.walls[mwSel])return;pushUndo();MON.walls.splice(mwSel,1);mwSel=-1;changed();toast('괴물 전용 벽 삭제 (Ctrl+Z로 되돌리기)');}
+function monHandleDrag(e,mh){const W=mh.k==='wall'?MON.walls[mwSel]:null;if(mh.k==='wall'&&!W)return;
+  const o=mh.k==='hit'?{x:P.x,y:P.fy,z:P.z,a:0}:W?{x:0,y:W.y,z:0,a:0}:{x:mon.x,y:mon.y,z:mon.z,a:mon.a},p=monFloorPoint(e,o.y+.05);if(!p)return;
+  const c=Math.cos(o.a),s=Math.sin(o.a),dx=p.x-o.x,dz=p.z-o.z,l=dx*c-dz*s,m=dx*s+dz*c,sn=v=>Math.round(v/.05)*.05,h=mh.h;
+  if(mh.k==='size'){const sx=h.x?Math.abs(l/MON_FOOT[h.x]):0,sz=h.z?Math.abs(m/MON_FOOT[h.z]):0;MON.scale=r2(clamp(Math.max(sx,sz),.3,3));} // 크기는 비율 그대로 (모서리·변 어디를 끌어도)
+  else{const r=W||MON[mh.k],MIN=mh.k==='hit'?.1:mh.k==='wall'?.2:.3;
+    if(h.x==='x0')r.x0=Math.min(sn(l),r.x1-MIN);if(h.x==='x1')r.x1=Math.max(sn(l),r.x0+MIN);
+    if(h.z==='z0')r.z0=Math.min(sn(m),r.z1-MIN);if(h.z==='z1')r.z1=Math.max(sn(m),r.z0+MIN);}
+  changed();}
+function monDragTo(e,off){const p=monFloorPoint(e,MON.y);if(!p)return;MON.x=r2(p.x-off.x);MON.z=r2(p.z-off.z);
+  const fy=floorAt(MON.x,MON.z,MON.y);if(fy!==null)MON.y=fy;monHome();changed();}
+function flyLook(x,y,z,a){FLY.p=[x+Math.sin(a)*3,y+2.2,z+Math.cos(a)*3];FLY.t=[x,y+.5,z];} // 보는 쪽 앞 3m 위에서 내려다봄 (방 안쪽이라 벽에 안 가림)
+// ---- 패널 ----
+function monSync(){if(!monReady)return;$('#mnOn').checked=MON.on;$('#mnShow').checked=MON.show;
+  const sl=(id,v,t)=>{const ip=$('#'+id);if(document.activeElement!==ip)ip.value=v;$('#'+id+'Out').textContent=t;};
+  sl('mnSpeed',MON.speed,MON.speed.toFixed(2)+' m/s');sl('mnTone',MON.tone,(MON.tone>0?'+':'')+MON.tone.toFixed(2));sl('mnTexAmt',MON.texAmt,Math.round(MON.texAmt*100)+'%');
+  if(document.activeElement!==$('#mnCol'))$('#mnCol').value=MON.color;$('#mnTex').value=MON.tex;
+  $('#mnInfo').textContent=`크기 ×${MON.scale.toFixed(2)} · 시야 ${r2(MON.vis.x1-MON.vis.x0)}×${r2(MON.vis.z1-MON.vis.z0)}m · 히트박스 ${r2(MON.hit.x1-MON.hit.x0)}×${r2(MON.hit.z1-MON.hit.z0)}m`;
+  const w=MON.walls[mwSel];$('#mnWallDel').disabled=!w;
+  $('#mnWallInfo').textContent=`${MON.walls.length}개`+(w?` · 고른 벽 ${mwSel+1}번: ${r2(w.x1-w.x0)}×${r2(w.z1-w.z0)}m`:'');}
+$('#mnWallAdd').addEventListener('click',monWallAdd);$('#mnWallDel').addEventListener('click',monWallDel);
+for(const id of['mnSpeed','mnTone','mnTexAmt','mnCol'])$('#'+id).addEventListener('pointerdown',pushUndo);
+$('#mnSpeed').addEventListener('input',e=>{MON.speed=+e.target.value;changed();});
+$('#mnTone').addEventListener('input',e=>{MON.tone=+e.target.value;monLook();changed();});
+$('#mnTexAmt').addEventListener('input',e=>{MON.texAmt=+e.target.value;monLook();changed();});
+$('#mnCol').addEventListener('input',e=>{MON.color=e.target.value;monLook();changed();});
+$('#mnTex').addEventListener('change',e=>{pushUndo();MON.tex=e.target.value;monLook();changed();});
+$('#mnOn').addEventListener('change',e=>{pushUndo();MON.on=e.target.checked;monHome();changed();});
+$('#mnShow').addEventListener('change',e=>{pushUndo();MON.show=e.target.checked;changed();});
+$('#mnRotL').addEventListener('click',()=>{pushUndo();MON.ry=(MON.ry+15)%360;monHome();changed();});
+$('#mnRotR').addEventListener('click',()=>{pushUndo();MON.ry=(MON.ry-15)%360;monHome();changed();});
+$('#mnReset').addEventListener('click',()=>{pushUndo();Object.assign(MON,jcopy(MON_DEF));monLook();monHome();changed();toast('괴물 설정을 처음값으로');});
+$('#mnSeeMon').addEventListener('click',()=>flyLook(mon.x,mon.y,mon.z,mon.a));$('#mnSeeP').addEventListener('click',()=>flyLook(P.x,P.fy,P.z,P.a));
+const monExport=()=>['[괴물]',`${MON.on?'켜짐':'꺼짐'} · 자리 x:${r2(MON.x)} z:${r2(MON.z)} 바닥:${r2(MON.y)} · 방향 ${Math.round(MON.ry)}° · 속도 ${r2(MON.speed)} m/s · 크기 ×${r2(MON.scale)} · 색 ${MON.color} · 톤 ${r2(MON.tone)} · 질감 ${MON.tex} ${Math.round(MON.texAmt*100)}%`,
+  `시야 (괴물 기준, 앞 = +z): x ${r2(MON.vis.x0)}~${r2(MON.vis.x1)}, z ${r2(MON.vis.z0)}~${r2(MON.vis.z1)}`,`소희 히트박스 (소희 기준): x ${r2(MON.hit.x0)}~${r2(MON.hit.x1)}, z ${r2(MON.hit.z0)}~${r2(MON.hit.z1)}`,
+  ...(MON.walls.length?MON.walls.map((w,i)=>`괴물 전용 벽 ${i+1}: x ${r2(w.x0)}~${r2(w.x1)}, z ${r2(w.z0)}~${r2(w.z1)}, 바닥 ${r2(w.y)}`):['괴물 전용 벽: (없음)'])];
+monLook();monHome();monReady=true;
 
 
 /* ================= 사운드 (WebAudio 합성) ================= */
-let AC=null,master=null,alarmLP=null,birdsLP=null,birdsGain=null,alarmSrc=null,morning=false,muted=false;
+let AC=null,master=null,alarmLP=null,birdsLP=null,birdsGain=null,alarmSrc=null,morning=false,muted=true; // 소리는 기본으로 꺼짐 (아래 '소리 켜기' 버튼 또는 M키)
 const buf={};
 function mk(sec,fn){const n=Math.floor(AC.sampleRate*sec),b=AC.createBuffer(1,n,AC.sampleRate),d=b.getChannelData(0);fn(d,AC.sampleRate);return b;}
 function beep(d,sr,start,f,sq,dur,amp){const s0=Math.floor(start*sr),n=Math.floor(dur*sr);for(let i=0;i<n&&s0+i<d.length;i++){const t=i/sr,ph=2*Math.PI*f*t;
@@ -1395,7 +1819,7 @@ const FLAG={trueEndClock:false};
 const spots=[
   {id:'clock',group:'bedroom',obj:'소희방/협탁',x:-3.55,y:0,z:4.75,r:1.0,seen:0,closeUp:true,lines:[{t:'“10시 34분. 오늘은 늦잠 좀 잤네.”'}],
     secret:[{t:'“…아직도 6시 56분이네.”',speed:.6}]},
-  {id:'window',group:'bedroom',x:-2.2,y:0,z:5.55,r:.8,seen:0,lines:[{t:'“날씨 좋다.”'},{t:'하늘이 구름 한 점 없이 푸르다.'}]},
+  {id:'window',group:'bedroom',obj:'소희방/창틀',x:-2.2,y:0,z:5.55,r:.8,seen:0,lines:[{t:'“날씨 좋다.”'},{t:'하늘이 구름 한 점 없이 푸르다.'}]},
   {id:'wardrobe',group:'bedroom',obj:'소희방/옷장',x:2.2,y:0,z:4.85,r:.9,seen:0,lines:[{t:'“입을 옷이 너무 많아서 고민이야. 내일도 쇼핑을 나가기로 했어.”'}]},
   {id:'mirror',group:'bedroom',obj:'소희방/화장대',x:-3.15,y:0,z:1.1,r:.9,seen:0,lines:[{t:'“…어라. 오늘따라 얼굴이 창백하네. 아프진 않은데…”'}]},
 ];
@@ -1418,7 +1842,7 @@ function textToLines(str,old){return str.split(/\n\s*\n/).map(p=>p.trim()).filte
   if(old&&old[i]&&old[i].speed)L.speed=old[i].speed;return L;});}
 for(const s of spots){s.lines0=jcopy(textOf(s)||[]);if(s.secret)s.secret0=jcopy(s.secret);}
 // 대사가 없던 가구에 대사를 쓰면 그 가구에 조사 지점을 만든다 (가구를 따라 움직임)
-function objSpot(o,create){let s=spots.find(x=>x.o===o);if(s||!create)return s||null;
+function objSpot(o,create){let s=spots.find(x=>x.o===o||(o.door&&x.door===o.door));if(s||!create)return s||null; // 문 물건은 문의 조사 지점
   const bb=new THREE.Box3().setFromObject(o.g),rr=r2(Math.max(bb.max.x-bb.min.x,bb.max.z-bb.min.z)/2+.7); // 범위 = 가구 크기의 절반 + 0.7m
   s={id:'obj:'+o.name,kind:'text',obj:o.name,o,off:[0,0],x:o.def.p[0],z:o.def.p[2],y:o.def.p[1]>-1.5?0:Y1,r:rr,r0:rr,seen:0,lines:[],lines0:[]};
   spots.push(s);if(spotVisReady)makeSpotVis(s);return s;}
@@ -1428,12 +1852,13 @@ try{const tv=JSON.parse(localStorage.getItem(TEXT_LS)||'null');
     for(const s of spots){const v=tv.texts&&tv.texts[s.id];if(!v)continue;setText(s,v.l||[]);if(v.sec&&s.secret)s.secret=v.sec;}}}catch(e){}
 function saveTexts(){const texts={};for(const s of spots)texts[s.id]={l:textOf(s)||[],sec:s.secret||null};
   localStorage.setItem(TEXT_LS,JSON.stringify({texts,objSpots:spots.filter(s=>s.kind==='text').map(s=>s.obj)}));}
-function spotSnap(){return spots.map(s=>({id:s.id,r:s.r,l:jcopy(textOf(s)||[]),sec:s.secret?jcopy(s.secret):null,obj:s.kind==='text'?s.obj:null}));}
+function spotSnap(){return spots.map(s=>({id:s.id,r:s.r,off:!!s.off,l:jcopy(textOf(s)||[]),sec:s.secret?jcopy(s.secret):null,obj:s.kind==='text'?s.obj:null}));}
 function spotApply(arr){if(!arr)return;const ids=new Set(arr.map(e=>e.id));
   for(const e of arr){let s=spots.find(x=>x.id===e.id);if(!s&&e.obj){const o=OBJS.find(x=>x.name===e.obj);if(o)s=objSpot(o,true);}if(!s)continue;
     s.r=e.r;setText(s,jcopy(e.l));if(e.sec&&s.secret)s.secret=jcopy(e.sec);}
+  for(const e of arr){const s=spots.find(x=>x.id===e.id);if(s)s.off=!!e.off;} // 조사 범위 있음/없음
   for(const s of spots)if(!ids.has(s.id)&&s.kind==='text')setText(s,[]);} // 그 뒤에 만든 가구 텍스트는 비움
-function nearSpot(){let best=null,bd=1e9;for(const s of spots){if(s.kind==='door'&&s.door.target>0)continue;if(s.kind==='text'&&!hasText(s))continue;if(Math.abs(s.y-P.fy)>1)continue;const[sx,sz]=spotXZ(s);
+function nearSpot(){let best=null,bd=1e9;for(const s of spots){if(s.off||(s.o&&s.o.removed))continue;if(s.kind==='door'&&s.door.target>0)continue;if(s.kind==='text'&&!hasText(s))continue;if(Math.abs(s.y-P.fy)>1)continue;const[sx,sz]=spotXZ(s);
   const d=Math.hypot(sx-P.x,sz-P.z);if(d<s.r&&d<bd){bd=d;best=s;}}return best;}
 /* ---- 편집 모드: 조사 범위 도구 (I) — 상호작용 범위를 바닥 위 원으로 보여 주고, 클릭해서 고른 뒤 휠/슬라이더로 반지름 조절 ---- */
 const SPOT_LS='sp11_spots_v1';
@@ -1442,6 +1867,8 @@ const spotLabel=s=>SPOT_NAMES[s.id]||(s.kind==='text'?s.obj:s.id);
 for(const[id,r]of[['door_bedroom',.8],['door_hallA',.7],['door_hallB',.65]]){const s=spots.find(x=>x.id===id);if(s)s.r=r;} // 2026-10-21 직접 조정한 범위
 for(const s of spots)s.r0=s.r;
 try{const sv=JSON.parse(localStorage.getItem(SPOT_LS)||'{}');for(const s of spots)if(sv[s.id])s.r=sv[s.id];}catch(e){}
+const SPOTOFF_LS='sp11_spotoff_v1'; // 물건 도구에서 '없애기' 한 조사 범위
+try{const so=new Set(JSON.parse(localStorage.getItem(SPOTOFF_LS)||'[]'));for(const s of spots)if(so.has(s.id))s.off=true;}catch(e){}
 const spotVis=new THREE.Group();spotVis.visible=false;S.add(spotVis);
 const SPOT_COL=0xb98f8a,SPOT_SEL=0xffd27f;
 function makeSpotVis(s){const g=new THREE.Group();
@@ -1452,19 +1879,21 @@ for(const s of spots)makeSpotVis(s);spotVisReady=true;
 let sSel=null;
 function spotSel(s){sSel=s;$('#spotName').textContent=s?spotLabel(s):'(없음 — 화면에서 원을 클릭하세요)';spotSync();}
 function spotSync(){const ip=$('#spotR');if(sSel){ip.disabled=false;if(document.activeElement!==ip)ip.value=sSel.r;$('#spotRout').textContent=r2(sSel.r).toFixed(2)+' m';}else{ip.disabled=true;$('#spotRout').textContent='';}}
-function updateSpotVis(){spotVis.visible=sEditing||nEditing;if(!spotVis.visible)return;
-  const cur=nEditing?(tSel&&tSel.spot):sSel;
-  for(const s of spots){const[x,z]=spotXZ(s),v=s.vis,c=s===cur?SPOT_SEL:SPOT_COL;v.g.visible=s.kind!=='text'||hasText(s)||s===cur; // 대사 없는 가구 지점은 숨김
+function updateSpotVis(){spotVis.visible=sEditing||oEditing;if(!spotVis.visible)return;
+  const cur=oEditing?(tSel&&tSel.spot):sSel;
+  for(const s of spots){const[x,z]=spotXZ(s),v=s.vis,c=s===cur?SPOT_SEL:SPOT_COL;v.g.visible=(s.kind!=='text'||hasText(s)||s===cur)&&!s.off&&!(s.o&&s.o.removed); // 대사 없는 가구 지점·없앤 범위는 숨김
+    if(oEditing&&s!==cur)v.g.visible=false; // 물건 도구: 고른 물건의 범위만
     v.g.position.set(x,s.y+.03,z);v.g.scale.set(s.r,1,s.r);v.disc.material.color.setHex(c);v.ring.material.color.setHex(c);}}
 function pickSpot(e){const rc=$('#game').getBoundingClientRect(),nd=new THREE.Vector2((e.clientX-rc.left)/rc.width*2-1,-((e.clientY-rc.top)/rc.height)*2+1);
   updateSpotVis();spotVis.updateMatrixWorld(true);ray.setFromCamera(nd,cam);const h=ray.intersectObjects(spots.filter(s=>s.vis.g.visible).map(s=>s.vis.disc),false)[0];return h?h.object.userData.spot:null;}
 
-/* ---- 편집 모드: 텍스트 도구 (N) — 가구나 조사 원을 클릭해서 대사 쓰기·고치기 ---- */
+/* ---- 편집 모드: 대사 쓰기·고치기 — 물건 도구에서 물건을 고르면 그 물건의 대사 (예전 텍스트 도구 N은 물건 도구에 합침) ---- */
 let tSel=null; // {spot, o}: spot이 없으면 가구만 고른 상태 (대사를 쓰는 순간 지점이 생김)
 function pickTextTarget(e){const s=pickSpot(e);if(s)return{spot:s,o:s.o||null};const o=pickObj(e);if(o)return{spot:objSpot(o,false),o};return null;}
 function textSel(t){tSel=t;if(t&&t.o&&!t.spot)t.spot=objSpot(t.o,false);
   if(t&&t.o){oSel=t.o;oBox.setFromObject(t.o.g);oBox.visible=true;}else oBox.visible=false;textSync(true);}
-function textSync(force){const s=tSel&&tSel.spot,name=tSel?(s?spotLabel(s):tSel.o.name):'(없음 — 화면에서 가구나 원을 클릭하세요)';$('#txName').textContent=name;
+function textSync(force){const s=tSel&&tSel.spot;
+  $('#txHint').textContent=!tSel?'(물건을 고르세요)':s&&s.off?'조사 범위를 없애서 지금은 대사가 안 나와요':s?'':'쓰면 조사 범위가 생겨요';
   const m=$('#txMain'),sec=$('#txSecret');m.disabled=!tSel;$('#txPreview').disabled=!(s&&hasText(s));
   if(force||document.activeElement!==m)m.value=s?linesToText(textOf(s)):'';
   $('#txSecretWrap').hidden=!(s&&s.secret);if(s&&s.secret&&(force||document.activeElement!==sec))sec.value=linesToText(s.secret);}
@@ -1473,6 +1902,16 @@ $('#txMain').addEventListener('input',()=>{if(!tSel)return;if(!tSel.spot&&tSel.o
   setText(s,textToLines($('#txMain').value,textOf(s)));changed();});
 $('#txSecret').addEventListener('input',()=>{const s=tSel&&tSel.spot;if(!s||!s.secret)return;s.secret=textToLines($('#txSecret').value,s.secret);changed();});
 $('#txPreview').addEventListener('click',()=>{const s=tSel&&tSel.spot;if(s&&hasText(s))say(textOf(s));}); // 대사창은 클릭으로 넘김
+// ---- 물건 도구: 고른 물건의 조사 범위 (추가·없애기·반지름) + 대사 ----
+objSelHook=o=>{tSel=o?{spot:objSpot(o,false),o}:null;textSync(true);oSpotSync();};
+function oSpotSync(){const o=tSel&&tSel.o,s=tSel&&tSel.spot,on=!!(s&&!s.off),ip=$('#oSpotR');
+  $('#oSpotAdd').disabled=!o||on;$('#oSpotDel').disabled=!on;ip.disabled=!on;
+  if(on&&document.activeElement!==ip)ip.value=s.r;$('#oSpotRout').textContent=on?r2(s.r).toFixed(2)+' m':'';
+  $('#oSpotState').textContent=!o?'':on?(hasText(s)?'있음':'있음 (대사를 쓰면 조사돼요)'):'없음';}
+$('#oSpotAdd').addEventListener('click',()=>{if(!tSel||!tSel.o)return;pushUndo();if(!tSel.spot)tSel.spot=objSpot(tSel.o,true);tSel.spot.off=false;changed();});
+$('#oSpotDel').addEventListener('click',()=>{const s=tSel&&tSel.spot;if(!s)return;pushUndo();s.off=true;changed();});
+$('#oSpotR').addEventListener('pointerdown',pushUndo);$('#oSpotR').addEventListener('keydown',e=>{if(!e.repeat&&/Arrow|Page|Home|End/.test(e.key))pushUndo();});
+$('#oSpotR').addEventListener('input',()=>{const s=tSel&&tSel.spot;if(s&&!s.off){s.r=+$('#oSpotR').value;changed();}});
 $('#spotR').addEventListener('pointerdown',pushUndo);$('#spotR').addEventListener('keydown',e=>{if(!e.repeat&&/Arrow|Page|Home|End/.test(e.key))pushUndo();});
 $('#spotR').addEventListener('input',()=>{if(sSel){sSel.r=+$('#spotR').value;changed();}});
 $('#spotReset').addEventListener('click',()=>{if(sSel){pushUndo();sSel.r=sSel.r0;changed();}});
@@ -1550,8 +1989,10 @@ addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&(e.code==='KeyZ'||e.code==='KeyY')){ // 되돌리기 / 다시 실행
     if(t&&t.tagName==='TEXTAREA')return;e.preventDefault();if(e.code==='KeyY'||e.shiftKey)redo();else undo();return;}
   if(inField)return;
-  if(/^Digit[1-8]$/.test(e.code)&&!e.repeat){jumpTo(+e.code.slice(5)-1);return;}
-  const toolKey={KeyC:'cam',KeyO:'obj',KeyT:'tone',KeyI:'spot',KeyV:'zone',KeyN:'text',KeyB:'lib'}[e.code];
+  if((e.ctrlKey||e.metaKey)&&e.code==='KeyD'){e.preventDefault();if(mode==='edit'&&oEditing&&!e.repeat)dupObj();return;} // 복제
+  if(/^Digit[1-9]$/.test(e.code)&&!e.repeat){jumpTo(+e.code.slice(5)-1);return;}
+  if((e.code==='Digit0'||e.code==='Minus')&&!e.repeat){jumpTo(e.code==='Digit0'?9:10);return;} // 0 살덩이 방, - 연구소
+  const toolKey={KeyC:'cam',KeyO:'obj',KeyT:'tone',KeyI:'spot',KeyV:'zone',KeyB:'lib',KeyK:'mon'}[e.code]; // 텍스트는 물건 도구에 합쳐짐
   if(toolKey&&!e.repeat){if(mode!=='edit')setMode('edit');setTool(toolKey);return;}
   if(mode==='edit'){ // 편집 모드: 키는 고른 카메라/물건을 움직인다 (소희는 멈춤)
     if(/^Key[WASDQERFZX]$|^Shift/.test(kc)){
@@ -1560,7 +2001,8 @@ addEventListener('keydown',e=>{
       if(editKey&&!e.repeat&&editKey.test(kc)&&!EK[kc]&&!Object.keys(EK).some(k=>EK[k]&&editKey.test(k)))pushUndo();
       EK[kc]=true;e.preventDefault();}
     if(e.code==='Escape'&&oEditing)objSel(null);
-    if((e.code==='Delete'||e.code==='Backspace')&&oEditing&&oSel&&oSel.user){e.preventDefault();delObj();}
+    if((e.code==='Delete'||e.code==='Backspace')&&oEditing&&oSel&&!oSel.fixed){e.preventDefault();delObj();}
+    if((e.code==='Delete'||e.code==='Backspace')&&mEditing&&MON.walls[mwSel]){e.preventDefault();monWallDel();} // 괴물 전용 벽 삭제
     return;}
   if(keyMap[kc]){K[keyMap[kc]]=true;e.preventDefault();}
   if(e.repeat)return;
@@ -1585,7 +2027,7 @@ $('#title').addEventListener('click',start);
 $('#restart').addEventListener('click',()=>{if(!started){start();return;}restart();});
 
 function start(){if(started)return;started=true;$('#title').hidden=true;audioInit();if(AC&&AC.state==='suspended')AC.resume();opening();}
-function restart(){seq=null;dlg=null;$('#dlg').hidden=true;snd.reset();for(const s of spots)s.seen=0;for(const d of DOORS)d.open=d.target=0;FLAG.trueEndClock=false;setClock('10:34');updateDev();setView(1);opening();}
+function restart(){seq=null;dlg=null;$('#dlg').hidden=true;snd.reset();for(const s of spots)s.seen=0;for(const d of DOORS)d.open=d.target=0;FLAG.trueEndClock=false;setClock('10:34');updateDev();setView(1);monHome();$('#over').hidden=true;opening();}
 
 // 화면 기준 이동: 평소엔 지금 카메라 방향을 그대로 따른다 (W를 누른 채 A/D로 바로 방향 전환).
 // 단, 카메라가 '컷'으로 바뀌는 순간 키를 누르고 있었다면 컷 직전 방향을 잠깐 유지한다
@@ -1634,6 +2076,8 @@ function frame(dt){T0+=dt;keyWatch();
     sw=Math.sin(P.phase)*(speed?Math.min(speed/2.4,1):0);
     P.y=P.fy+(speed?Math.abs(Math.cos(P.phase))*.025:Math.sin(T0*2)*.004);}
   applyPose(sw);
+  monFrame(dt); // 괴물: 시야 확인·추격·잡힘
+  for(const f of SPACE_FX)f(dt); // 따로 떨어진 공간들의 움직이는 것
   clkMesh.visible=!ringing||(T0%.5)<.3;
   for(const d of DOORS){d.open+=(d.target-d.open)*Math.min(1,dt*5);d.leaf.rotation.y=d.swing*d.open;}
   const ns=control&&!dlg?nearSpot():null;$('#prompt').hidden=!ns;
@@ -1646,7 +2090,7 @@ function frame(dt){T0+=dt;keyWatch();
 // 첫 화면: 타이틀 뒤로 돌하우스가 보이게
 savedSnap=snapState();applyTone();setMode('play');changed(); // 편집 모드 초기화 (저장된 값 기준)
 applyPose(0);setView(1);updateDev();tick(); // 시점 확정: 구석 고정 카메라 (플레이어 조작 불가)
-window.__sp={P,spots,FLAG,DOORS,curZone,cam,free,floorAt,solids,WALK,frame,CAMS,OBJS,ZONES,FLY,MODS,modSel,setModOffset,setMode,setTool,get toneSel(){return toneSel},set toneSel(v){toneSel=v},toneZoneNow,objSel,spotSel,textSel,zoneSel,objSpot,say,get spotVisOn(){return spotVis.visible},jumpTo,undo,redo,saveAll,TONE,get mode(){return mode},get SOL(){return SOL},get oSel(){return oSel},get editing(){return editing},skip:skipSeq,action,setView,get dlg(){return dlg},get control(){return control},K};
+window.__sp={P,spots,FLAG,DOORS,mon,MON,curZone,cam,free,floorAt,solids,WALK,frame,CAMS,OBJS,ZONES,FLY,MODS,modSel,setModOffset,setMode,setTool,get toneSel(){return toneSel},set toneSel(v){toneSel=v},toneZoneNow,objSel,spotSel,textSel,zoneSel,objSpot,say,get spotVisOn(){return spotVis.visible},jumpTo,undo,redo,saveAll,TONE,get mode(){return mode},get SOL(){return SOL},get oSel(){return oSel},get editing(){return editing},skip:skipSeq,action,setView,get dlg(){return dlg},get control(){return control},K};
 })();
 </script>
 </body></html>
