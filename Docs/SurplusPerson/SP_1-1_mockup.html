@@ -178,9 +178,9 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
   <div class="phone" id="phone" hidden>
     <div class="ph"><div class="ph-bar"><span>10:41</span><span>▂▄▆ 100%</span></div>
       <div class="ph-app"><b class="ttl">피자 배달 · 가까운 매장</b>
-        <div class="ph-item"><i></i><div><b>페퍼로니 피자 L</b><small>₩ 24,900 · 예상 30분</small></div></div>
+        <div class="ph-item"><i></i><div><b>스테이크 피자 세트</b><small>42,000원</small></div></div>
         <button class="ph-btn" id="phOrder" type="button">주문하기 (E)</button>
-        <div class="ph-done" id="phDone" hidden>주문 완료!<br><small>예상 도착 30분</small></div>
+        <div class="ph-done" id="phDone" hidden>주문 완료!</div>
       </div></div>
   </div>
   <div class="endcard" id="endcard" hidden><small>SURPLUS PERSON</small><b>1-1 끝</b><p id="endText"></p><span>Enter — 처음부터</span></div>
@@ -1925,6 +1925,7 @@ mihee:{name:'미희 (언니)',base:1.60,skin:0xf0e3da,lip:0xb56f78,rest:.12,look
     for(const s of[-1,1]){lathe(M.blouse,b,[[.168,1.29],[.152,1.315],[.124,1.342],[.09,1.362]],{seg:8,sz:.8,phi0:s>0?.05*PI:1.57*PI,phiL:.38*PI}); // 둥근 깃
       ball(M.ribbon,b,s*.028,1.335,.108,.045,.03,.014);ball(M.ribbon,b,s*.016,1.29,.112,.016,.07,.008).rotation.z=s*.3;} // 목 리본
     ball(M.ribbon,b,0,1.333,.112,.018,.022,.014);
+    for(const s of[-1,1])ball(M.cardi,b,s*.1,.94,.128,.055,.045,.012);                              // 가디건 주머니
     MIHEE_HEAD(c,false);
     limbs(c,{hipX:.08,hipY:.8,thighL:.37,shX:.165,shY:1.29,upL:.28,
       thigh:g=>lathe(M.skin,g,[[.042,-.37],[.05,-.26],[.064,-.08],[.066,0]],{seg:10}),
@@ -1958,12 +1959,14 @@ mom:{name:'엄마',base:1.62,skin:0xeedfd3,lip:0xa04a55,rest:.11,looks:{
     for(const s of[-1,1])lathe(M.top,b,[[.16,1.3],[.145,1.325],[.118,1.352],[.08,1.376]],{seg:8,sz:.78,phi0:s>0?.05*PI:1.53*PI,phiL:.42*PI}); // 둥근 깃
     for(let i=0;i<20;i++){const a=i/20*TAU,f=Math.pow(Math.max(0,Math.cos(a)),1.5);                    // 진주 목걸이 (앞으로 처짐)
       ball(FM.pearl,b,(.075+.03*f)*Math.sin(a),1.38-.035*f,(.065+.04*f)*Math.cos(a),.016);}
+    ball(FM.gold,b,0,1.325,.126,.024,.024,.012);ball(FM.pearl,b,0,1.325,.136,.012);                    // 깃 아래 브로치
+    lathe(M.belt,b,[[.252,.29],[.247,.315]],{seg:36,sz:.8,folds:8,famp:.055,fy0:.97,fy1:.3,fwave:.01}); // 치마 밑단 띠
     MOM_HEAD(c,false);
     limbs(c,{hipX:.085,hipY:.82,thighL:.38,shX:.175,shY:1.31,upL:.29,
       thigh:g=>lathe(M.skin,g,[[.045,-.38],[.055,-.28],[.07,-.1],[.072,0]],{seg:10}),
       shin:g=>{lathe(M.skin,g,[[.027,-.385],[.031,-.33],[.045,-.2],[.042,-.07],[.04,0]],{seg:10});
         ball(M.shoes,g,0,-.41,.035,.062,.05,.155);ball(M.shoes,g,0,-.415,-.04,.03,.045,.03);},        // 구두 + 굽
-      upper:g=>lathe(M.top,g,[[.036,-.29],[.042,-.2],[.048,-.08],[.052,0],[.036,.035],[.01,.045]],{seg:12}),
+      upper:g=>{lathe(M.top,g,[[.036,-.29],[.042,-.2],[.048,-.08],[.052,0],[.036,.035],[.01,.045]],{seg:12});ball(M.top,g,0,-.02,0,.085,.1,.085);}, // 살짝 부푼 어깨
       fore:g=>{lathe(M.top,g,[[.031,-.23],[.033,-.18],[.037,-.08],[.039,0]],{seg:12});torus(M.top,g,0,-.23,0,.032,.008);ball(M.skin,g,0,-.28,.004,.026,.09,.048);}});}},
  poor:{note:'가난 버전. 빛바랜 원피스에 앞치마, 걷어붙인 소매, 머릿수건 아래로 흘러내린 머리, 슬리퍼.',
   slots:[['dress','원피스','#8b7b6d'],['apron','앞치마','#cbbfa9'],['scarf','머릿수건','#7d4f45'],['shoes','슬리퍼','#5a5048'],['hair','머리','#2b1d19']],
@@ -2015,23 +2018,30 @@ dad:{name:'아빠',base:1.77,skin:0xe7d3c3,lip:0x9a6c68,rest:.1,looks:{
       fore:g=>{lathe(M.skin,g,[[.03,-.26],[.033,-.2],[.04,-.08],[.042,0]],{seg:12});ball(M.skin,g,0,-.31,.004,.03,.1,.056);}});}}}},
 };
 // 머리·얼굴은 차림이 바뀌어도 같은 사람 — 가난 버전은 머리만 흐트러짐
+// (2026-10-22) 소희와 비슷한 수준으로: 머리카락을 덮개 하나로 끝내지 않고 소희처럼 뒷머리 덩어리 + 얼굴 옆으로 흘러내린 긴 가닥을 더해 머리에 볼륨을 줌
 function MIHEE_HEAD(c,poor){const{body:b,M}=c;
   lathe(M.skin,b,[[.036,1.32],[.032,1.39],[.035,1.42]],{seg:10});
   head(c,{y:1.48,r:.104,jaw:.27});face(c,{y:1.48,r:.104,eyeW:.28,eyeH:.16,brow:.05});
-  hairCap(c,{y:1.485,R:.114,thetaMax:.75*PI,line:hairline(poor?nx=>.12+.28*nx+.07*Math.sin(nx*19):nx=>.12+.28*nx,.02,-.3)}); // 한쪽으로 넘긴 앞머리
-  for(const s of[-1,1])lathe(M.hair,b,[[.112,1.4],[.116,1.45],[.115,1.5],[.113,1.53]],{seg:4,phi0:s>0?.3*PI:1.5*PI,phiL:.2*PI,ragged:.5,seed:s>0?12:13}); // 귀 앞으로 내려온 옆머리
-  if(!poor){ball(M.ribbon,b,0,1.53,-.112,.04,.04,.03);c.pony=grp(b,0,1.525,-.118);c.ponyRx=.3;}          // 높게 묶은 머리 + 리본 머리끈
+  hairCap(c,{y:1.485,R:.117,ys:1.1,thetaMax:.82*PI,line:hairline(poor?nx=>.1+.3*nx+.07*Math.sin(nx*19):nx=>.1+.3*nx,.0,-.3)}); // 한쪽으로 넘긴 앞머리 (덮개를 키워 옆·뒤까지 덮음)
+  lathe(M.hair,b,[[.1,1.3],[.114,1.37],[.122,1.44],[.12,1.5],[.112,1.55]],{seg:16,phi0:.42*PI,phiL:1.16*PI,z:-.01,ragged:.3,seed:14});     // 뒷머리: 목덜미까지 내려오는 덩어리
+  for(const s of[-1,1])lathe(M.hair,b,[[.128,1.17],[.135,1.26],[.136,1.35],[.128,1.44],[.118,1.52]],{seg:5,phi0:s>0?.12*PI:1.7*PI,phiL:.18*PI,ragged:poor?.8:.45,seed:s>0?12:13}); // 얼굴 옆으로 흘러내린 긴 가닥 (쇄골까지)
+  if(!poor){for(const s of[-1,1])ball(M.ribbon,b,s*.035,1.535,-.11,.05,.035,.03).rotation.z=s*.35;ball(M.ribbon,b,0,1.53,-.114,.022,.022,.03);c.pony=grp(b,0,1.525,-.118);c.ponyRx=.3;} // 높게 묶은 머리 + 리본 머리끈
   else{ball(FM.btnD,b,0,1.43,-.098,.03,.03,.024);c.pony=grp(b,0,1.425,-.1);c.ponyRx=.12;                // 낮게 대충 묶은 머리 + 고무줄
-    strand(c,{y0:1.5,y1:1.33,r:.122,phi:.62*PI,seed:51});strand(c,{y0:1.52,y1:1.38,r:.12,phi:-.7*PI,seed:52});}
+    strand(c,{y0:1.5,y1:1.33,r:.122,phi:.62*PI,seed:51});strand(c,{y0:1.52,y1:1.38,r:.12,phi:-.7*PI,seed:52});strand(c,{y0:1.55,y1:1.42,r:.118,phi:.05*PI,w:.06,seed:53});}
   c.pony.rotation.x=c.ponyRx;
-  lathe(M.hair,c.pony,[[.012,-.36],[.03,-.28],[.044,-.15],[.04,-.05],[.026,0]],{seg:10,ragged:poor?.6:.3,seed:8});}
+  lathe(M.hair,c.pony,[[.012,-.44],[.034,-.34],[.05,-.2],[.048,-.08],[.03,0]],{seg:10,ragged:poor?.6:.3,seed:8});                     // 길고 숱 있는 꼬리
+  for(const s of[-1,1])ball(FM.pearl,b,s*.102,1.455,-.005,.012,.016,.012);}                                                               // 작은 귀걸이
 function MOM_HEAD(c,poor){const{body:b,M}=c;
   lathe(M.skin,b,[[.04,1.33],[.036,1.41],[.038,1.44]],{seg:10});
   head(c,{y:1.5,r:.106,jaw:.28});face(c,{y:1.5,r:.106,eyeW:.26,eyeH:.13,brow:.05});
-  hairCap(c,{y:1.505,R:.115,line:hairline(nx=>.42-.2*nx*nx,.02,-.55)});                              // 이마를 드러낸 머리 (가운데가 높은 머리선)
-  for(const s of[-1,1])ball(M.hair,b,s*.08,1.548,.012,.05,.06,.1);                                    // 관자놀이 쪽 볼륨
-  if(!poor){ball(M.hair,b,0,1.47,-.125,.11,.1,.085);ball(M.hair,b,0,1.5,-.13,.06,.05,.05);}            // 쪽머리
-  else{hairCap(c,{y:1.508,R:.123,ys:1.12,thetaMax:.62*PI,line:hairline(.62,.25,-.2),m:M.scarf});       // 머릿수건
+  hairCap(c,{y:1.505,R:.121,ys:1.12,thetaMax:.8*PI,line:hairline(nx=>.3-.14*nx*nx,.03,-.5)});          // 이마를 살짝 드러낸 머리 (가운데가 높은 머리선, 덮개를 키워 옆·뒤까지)
+  lathe(M.hair,b,[[.102,1.34],[.118,1.41],[.125,1.48],[.122,1.54],[.11,1.58]],{seg:16,phi0:.45*PI,phiL:1.1*PI,z:-.012,ragged:.2,seed:15}); // 뒷머리: 목덜미까지
+  for(const s of[-1,1]){ball(M.hair,b,s*.088,1.545,.005,.065,.08,.115);                                   // 관자놀이 쪽 볼륨 (옆으로 넘긴 결)
+    lathe(M.hair,b,[[.12,1.36],[.126,1.43],[.124,1.5],[.116,1.55]],{seg:4,phi0:s>0?.28*PI:1.52*PI,phiL:.2*PI,ragged:.4,seed:s>0?16:17});} // 귀 앞으로 살짝 내려온 옆머리
+  for(const s of[-1,1])ball(FM.pearl,b,s*.104,1.45,-.005,.016,.02,.016);                                 // 진주 귀걸이
+  if(!poor){ball(M.hair,b,0,1.595,-.075,.13,.095,.11);ball(M.hair,b,0,1.615,-.06,.08,.06,.08);torus(M.hair,b,0,1.6,-.075,.062,.012,1,.3); // 위로 틀어 올린 머리 (앞에서도 보이게 정수리 뒤쪽)
+    for(const s of[-1,1])strand(c,{y0:1.56,y1:1.46,r:.118,phi:s*.3*PI,w:.07,seed:s>0?64:65,ragged:.5});}  // 관자놀이의 흘러내린 잔머리
+  else{hairCap(c,{y:1.508,R:.127,ys:1.12,thetaMax:.62*PI,line:hairline(.62,.25,-.2),m:M.scarf});       // 머릿수건
     for(const s of[-1,1])ball(M.scarf,b,s*.02,1.44,-.12,.04,.03,.025);ball(M.scarf,b,.012,1.41,-.118,.02,.06,.01).rotation.z=.3; // 수건 매듭
     ball(M.hair,b,0,1.43,-.112,.09,.08,.07);                                                          // 낮게 뭉친 머리
     strand(c,{y0:1.56,y1:1.4,r:.118,phi:.36*PI,seed:61});strand(c,{y0:1.56,y1:1.43,r:.118,phi:-.4*PI,seed:62});strand(c,{y0:1.5,y1:1.36,r:.115,phi:.75*PI,seed:63});}}
@@ -2130,8 +2140,8 @@ const snd={
   // ---- 이야기용 (임시 합성) ----
   bell(){play(buf.bell,.8);},                                                        // 초인종 딩동
   slam(){play(buf.slam,.9);},                                                        // 문 쾅
-  roar(){play(buf.roar,.9);},                                                        // 괴물이 나타날 때
-  beep(v){if(beepGain)beepGain.gain.setTargetAtTime(v,AC.currentTime,.3);},          // 머릿속 삐— 소리 (0=끔)
+  roar(){play(buf.roar,.3);},                                                        // 괴물이 나타날 때 (2026-10-22 사용자 요청으로 음량 낮춤)
+  beep(v){if(beepGain)beepGain.gain.setTargetAtTime(v*.3,AC.currentTime,.3);},       // 머릿속 삐— 소리 (0=끔). 2026-10-22 사용자 요청으로 음량 30%로
   rumble(v){if(rumbleGain)rumbleGain.gain.setTargetAtTime(v,AC.currentTime,.5);},    // 낮은 울림 (엔딩)
   reset(){if(introSrc){try{introSrc.stop();}catch(e){}}if(alarmSrc){try{alarmSrc.stop();}catch(e){}alarmSrc=null;}morning=false;this.birds(0);this.beep(0);this.rumble(0);}
 };
@@ -2355,7 +2365,8 @@ function setStage(n){STORY.stage=n;STORY.i=ST.indexOf(n);$('#devStage').value=ST
 function goal(t){const g=$('#goal');g.hidden=!t;g.textContent=t?'▸ '+t:'';}
 function endCard(t){$('#endText').textContent=t||'';$('#endcard').hidden=false;}
 // 인지력이 떨어진 구간: 소희의 대사 글자가 군데군데 깨져 보임
-function garbleText(t,L){const g=STORY.garble*.7;if(!g||(L.who&&L.who!=='소희'))return t;const f=Math.floor(T0*7);let o='';for(let i=0;i<t.length;i++){const c=t[i];o+=(c!==' '&&noise(i,f,131)<g)?'▯▮░▒'[(i+f)%4]:c;}return o;}
+const GARBLE_ON=false; // 2026-10-22 사용자 요청으로 글자 깨짐 효과는 끔 (다시 켜려면 true)
+function garbleText(t,L){const g=GARBLE_ON?STORY.garble*.7:0;if(!g||(L.who&&L.who!=='소희'))return t;const f=Math.floor(T0*7);let o='';for(let i=0;i<t.length;i++){const c=t[i];o+=(c!==' '&&noise(i,f,131)<g)?'▯▮░▒'[(i+f)%4]:c;}return o;}
 
 // ---- NPC (작업실에서 고른 색·키가 이 브라우저에 저장돼 있으면 그대로) ----
 let npcSaved={};try{npcSaved=JSON.parse(localStorage.getItem('sp_npc_v2')||'{}')||{};}catch(e){}
@@ -2497,11 +2508,13 @@ function stDeliver(){goal('');cs([{run:()=>{override={p:[15.2,Y1+2.3,-3.4],t:[19
     {run:()=>{Object.assign(P,{x:10.6,z:-6.5,a:Math.PI/2});override=null;tpSnap=true;pizzaAt(9.8,Y1+.46,-6.5,true);}},{d:.8,f:k=>setFade(1-k)},{say:LINES.full},{d:1.2}],stHeadache);}
 function stHeadache(){setStage('eat');goal('');cs([{run:()=>snd.beep(.35)},{d:2.6,f:k=>{FX.warp=k*.55;FX.tint=k*.22;}},{run:()=>{STORY.garble=.1;}},{say:LINES.beep},{d:.8}],stEye);}
 function stEye(){setStage('eye');goal('');
-  cs([{run:()=>{livingGlass(true);eyeShow(...LIVING_EYE);soheeWalk([[14.6,-8.8]],1.4);}},{wait:()=>!csWalk},
-    {run:()=>{P.a=Math.PI/2;override={p:[11.3,Y1+1.75,-8.2],t:[20,Y1+2.7,-8.8],fov:46};}},{d:1.6},{say:LINES.eye},{run:()=>{override=null;tpSnap=true;}}],
+  cs([{run:()=>{livingGlass(true);eyeShow(...LIVING_EYE);soheeWalk([[16.4,-8.8]],1.4);}},{wait:()=>!csWalk},
+    {run:()=>{P.a=Math.PI/2;override={p:[13.6,Y1+1.4,-8.3],t:[20,Y1+2.2,-8.8],fov:42};}},{d:1.6},{say:LINES.eye}, // 낮은 구도: 창 위쪽은 화면 밖, 눈이 창 가운데
+    {run:()=>{override=null;tpSnap=true;Object.assign(P,{x:16.8,z:-7.8,a:Math.atan2(20-16.8,-6.5+7.8)});}}], // 연출이 끝나면 현관문이 보이는 거실 오른쪽 자리에서 시작
     ()=>{setStage('avoid');goal('눈을 피해 밖으로 나가자 — 현관문');});}
-function stLocked(){cs([{say:LINES.locked},{run:()=>{setStage('chase');STORY.mon=true;STORY.monPersist=true;monHome();mon.alert=1;snd.roar();
-      override={p:[15.6,Y1+2.2,-3.6],t:[18.3,Y1+.6,-8.6],fov:56};P.a=Math.atan2(mon.x-P.x,mon.z-P.z);}},{d:1.4},{say:LINES.monster},
+function stLocked(){cs([{say:LINES.locked},{run:()=>{setStage('chase');STORY.mon=true;STORY.monPersist=true;monHome();
+      Object.assign(mon,{x:19.2,z:-11.2,y:Y1,a:Math.atan2(P.x-19.2,P.z+11.2)});mon.alert=1;snd.roar();                        // 괴물은 현관 오른쪽(남동쪽) 구석에서 나옴 (동선을 안 막게)
+      override={p:[16.4,Y1+2.1,-4.2],t:[19.2,Y1+.7,-9.8],fov:60};P.a=Math.atan2(mon.x-P.x,mon.z-P.z);}},{d:1.4},{say:LINES.monster}, // 북서쪽에서 현관문 앞 소희와 구석의 괴물을 한 화면에
     {run:()=>{override=null;tpSnap=true;mon.state='chase';mon.grace=.6;mon.cp={x:16,z:-6.5,fy:Y1,a:-Math.PI/2};}}],()=>goal('도망쳐! 2층 내 방으로!'));}
 function stBackrooms(){STORY.monPersist=false;
   cs([{d:.35,f:k=>setFade(k)},{run:()=>{snd.slam();snd.beep(0);STORY.mon=false;monHome();brApply(true);eyeHide();livingGlass(false);FX.warp=0;FX.tint=0;STORY.garble=.05;
@@ -2586,7 +2599,7 @@ function storyGoto(i){if(!started)start();if(seq)skipSeq();dlg=null;$('#dlg').hi
     case 'deliver':at(13,Y1,-6.5,Math.PI/2);setStage('deliver');goal('현관문에서 피자를 받자');break;
     case 'eat':at(10.6,Y1,-6.5,Math.PI/2);cs([{say:LINES.full},{d:1.2}],stHeadache);break;
     case 'eye':at(10.6,Y1,-6.5,Math.PI/2);goal('');stEye();break;
-    case 'avoid':at(14,Y1,-7,Math.PI/2);setStage('avoid');goal('눈을 피해 밖으로 나가자 — 현관문');break;
+    case 'avoid':at(16.8,Y1,-7.8,Math.atan2(3.2,1.3));setStage('avoid');goal('눈을 피해 밖으로 나가자 — 현관문');break;
     case 'chase':at(18.6,Y1,-6.5,-Math.PI/2);setStage('avoid');goal('');stLocked();break;
     case 'backrooms':at(2.9,0,1.1,-Math.PI/2);D_BED.target=D_BED.open=0;setStage('backrooms');cs([{say:LINES.bedroom}],()=>goal('집을 둘러보고 현관으로 나가자'));break;
     case 'grid':at(21.4,Y1,-6.5,Math.PI/2);D_FRONT.target=D_FRONT.open=1;stGrid();break;
