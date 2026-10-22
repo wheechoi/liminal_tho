@@ -323,7 +323,7 @@ R.setPixelRatio(1);R.setSize(W,H,false);
 const RT=new THREE.WebGLRenderTarget(W,H,{minFilter:THREE.NearestFilter,magFilter:THREE.NearestFilter,depthBuffer:true});
 const S=new THREE.Scene();
 const cam=new THREE.PerspectiveCamera(38,4/3,0.05,80);
-const SKY=new THREE.Color(0x9ccbf0),DARK=new THREE.Color(0x1a1414);
+const SKY=new THREE.Color(0x9ccbf0),DARK=new THREE.Color(0x1a1414),BLACK=new THREE.Color(0x000000); // BLACK: 현관 밖 그리드 세계 (회색 기운 없이 순수 검정)
 S.fog=new THREE.Fog(DARK,38,65); // 멀리 떨어진 방(살덩이 방·연구소)이 현관문 밖 그리드 너머로 보이지 않게. 방 안에서는 영향 없음 (방이 38m보다 작음)
 
 // 잉크선(Sobel) + 4x4 Bayer 디더링 + 색 수 제한 + 종이 질감 + 비네트 + 그라데이션 맵(공포 톤)
@@ -831,8 +831,8 @@ O('거실/화분1',()=>plant(6.6,Y1,-11.4,1.3));O('거실/화분2',()=>plant(19.
 beginObj('거실/샹들리에');const bc=group(10,1.0,-6.5);boxMM(col(0x3a2a20),-.015,.2,-.015,.015,HH-1.0,.015,bc);cyl(col(0xc9a24a),0,0,0,.7,.06,bc,20);cyl(col(0xc9a24a),0,.45,0,.4,.05,bc,16);
 for(let i=0;i<10;i++){const a=i*Math.PI/5;cyl(col(0xf6efe4),Math.cos(a)*.62,.1,Math.sin(a)*.62,.03,.16,bc);ball(glow(0xffe7b0),Math.cos(a)*.62,.22,Math.sin(a)*.62,.08,.1,.08,bc);}endObj();
 pLight(0xffe2b0,1.1,14,10,.6,-6.5);pLight(0xf08a3c,.7,5,7,Y1+.8,-4);pLight(0xdcecff,.7,10,18.8,Y1+2.5,-6.5);
-zone('거실 오른쪽',15.5,-12.1,20.1,-.95,-4,.05,{p:[14.12,1.76,-10.79],t:[16.51,-2.19,-8.87],fov:66},'거실'); // 계단 오른쪽 끝(x 15.5)을 넘으면 이 카메라로 컷: 남동쪽 높은 모서리 (왼쪽 거실 카메라와 마주 보는 구도)
-zone('거실',6,-12.1,20.1,-.95,-4,.05,{p:[13.81,1.82,-1.03],t:[11.29,-.56,-4.63],fov:55}); // 계단을 다 내려오면 이 카메라로 컷: 남서쪽 높은 모서리에서 계단 아래·거실을 마주 봄
+zone('거실 오른쪽',15.5,-12.1,20.1,-.95,-4,.05,{p:[13.02,.25,-11.52],t:[16.28,-2.78,-9.25],fov:66},'거실'); // 2026-10-23 직접 조정 // 계단 오른쪽 끝(x 15.5)을 넘으면 이 카메라로 컷: 남동쪽 높은 모서리 (왼쪽 거실 카메라와 마주 보는 구도)
+zone('거실',6,-12.1,20.1,-.95,-4,.05,{p:[13.81,1.82,-1.03],t:[11.61,-1.13,-4.42],fov:66}); // 2026-10-23 직접 조정 // 계단을 다 내려오면 이 카메라로 컷: 남서쪽 높은 모서리에서 계단 아래·거실을 마주 봄
 
 // ---- 1층 방 3개 (이름은 임시) ----
 function roomBox(x0,x1,z0,z1,tint,floorTex){
@@ -883,7 +883,7 @@ for(const[i,x]of[[1,8.35],[2,9],[3,9.65]])libObj('barStool','부엌/바 스툴'+
 for(const[i,x]of[[1,8.4],[2,9],[3,9.6]])libObj('pendant','부엌/펜던트 조명'+i,x,Y1+1.9,-21.9);
 libObj('wineRack','부엌/와인 장',11.77,Y1,-21.6,-90);libObj('plantBig','부엌/화분',6.45,Y1,-18.75);libObj('trashBin','부엌/휴지통',11.75,Y1,-24.2);
 pLight(0xfff0d8,1.0,8,9,Y1+2.4,-21.5);
-zone('부엌 (임시)',5.9,-25.1,12.1,-18.1,-4,-.5,{p:[11.7,Y1+2.75,-18.45],t:[7.6,Y1+.2,-23.6],fov:66});
+zone('부엌 (임시)',5.9,-25.1,12.1,-18.1,-4,-.5,{p:[11.74,Y1+2.93,-18.38],t:[8.8,Y1+.01,-21.17],fov:66}); // 2026-10-23 직접 조정
 endMod();
 // 손님방 x14~20 z-18~-12 (거실 남쪽 오른쪽 문) — 모듈: 문 중심 x=17
 beginMod('guest',{name:'손님방',wall:'south',axis:'x',door0:17,half:3.15});
@@ -919,7 +919,7 @@ const gridG=new THREE.Group();S.add(gridG);
   quad(g0,cx,gy,cz,38,240,-Math.PI/2,0);quad(g0,cx,gy+h,cz,38,240,Math.PI/2,0);                         // 바닥·천장 (1m 그리드). 벽 없음. 동쪽으로 38m(그 너머는 어둠에 묻힘) — 살덩이 방·연구소(x 60~)와 안 겹치게
   root=pr;const l=new THREE.PointLight(0xffffff,.9,14,1);l.position.set(x0+3,gy+3.6,cz);gridG.add(l);  // 문 앞의 소희만 비추는 빛 (그리드는 빛과 상관없이 흼)
   walk(x0-.1,-16,x0+20,4,gy);
-  zone('가상 공간 (현관 밖)',x0+.15,-16.1,x0+20.1,4.1,gy-1,gy+2,{p:[x0+.7,gy+1.75,cz],t:[x0+30,gy+1.1,cz],fov:72});ZONES[ZONES.length-1].tone={sat:0,grad:0,ink:.2};} // 현관문 바로 밖에서 맞은편(동쪽) 소실점을 보는 1점 투시. 이름을 바꾼 이유: 예전 '가상 공간'(x 40~54) 구역·카메라가 브라우저에 저장돼 있으면 그 값이 덮어쓰기 때문
+  zone('가상 공간 (현관 밖)',x0+.15,-16.1,x0+20.1,4.1,gy-1,gy+2,{p:[x0+.7,gy+1.75,cz],t:[x0+30,gy+1.1,cz],fov:72});ZONES[ZONES.length-1].tone={sat:0,grad:0,ink:.2,grain:0,dither:.25,vig:.25};} // 종이 질감·점묘를 줄여 어둠이 회색으로 안 보이게. 현관문 바로 밖에서 맞은편(동쪽) 소실점을 보는 1점 투시. 이름을 바꾼 이유: 예전 '가상 공간'(x 40~54) 구역·카메라가 브라우저에 저장돼 있으면 그 값이 덮어쓰기 때문
 // 현관 앞뜰: 돌 포치 + 산울타리 + 잔디 (집이 백룸으로 변하기 전까지만 보임. 엄마·미희가 이리로 나감)
 const porchG=new THREE.Group();S.add(porchG);
 {const pr=root;root=porchG;
@@ -962,7 +962,7 @@ const tFlesh=T(32,32,(g,w,h)=>{for(let y=0;y<h;y++)for(let x=0;x<w;x++){const n=
     solid(cx-2.6,z1-.8,cx+2.6,z1,0);});
   pLight(0xff8a7a,1.0,10,cx,3.2,cz);pLight(0xffb59a,.9,8,cx,1.6,z1-2.2);pLight(0x9a2030,.7,9,cx,2,z0+1.5);
   SPACE_FX.push(()=>{if(eye)eye.lookAt(P.x,P.y+1.2,P.z);for(const p of pulse){const k=1+Math.sin(T0*1.6+p.ph)*.06;p.b.scale.copy(p.s0).multiplyScalar(k);}});
-  spaceRoom('살덩이 방',x0,x1,z0,z1,{p:[cx,2.5,z0+.5],t:[cx,1.7,z1-1],fov:68},{sat:1.2,vig:.7});}
+  spaceRoom('살덩이 방',x0,x1,z0,z1,{p:[71.66,2.32,-11.43],t:[69.28,1.4,-7.13],fov:68},{sat:1.2,vig:.7});} // 2026-10-23 직접 조정 (남동쪽 구석에서 눈·입 쪽을 봄)
 // ---- 연구소 (x 80~96, z -14~2, 높이 7): 가운데 거대한 컴퓨터 기둥, 둘레에 뚜껑 달린 인큐베이터 8개(안에 누운 사람), 벽엔 계기판, 위엔 철제 통로 (STEM 장치 느낌) ----
 let labWin=null; // 연구소 북쪽 높은 창 (엔딩에서 유리를 투명하게 바꾸고 눈을 보여 줌)
 const tLab=T(32,32,(g,w,h)=>{g.fillStyle='#4f5a55';g.fillRect(0,0,w,h);g.fillStyle='#3a433f';g.fillRect(0,0,w,1);g.fillRect(0,0,1,h);
@@ -1192,7 +1192,7 @@ function updateCam(dt){
   if(flyTool()){hide.visible=ext.visible=true;S.background=SKY;place(FLY);return;} // 물건·조사·구역·텍스트 도구: 자유 카메라 (게임 카메라와 별개)
   if(mode==='edit'&&tool==='tone'&&toneSel){hide.visible=ext.visible=true;S.background=SKY;place(toneSel.cam||SH.corner);return;} // 톤 도구: 고른 구역의 카메라로 보기
   const shot=override||(view===1?curZone():view);if(shot!==lastShot){lastShot=shot;camCut++;}
-  const cut=!override&&view===0;hide.visible=!cut;ext.visible=!cut&&!STORY.br;S.background=cut||STORY.dark?DARK:SKY; // 백룸 뒤로는 바깥 풍경 없음, 하늘 대신 어둠
+  const cut=!override&&view===0;hide.visible=!cut;ext.visible=!cut&&!STORY.br;S.background=STORY.stage==='grid'?BLACK:cut||STORY.dark?DARK:SKY; // 텅 빈 집 뒤로는 바깥 풍경 없음, 하늘 대신 어둠. 그리드 세계는 순수 검정
   if(override){place(override);return;}
   if(view===0)place(SH.doll);else if(view===1){const z=curZone();place(z?(z.cam||SH.corner):SH.corner);}
   else{const fx=Math.sin(P.a),fz=Math.cos(P.a);
@@ -1629,8 +1629,8 @@ function jumpTo(i){
    편집 모드 '괴물 K' 도구: 사각형 손잡이를 끌어 크기 조절, 괴물 몸을 끌어 자리 이동, 속도·색·톤·질감은 패널에서 */
 var monReady=false; // 아래 설정이 준비되기 전에 저장·되돌리기 코드가 부르면 건너뜀
 const MON_LS='sp11_monster_v1';
-const MON_DEF={on:true,x:17.4,y:Y1,z:-10.6,ry:-55,speed:1.2,scale:1,color:'#b39a8f',tone:0,tex:'wrinkle',texAmt:.6,
-  vis:{x0:-1.5,x1:1.5,z0:0,z1:5},   // 시야: 괴물 기준 (앞 = +z), m
+const MON_DEF={on:true,x:17.49,y:Y1,z:-9.66,ry:-70,speed:1.85,scale:1,color:'#b39a8f',tone:.25,tex:'blotch',texAmt:1, // 2026-10-23 직접 조정 (속도·톤·질감·시야)
+  vis:{x0:-4.9,x1:5.85,z0:.85,z1:11.35},   // 시야: 괴물 기준 (앞 = +z), m
   hit:{x0:-.22,x1:.22,z0:-.22,z1:.22}, // 소희 히트박스: 소희 기준, m
   walls:[],                         // 괴물 전용 벽: 괴물만 막고 소희는 지나감 [{x0,z0,x1,z1,y(바닥 높이)}], 월드 좌표
   show:false};
@@ -2339,7 +2339,7 @@ const ST_KO={wake:'1 기상 — 소희의 방',greet:'2 거실 — 아침 인사
   flesh:'13 살덩이 방 → 입 안',lab:'14 연구소 — 엄마 아빠',end:'15 엔딩 — 홀로그램, 붉은 눈'};
 const STORY={i:0,stage:'wake',br:false,dark:false,mon:false,monPersist:false,gaze:0,doneA:0,doneB:0,seenStudy:0,seenGuest:0,garble:0};
 const FX={warp:0,tint:0,tintCol:new THREE.Color(.55,.05,.05),grad:0,pulse:0}; // 이야기 연출 효과 (구역 톤 위에 얹음)
-const D_FRONT=DOORS.find(d=>d.name==='front'),D_A=DOORS.find(d=>d.name==='hallA'),D_B=DOORS.find(d=>d.name==='hallB'),D_BED=DOORS.find(d=>d.name==='bedroom'),D_STUDY=DOORS.find(d=>d.name==='study');
+const D_FRONT=DOORS.find(d=>d.name==='front'),D_A=DOORS.find(d=>d.name==='hallA'),D_B=DOORS.find(d=>d.name==='hallB'),D_BED=DOORS.find(d=>d.name==='bedroom'),D_STUDY=DOORS.find(d=>d.name==='study'),D_DINING=DOORS.find(d=>d.name==='dining');
 const Lw=(who,t)=>({who,t}),Ln=t=>({t});
 const LINES={
  greet:[Lw('엄마','소희 일어났니? 잘 잤어?'),Lw('미희','늦잠꾸러기~ 좋은 아침.'),Lw('소희','…응. 좋은 아침.'),Lw('엄마','아빠는 벌써 출근하셨어. 엄마는 백화점 좀 다녀올게. 세일 마지막 날이거든.'),Lw('미희','나도 약속 있어서 나가. 점심은 알아서 챙겨 먹어, 소희야.'),Lw('소희','응. 잘 다녀와.')],
@@ -2483,7 +2483,7 @@ function brBuild(){ // 집의 메쉬를 모아 종류(바닥·천장·벽)와 �
   BR.amb=S.children.find(o=>o.isAmbientLight);BR.ambC=BR.amb.color.clone();}
 function brApply(on){if(!BR.list)brBuild();STORY.br=on;STORY.dark=on;
   for(const e of BR.list)e.m.material=on?e.mat1:e.mat0;
-  for(const o of OBJS)if(!o.struct&&!o.door)o.g.visible=on?false:!o.removed;
+  for(const o of OBJS)if(!o.struct&&!o.door&&o.g.position.x<30)o.g.visible=on?false:!o.removed; // 집 안 물건만 치움 (살덩이 방·연구소의 눈·기둥 등은 그대로)
   for(const f of BR.fill)f.visible=on;sun.visible=!on;porchG.visible=!on;gridG.visible=on||mode==='edit';
   for(const e of BR.lights)e.l.color.copy(on?new THREE.Color(0xf7f3e2):e.c);BR.amb.color.copy(on?new THREE.Color(0xddd6bd):BR.ambC);
   if(on)PIZZA.g.visible=false;rebuildSol();applyTone();} // rebuildSol: 숨긴 가구는 발에 안 걸리게
@@ -2527,9 +2527,11 @@ function stBackrooms(){STORY.monPersist=false;
   cs([{d:.35,f:k=>setFade(k)},{run:()=>{snd.slam();snd.beep(0);STORY.mon=false;monHome();brApply(true);eyeHide();livingGlass(false);FX.warp=0;FX.tint=0;STORY.garble=.05;
       Object.assign(P,{x:2.9,y:0,fy:0,z:1.1,a:-Math.PI/2});D_BED.target=0;D_BED.open=0;setStage('backrooms');tpSnap=true;}},{d:.5},{d:1.0,f:k=>setFade(1-k)},{d:.4},{say:LINES.bedroom}],
     ()=>{D_FRONT.locked=false;D_FRONT.lines=[];goal('집을 둘러보고 현관으로 나가자');});}
-function stGrid(){setStage('grid');goal('');cs([{d:.35,f:k=>setFade(k)},{run:()=>{Object.assign(P,{x:24,z:-6.5,a:Math.PI/2});tpSnap=true;}},{d:.3},{d:.6,f:k=>setFade(1-k)},{d:.4},{say:LINES.grid}],()=>goal('문 안으로 돌아가자'));} // 암전 뒤 그리드 세계 한가운데
+// 그리드 세계에 있는 동안 멀리 떨어진 방(살덩이 방·연구소, x 55~)을 숨김 — 그리드 끝에 벽처럼 보이던 것. 배경·안개도 순수 검정
+function farRooms(vis){for(const o of OBJS)if(o.g.position.x>55)o.g.visible=vis&&!o.removed;S.fog.color.copy(vis?DARK:BLACK);}
+function stGrid(){setStage('grid');goal('');cs([{d:.35,f:k=>setFade(k)},{run:()=>{Object.assign(P,{x:24,z:-6.5,a:Math.PI/2});tpSnap=true;farRooms(false);}},{d:.3},{d:.6,f:k=>setFade(1-k)},{d:.4},{say:LINES.grid}],()=>goal('문 안으로 돌아가자'));} // 암전 뒤 그리드 세계 한가운데
 function stMihee(){setStage('mihee');goal('');const h=NPCS.mihee,dx=D_STUDY.cx,dz=D_STUDY.cz;
-  cs([{d:.35,f:k=>setFade(k)},{run:()=>{Object.assign(P,{x:19.0,z:-6.5,a:-Math.PI/2});tpSnap=true;D_FRONT.target=0;D_FRONT.open=0;D_FRONT.locked=true;D_FRONT.lines=[{t:'더는 열리지 않는다.'}];}},{d:.3},{d:.6,f:k=>setFade(1-k)}, // 암전 뒤 거실 안, 문은 닫힘
+  cs([{d:.35,f:k=>setFade(k)},{run:()=>{Object.assign(P,{x:19.0,z:-6.5,a:-Math.PI/2});tpSnap=true;farRooms(true);D_FRONT.target=0;D_FRONT.open=0;D_FRONT.locked=true;D_FRONT.lines=[{t:'더는 열리지 않는다.'}];}},{d:.3},{d:.6,f:k=>setFade(1-k)}, // 암전 뒤 거실 안, 문은 닫힘
     {d:.3},{run:()=>snd.slam()},{say:LINES.back},
     {run:()=>{override={p:[16,Y1+2.4,-9.6],t:[8,Y1+.8,-8.4],fov:58};soheeWalk([[10.8,-8.0]],1.5);}},{wait:()=>!csWalk}, // 동쪽에서 서재 문 쪽을 봄
     {run:()=>{P.a=-Math.PI/2;npcPlace(h,dx-2.6,Y1,dz,Math.PI/2);npcWalk(h,[[dx-.55,dz]],2.6);}},{wait:()=>!npcWalking(h)}, // 미희가 닫힌 서재 문 안쪽까지 뛰어와서
@@ -2542,7 +2544,8 @@ function evLoopA(){const first=!STORY.doneA++;cs([{d:.3,f:k=>setFade(k)},{run:()
 function evDoorB(){STORY.doneB=1;cs([{run:()=>{D_B.target=1;snd.door();Object.assign(P,{x:9.5,z:.8,a:0});}},{d:.7}, // 문 너머(복도 북쪽 구멍)에서 괴물이 나타남. 소희는 한 걸음 물러선 자리
     {run:()=>{STORY.mon=true;Object.assign(mon,{x:9.5,z:2.5,y:0,a:Math.PI,state:'chase',grace:1.1,lose:9,hist:[],alert:1,cp:{x:4.9,z:1,fy:0,a:Math.PI/2}});snd.roar();}},{say:LINES.doorB},
     {run:()=>{D_B.target=0;D_B.locked=true;D_B.lines=[{t:'닫혀서 열리지 않는다.'}];}}]);}
-function stFlesh(){cs([{d:.5,f:k=>setFade(k)},{run:()=>{setStage('flesh');Object.assign(P,{x:67,y:0,fy:0,z:-10.3,a:0});folAt(66,-10.8,0,0);tpSnap=true;}},{d:.4},{d:.9,f:k=>setFade(1-k)},{d:.6},{say:LINES.flesh}],
+// 식당 문을 여는 순간 암전 → 살덩이 방 (식당 안이 잠깐 보이지 않게. 소희 방문 → 텅 빈 방과 같은 방식)
+function stFlesh(){goal('');cs([{run:()=>{D_DINING.target=1;snd.door();}},{d:.5,f:k=>setFade(k)},{run:()=>{setStage('flesh');D_DINING.target=0;D_DINING.open=0;Object.assign(P,{x:67,y:0,fy:0,z:-10.3,a:0});folAt(66,-10.8,0,0);tpSnap=true;}},{d:.4},{d:.9,f:k=>setFade(1-k)},{d:.6},{say:LINES.flesh}],
     ()=>{SP_MOUTH.on=true;goal('이빨 입 안으로 들어가자');});}
 function stLab(){SP_MOUTH.on=false;cs([{d:.6,f:k=>setFade(k)},{run:()=>{setStage('lab');Object.assign(P,{x:92.2,y:0,fy:0,z:-1.4,a:-Math.PI*.75});folAt(93.2,-.6,0,-Math.PI*.75);tpSnap=true;parentsPlace();}},{d:.4},{d:.9,f:k=>setFade(1-k)},{d:.5},{say:LINES.lab}],
     ()=>{SP_PARENTS.on=true;goal('엄마 아빠에게 가자');});}
@@ -2557,6 +2560,7 @@ function storyInspect(s){const st=STORY.stage;
   if(s.id==='door_front'){if(st==='deliver'){stDeliver();return true;}if(st==='avoid'){stLocked();return true;}return false;}
   if(s.id==='door_hallB'&&st==='search'&&!STORY.doneB){evDoorB();return true;}
   if(s.id==='door_bedroom'&&st==='chase'){stBackrooms();return true;} // 쫓기다 방문을 여는 순간 암전 → 텅 빈 방 (원래 방은 안 보임)
+  if(s.id==='door_dining'&&st==='search'){stFlesh();return true;}     // 식당 문을 여는 순간 암전 → 살덩이 방 (식당 안은 안 보임)
   if(s.kind==='story'){if(s.id==='mouth'&&st==='flesh')stLab();else if(s.id==='parents'&&st==='lab')stEnd();return true;}
   return false;}
 // 이야기의 추격: 소희가 다른 층에 있으면 계단을 거쳐 따라옴 (0 거실 · 1 계단 · 2 2층)
@@ -2576,7 +2580,7 @@ function storyFrame(dt){csFrame(dt);npcFrame(dt);folFrame(dt);eyeFrame();brFrame
   else if(st==='backrooms'&&P.x>20.3)stGrid();   // 현관문 밖으로 한 걸음 → 암전 → 그리드 세계로 (카메라·자리 모두 바뀜)
   else if(st==='grid'&&P.x<21.0)stMihee();       // 문 쪽으로 돌아오면 → 암전 → 거실 안
   else if(st==='search'){if(P.fy>-.5&&P.x>5.9&&P.x<7.1&&P.z>2.3)evLoopA();
-    else if(z&&z.mod==='dining'&&P.z>-18.2&&P.z<-12.3)stFlesh();
+    else if(z&&z.mod==='dining'&&P.z>-18.2&&P.z<-12.3)stFlesh(); // 문이 이미 열려 있어서 그냥 들어온 경우의 대비
     else if(z&&z.mod==='study'&&!STORY.seenStudy){STORY.seenStudy=1;say(LINES.study);}
     else if(z&&z.mod==='guest'&&!STORY.seenGuest){STORY.seenGuest=1;say(LINES.guest);}}}
 function storyUniforms(){const u=post.uniforms;u.time.value=T0;u.warp.value=FX.warp;u.tintAmt.value=clamp(FX.tint+FX.pulse*.35,0,1);u.tintCol.value.copy(FX.tintCol);u.grad.value=clamp((gradPreview??toneBase.grad)+FX.grad,0,1);}
@@ -2584,7 +2588,7 @@ function storyUniforms(){const u=post.uniforms;u.time.value=T0;u.warp.value=FX.w
 function storyReset(){CS=null;csWalk=null;NPCW.length=0;phoneOpen=false;$('#phone').hidden=true;$('#endcard').hidden=true;override=null;
   Object.assign(STORY,{stage:'wake',i:0,mon:false,monPersist:false,gaze:0,doneA:0,doneB:0,seenStudy:0,seenGuest:0,garble:0});setStage('wake');
   Object.assign(FX,{warp:0,tint:0,grad:0,pulse:0});FX.tintCol.setRGB(.55,.05,.05);
-  if(STORY.br)brApply(false);STORY.dark=false;if(HOLO.on)holoApply(false);
+  if(STORY.br)brApply(false);STORY.dark=false;if(HOLO.on)holoApply(false);farRooms(true);
   eyeHide();livingGlass(false);if(labWin&&labWin.userData.mat0)labWin.material=labWin.userData.mat0;PIZZA.g.visible=false;SP_MOUTH.on=SP_PARENTS.on=false;FOL.on=false;
   for(const c of Object.values(NPCS))c.root.visible=false;npcPlace(NPCS.mom,10.4,Y1,-9.6,Math.atan2(14.5-10.4,-6.8+9.6));npcPlace(NPCS.mihee,8.7,Y1,-4.7,Math.atan2(9.8-8.7,-6.3+4.7));
   D_FRONT.locked=true;D_FRONT.lines=[{t:'현관문. 지금은 나갈 일이 없다.'}];D_A.locked=D_B.locked=true;D_A.lines=[{t:'잠겨 있다.'}];D_B.lines=[{t:'잠겨 있다.'}];
