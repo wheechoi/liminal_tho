@@ -1067,7 +1067,7 @@ rebuildHubWalls();
 
 // 충돌 상자 최종 목록: 고정 상자 + 물건별 상자(물건의 위치·회전·크기를 반영). 물건이 바뀔 때마다 다시 계산
 let SOL=[];
-function rebuildSol(){SOL=solids.slice();for(const o of OBJS){if(o.removed)continue;const g=o.g,c=Math.cos(g.rotation.y),s=Math.sin(g.rotation.y);
+function rebuildSol(){SOL=solids.slice();for(const o of OBJS){if(o.removed||!o.g.visible)continue;const g=o.g,c=Math.cos(g.rotation.y),s=Math.sin(g.rotation.y); // 숨긴 물건(백룸에서 치운 가구)은 안 막음
   for(const b of o.sol){let x0=1e9,z0=1e9,x1=-1e9,z1=-1e9;
     for(const[x,z]of[[b.rel[0],b.rel[1]],[b.rel[2],b.rel[1]],[b.rel[0],b.rel[3]],[b.rel[2],b.rel[3]]]){
       const sx=x*g.scale.x,sz=z*g.scale.z,wx=g.position.x+sx*c+sz*s,wz=g.position.z-sx*s+sz*c;
@@ -2453,10 +2453,10 @@ function phoneOrder(){if(!phoneOpen||!$('#phDone').hidden)return;$('#phOrder').h
 $('#phOrder').addEventListener('click',e=>{e.stopPropagation();phoneOrder();});
 
 // ---- 백룸: 집(x<30)의 벽·바닥·천장을 누런 벽지·축축한 카펫·형광등 천장으로 바꾸고 가구를 전부 치움 (되돌릴 수 있음) ----
-const tBRWall=T(32,64,(g,w,h)=>{for(let x=0;x<w;x++){g.fillStyle=x%8<4?'#cdb96c':'#c3ad5f';g.fillRect(x,0,1,h);}jit(g,w,h,91,.09);
-  for(let i=0;i<5;i++){const x=noise(i,0,92)*w,y=noise(i,1,92)*h,r=3+noise(i,2,92)*7;g.fillStyle='rgba(110,85,30,.28)';g.beginPath();g.ellipse(x,y,r,r*.5,0,0,Math.PI*2);g.fill();}}); // 얼룩진 누런 벽지
-const tBRFloor=T(32,32,(g,w,h)=>{g.fillStyle='#8a773b';g.fillRect(0,0,w,h);jit(g,w,h,93,.16);});
-const tBRCeil=T(32,32,(g,w,h)=>{g.fillStyle='#d9d3b5';g.fillRect(0,0,w,h);g.fillStyle='#b5ae92';g.fillRect(0,0,w,1);g.fillRect(0,0,1,h);g.fillRect(0,16,w,1);g.fillRect(16,0,1,h);jit(g,w,h,94,.06);});
+// (2026-10-23 사용자 요청) '백룸' 그대로가 아니라, 누리끼리한 아이보리 벽지·바닥 정도로만 담백하게
+const tBRWall=T(32,64,(g,w,h)=>{for(let x=0;x<w;x++){g.fillStyle=x%8<4?'#ebe2c8':'#e4dabd';g.fillRect(x,0,1,h);}jit(g,w,h,91,.035);}); // 아이보리 벽지 (옅은 세로 줄)
+const tBRFloor=T(32,32,(g,w,h)=>{g.fillStyle='#d6c9a6';g.fillRect(0,0,w,h);jit(g,w,h,93,.05);});                                        // 누르스름한 바닥
+const tBRCeil=T(32,32,(g,w,h)=>{g.fillStyle='#efe9d6';g.fillRect(0,0,w,h);jit(g,w,h,94,.03);});                                         // 밋밋한 천장
 const BR={list:null,mats:{},fill:null,lights:[],amb:null,ambC:null};
 function brMat(kind,w,h){const k=kind+'|'+Math.round(w*2)+'|'+Math.round(h*2);if(BR.mats[k])return BR.mats[k];
   const m=kind==='floor'?lam({map:tBRFloor(Math.max(1,w/1.5),Math.max(1,h/1.5))}):kind==='ceil'?lam({map:tBRCeil(Math.max(1,w/2),Math.max(1,h/2))}):lam({map:tBRWall(Math.max(1,w/.8),Math.max(1,h/1.6))});
@@ -2478,9 +2478,9 @@ function brApply(on){if(!BR.list)brBuild();STORY.br=on;STORY.dark=on;
   for(const e of BR.list)e.m.material=on?e.mat1:e.mat0;
   for(const o of OBJS)if(!o.struct&&!o.door)o.g.visible=on?false:!o.removed;
   for(const f of BR.fill)f.visible=on;sun.visible=!on;porchG.visible=!on;gridG.visible=on||mode==='edit';
-  for(const e of BR.lights)e.l.color.copy(on?new THREE.Color(0xf4f2d2):e.c);BR.amb.color.copy(on?new THREE.Color(0xcfc9a0):BR.ambC);
-  if(on)PIZZA.g.visible=false;applyTone();}
-function brFrame(){if(!STORY.br)return;const T=toneOf(toneZoneNow());for(const e of BR.lights)if(e.fl)e.l.intensity=e.b*T.bright*(Math.sin(T0*e.fl*7)+Math.sin(T0*e.fl*23)>1.2?.25:1);}
+  for(const e of BR.lights)e.l.color.copy(on?new THREE.Color(0xf7f3e2):e.c);BR.amb.color.copy(on?new THREE.Color(0xddd6bd):BR.ambC);
+  if(on)PIZZA.g.visible=false;rebuildSol();applyTone();} // rebuildSol: 숨긴 가구는 발에 안 걸리게
+function brFrame(){if(!STORY.br)return;const T=toneOf(toneZoneNow());for(const e of BR.lights)if(e.fl)e.l.intensity=e.b*T.bright*(Math.sin(T0*e.fl*7)+Math.sin(T0*e.fl*23)>1.2?.6:1);} // 형광등이 살짝만 깜빡임
 // ---- 홀로그램: 연구소(x 78~100)의 모든 것을 푸른 와이어프레임으로 ----
 const HOLO={list:null,on:false,mat:new THREE.MeshBasicMaterial({color:0x7fe9ff,wireframe:true,transparent:true,opacity:.55})};
 function holoApply(on){if(on&&!HOLO.list){const skip=new Set([girl,EYE.g,NPCS.mihee.root,zoneVis,spotVis,mvVis.g,mvSize.g,mvHit.g,oBox]),c=new THREE.Vector3(),list=[];
@@ -2512,7 +2512,7 @@ function stEye(){setStage('eye');goal('');
     {run:()=>{P.a=Math.PI/2;override={p:[13.6,Y1+1.4,-8.3],t:[20,Y1+2.2,-8.8],fov:42};}},{d:1.6},{say:LINES.eye}, // 낮은 구도: 창 위쪽은 화면 밖, 눈이 창 가운데
     {run:()=>{override=null;tpSnap=true;Object.assign(P,{x:16.8,z:-7.8,a:Math.atan2(20-16.8,-6.5+7.8)});}}], // 연출이 끝나면 현관문이 보이는 거실 오른쪽 자리에서 시작
     ()=>{setStage('avoid');goal('눈을 피해 밖으로 나가자 — 현관문');});}
-function stLocked(){cs([{say:LINES.locked},{run:()=>{setStage('chase');STORY.mon=true;STORY.monPersist=true;monHome();
+function stLocked(){cs([{say:LINES.locked},{run:()=>{setStage('chase');STORY.mon=true;STORY.monPersist=true;monHome();D_BED.target=0; // 소희 방문은 닫혀 있음 (열면 바로 백룸)
       Object.assign(mon,{x:19.2,z:-11.2,y:Y1,a:Math.atan2(P.x-19.2,P.z+11.2)});mon.alert=1;snd.roar();                        // 괴물은 현관 오른쪽(남동쪽) 구석에서 나옴 (동선을 안 막게)
       override={p:[16.4,Y1+2.1,-4.2],t:[19.2,Y1+.7,-9.8],fov:60};P.a=Math.atan2(mon.x-P.x,mon.z-P.z);}},{d:1.4},{say:LINES.monster}, // 북서쪽에서 현관문 앞 소희와 구석의 괴물을 한 화면에
     {run:()=>{override=null;tpSnap=true;mon.state='chase';mon.grace=.6;mon.cp={x:16,z:-6.5,fy:Y1,a:-Math.PI/2};}}],()=>goal('도망쳐! 2층 내 방으로!'));}
@@ -2546,6 +2546,7 @@ function stEnd(){SP_PARENTS.on=false;setStage('end');const h=NPCS.mihee;
 function storyInspect(s){const st=STORY.stage;
   if(s.id==='door_front'){if(st==='deliver'){stDeliver();return true;}if(st==='avoid'){stLocked();return true;}return false;}
   if(s.id==='door_hallB'&&st==='search'&&!STORY.doneB){evDoorB();return true;}
+  if(s.id==='door_bedroom'&&st==='chase'){stBackrooms();return true;} // 쫓기다 방문을 여는 순간 암전 → 텅 빈 방 (원래 방은 안 보임)
   if(s.kind==='story'){if(s.id==='mouth'&&st==='flesh')stLab();else if(s.id==='parents'&&st==='lab')stEnd();return true;}
   return false;}
 // 이야기의 추격: 소희가 다른 층에 있으면 계단을 거쳐 따라옴 (0 거실 · 1 계단 · 2 2층)
@@ -2562,7 +2563,6 @@ function storyFrame(dt){csFrame(dt);npcFrame(dt);folFrame(dt);eyeFrame();brFrame
   if(mode!=='play'||!started||!control||dlg||CS||seq||phoneOpen)return;
   const st=STORY.stage,z=curZone();
   if(st==='wake'&&P.fy<-3&&P.x>=6&&P.x<=20.2&&P.z>=-12&&P.z<=-.9)stGreet();
-  else if(st==='chase'&&P.fy>-.5&&P.x<=4.0&&P.z>=-.2&&P.z<=6.2)stBackrooms();
   else if(st==='backrooms'&&P.x>20.6)stGrid();
   else if(st==='grid'&&P.x<19.75)stMihee();
   else if(st==='search'){if(P.fy>-.5&&P.x>5.9&&P.x<7.1&&P.z>2.3)evLoopA();
