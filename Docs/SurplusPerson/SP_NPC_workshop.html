@@ -4,7 +4,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Nanum+Gothic+Coding:wght@400;700&display=swap">
 <style>
-/* 목업과 같은 화면 효과(480×360, 잉크선·디더링)로 인물을 보면서 차림·옷 색·키를 고르는 개발용 페이지. 목업에는 아직 넣지 않음 */
+/* 목업과 같은 화면 효과(480×360, 잉크선·디더링)로 인물을 보면서 차림·옷 색·키를 고르는 개발용 페이지. 목업(SP_1-1_mockup.html)에는 아래 NPC 블록의 사본이 들어가 있음 — 여기서 고치면 Tools/NpcExport/sync_npc_block.ps1 로 사본 갱신 */
 :root{
   --bg:#141010;--panel:#1d1716;--ink:#efe3cf;--dim:#b7a58f;--rose:#b98f8a;--line:#3a2f2c;
   --f-display:"Gowun Batang","Batang",serif;--f-text:"Nanum Gothic Coding","D2Coding",monospace;
@@ -147,7 +147,7 @@ const SOHEE_HEAD=(c,poor)=>{const{body:b,M}=c;
   if(poor){strand(c,{y0:1.37,y1:1.1,r:.13,phi:.5*PI,seed:41});strand(c,{y0:1.37,y1:1.16,r:.128,phi:-.42*PI,seed:42});strand(c,{y0:1.43,y1:1.3,r:.12,phi:.08*PI,w:.06,seed:43});}};
 const DEFS={
 sohee:{name:'소희',base:1.45,skin:0xeee2d9,lip:0xb98587,rest:.12,looks:{
- basic:{note:'주인공. 무릎 길이 잠옷 원피스, 허리까지 오는 흑발, 맨발. (목업의 소희와 같은 모델 — 목업에 넣을 때 이 정의로 바꾸면 소희에게도 색·키 기능이 생김)',
+ basic:{note:'주인공. 무릎 길이 잠옷 원피스, 허리까지 오는 흑발, 맨발. (목업의 소희도 이 정의를 그대로 씀)',
   slots:[['gown','원피스','#e6cfc6'],['trim','띠·리본','#b27e86'],['lace','레이스·깃','#f4ebe4'],['hair','머리','#161112']],
   make(c){const{body:b,M}=c,SK={folds:9,famp:.065,fy0:.88,fy1:.33,fwave:.012};
     lathe(M.gown,b,[[.2,.33],[.19,.42],[.17,.55],[.15,.68],[.132,.8],[.12,.87],[.112,.9],[.124,.97],[.135,1.03],[.14,1.07],[.13,1.11],[.1,1.145],[.06,1.172],[.036,1.188]],{seg:36,sz:.8,...SK});

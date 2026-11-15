@@ -157,6 +157,7 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
     <span><kbd>Shift</kbd> 달리기</span>
     <span><kbd>E</kbd><kbd>Space</kbd><kbd>Enter</kbd> 조사·대사 넘기기</span>
     <span><kbd>G</kbd> 공포 톤 미리보기</span>
+    <span><kbd>L</kbd> 차림 바꾸기 (기본 ↔ 가난, 미리보기)</span>
     <span><kbd>Tab</kbd> 편집 모드 ↔ 플레이 모드</span>
     <span><kbd>1</kbd>~<kbd>8</kbd> 구역 이동: 1 소희방 · 2 복도 · 3 로비 · 4 거실 · 5 서재 · 6 식당 · 7 손님방 · 8 부엌</span>
   </div>
@@ -219,6 +220,275 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
 <div class="ref">480×360 렌더 → 잉크선·디더링·색 제한 화면 효과. 레퍼런스: 단면 저택 일러스트, 픽셀 어드벤처, 1비트 만화, PS2 인형의 방. 오프닝 중 E = 건너뛰기(개발용).</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ===== NPC 모델 블록 (사본) — 원본은 SP_NPC_workshop.html의 // <NPC-BLOCK> ~ // </NPC-BLOCK>.
+   작업실에서 모델을 고치면 Tools/NpcExport/sync_npc_block.ps1 로 이 사본을 갱신한다 (손으로 고치지 말 것). ===== */
+// <NPC-BLOCK-COPY>
+const NPC=(()=>{
+const TAU=Math.PI*2,PI=Math.PI,clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function noise(x,y,s){let h=(x*374761393+y*668265263+s*1442695041)|0;h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))&0xffff)/65535;}
+const mat=hex=>new THREE.MeshLambertMaterial({color:hex,side:THREE.DoubleSide});
+const FM={eye:mat(0x1b1414),brow:mat(0x2a1d1a),pearl:mat(0xf3eee6),gold:mat(0xc9a24a),frame:mat(0x2a2220),btnD:mat(0x2a2220),btnL:mat(0xe9e1d4),
+  sock:mat(0x241c1a),sole:mat(0xd8d2c6),tape:mat(0xe9e4d8)};
+for(const k in FM)FM[k].name='SP_NPC_'+k;
+const BALL=new THREE.SphereGeometry(.5,12,9);
+function grp(p,x=0,y=0,z=0){const g=new THREE.Group();g.position.set(x,y,z);p.add(g);return g;}
+function ball(m,p,x,y,z,sx,sy=sx,sz=sx){const me=new THREE.Mesh(BALL,m);me.position.set(x,y,z);me.scale.set(sx,sy,sz);p.add(me);return me;}
+function torus(m,p,x,y,z,r,t,sz=1,rx=PI/2){const me=new THREE.Mesh(new THREE.TorusGeometry(r,t,5,18),m);me.position.set(x,y,z);me.rotation.x=rx;me.scale.y=sz;p.add(me);return me;}
+// 윤곽 = [[반지름, 높이], ...] 아래→위. ragged: 끝이 들쭉날쭉(머리카락·해진 밑단) / folds: 치마 주름(fy0→fy1로 깊어짐) / open: 앞섶이 V자로 벌어짐(조끼·가디건)
+function lathe(m,p,pts,{seg=14,phi0=0,phiL=TAU,x=0,y=0,z=0,sz=1,ragged=0,seed=1,folds=0,famp=0,fy0=0,fy1=0,fwave=0,open=null}={}){
+  if(open){phi0=open.g0;phiL=TAU-2*open.g0;}
+  const g=new THREE.LatheGeometry(pts.map(a=>new THREE.Vector2(a[0],a[1])),seg,phi0,phiL),pa=g.attributes.position,n=pts.length,full=phiL>=TAU-1e-6;
+  if(ragged){const yt=pts[n-1][1];
+    for(let k=0;k<pa.count;k++){const i0=Math.floor(k/n),i=full?i0%seg:i0,f=1-k%n/(n-1);pa.setY(k,yt+(pa.getY(k)-yt)*(1+(noise(i,7,seed)-.5)*ragged*f*f));}}
+  if(open)for(let k=0;k<pa.count;k++){const px=pa.getX(k),pz=pa.getZ(k),a=Math.atan2(px,pz),s=a<0?-1:1,r=Math.hypot(px,pz),
+    t=clamp((open.yTop-pa.getY(k))/(open.yTop-open.yBot),0,1),G=open.g0*(1-t),na=G+(Math.abs(a)-open.g0)*(PI-G)/(PI-open.g0);
+    pa.setX(k,r*Math.sin(s*na));pa.setZ(k,r*Math.cos(s*na));}
+  if(folds)for(let k=0;k<pa.count;k++){const px=pa.getX(k),py=pa.getY(k),pz=pa.getZ(k),ph=Math.atan2(px,pz),t=clamp((fy0-py)/(fy0-fy1),0,1),mm=1+famp*t*Math.sin(folds*ph);
+    pa.setXYZ(k,px*mm,py+fwave*t*t*Math.cos(folds*ph),pz*mm);}
+  if(ragged||folds||open)g.computeVertexNormals();
+  const me=new THREE.Mesh(g,m);me.position.set(x,y,z);me.scale.z=sz;p.add(me);return me;}
+// 구를 얼굴형으로 (턱 쪽을 좁힘). 얼굴은 +z
+function headGeo(r,jaw,ys,o={}){
+  const g=new THREE.SphereGeometry(r,20,16,o.p0||0,o.pL||TAU,o.t0||0,o.tL||PI),pa=g.attributes.position;
+  for(let k=0;k<pa.count;k++){const py=pa.getY(k),t=py<0?-py/r:0;pa.setXYZ(k,pa.getX(k)*(1-jaw*Math.pow(t,1.6)),py*ys,pa.getZ(k)*(1-.12*t*t));}
+  g.computeVertexNormals();return g;}
+function head(c,{y,r,jaw=.26,ys=1.12}){const me=new THREE.Mesh(headGeo(r,jaw,ys),c.M.skin);me.position.set(0,y,0);c.body.add(me);return me;}
+// 수염 자국: 턱 둘레에 살짝 어두운 껍질 (디더링 때문에 점점이 보임)
+function stubble(c,{y,r,jaw,ys,col}){const me=new THREE.Mesh(headGeo(r*1.012,jaw,ys,{p0:0,pL:PI,t0:.64*PI,tL:.28*PI}),mat(col));me.position.set(0,y,0);c.body.add(me);return me;}
+// 얼굴: 눈(가로로 긴 타원) · 코 · 입, 선택: 눈썹 · 귀
+function face(c,{y,r,eyeW=.286,eyeH=.162,brow=0,ears=true}){
+  const b=c.body;
+  for(const s of[-1,1]){ball(FM.eye,b,s*.343*r,y+.02*r,.943*r,eyeW*r,eyeH*r,.114*r);
+    if(brow)ball(FM.brow,b,s*.36*r,y+.21*r,.93*r,.34*r,brow*r,.06*r).rotation.z=-s*.1;
+    if(ears)ball(c.M.skin,b,s*.98*r,y-.05*r,-.04*r,.16*r,.32*r,.22*r);}
+  ball(c.M.skin,b,0,y-.22*r,.971*r,.114*r,.19*r,.133*r);ball(c.lipM,b,0,y-.457*r,.905*r,.21*r,.057*r,.076*r);}
+// 머리카락 덮개: 구 껍질을 머리선(line: 방향→높이)에서 잘라 올림. 앞머리·이마선·뒷머리 길이가 이 함수 하나로 정해짐
+function hairCap(c,{y,R,ys=1.1,z=-.004,thetaMax=.8*PI,line,m}){
+  const g=new THREE.SphereGeometry(R,24,16,0,TAU,0,thetaMax),pa=g.attributes.position;
+  for(let k=0;k<pa.count;k++){const px=pa.getX(k),py=pa.getY(k),pz=pa.getZ(k),h=Math.hypot(px,pz),mm=line(h?px/h:0,h?pz/h:1)*R;
+    if(py<mm){const nh=Math.sqrt(Math.max(R*R-mm*mm,0)),s=h>1e-6?nh/h:0;pa.setXYZ(k,px*s,mm,pz*s);}}
+  g.computeVertexNormals();const me=new THREE.Mesh(g,m||c.M.hair);me.position.set(0,y,z);me.scale.y=ys;c.body.add(me);return me;}
+// 앞·옆·뒤 머리선 높이(R 단위)를 방향에 따라 섞음. fr는 숫자 또는 좌우(nx)에 따른 함수
+const hairline=(fr,sd,bk)=>(nx,nz)=>{const f=clamp((nz-.2)/.5,0,1),b=clamp((-nz-.1)/.5,0,1),F=typeof fr==='function'?fr(nx):fr;return F*f+sd*(1-f-b)+bk*b;};
+// 삐져나온 머리 가닥 (phi: 방향, 0=앞, 위→아래로 늘어짐)
+function strand(c,{y0,y1,r,phi,w=.12,seed=1,ragged=.6,m}){lathe(m||c.M.hair,c.body,[[r,y1],[r+.004,(y0+y1)/2],[r,y0]],{seg:3,phi0:phi-w*PI/2,phiL:w*PI,ragged,seed});}
+// 팔다리: 콜백으로 부위마다 옷/살을 입힘
+function limbs(c,{hipX,hipY,thighL,thigh,shin,shX,shY,upL,upper,fore}){
+  for(const s of[-1,1]){
+    const hp=grp(c.body,s*hipX,hipY,0);thigh(hp,s);const kn=grp(hp,0,-thighL,0);shin(kn,s);c.hips.push(hp);c.knees.push(kn);
+    const sh=grp(c.body,s*shX,shY,0);upper(sh,s);const el=grp(sh,0,-upL,0);fore(el,s);c.shoulders.push(sh);c.elbows.push(el);}}
+
+/* ---------------- 인물 정의 ----------------
+   base: 기본 키(m, 정수리까지) / rest: 팔 벌림 / looks: 차림별 { slots: 색을 바꿀 수 있는 부위 [키, 이름, 기본색], make } */
+const SOHEE_HEAD=(c,poor)=>{const{body:b,M}=c;
+  lathe(M.skin,b,[[.036,1.12],[.032,1.19],[.036,1.24]],{seg:10});
+  head(c,{y:1.33,r:.105});face(c,{y:1.33,r:.105,ears:false});
+  hairCap(c,{y:1.34,R:.118,thetaMax:.5*PI,line:poor?(nx,nz)=>clamp((nz-.15)/.3,0,1)*(.05+.12*Math.pow(Math.sin(nx*17+1),2)):(nx,nz)=>clamp((nz-.15)/.3,0,1)*.068}); // 정수리 + 앞머리 (가난: 삐뚤빼뚤 잘린 앞머리)
+  lathe(M.hair,b,[[.115,.8],[.125,.9],[.135,1.0],[.142,1.08],[.135,1.17],[.125,1.25],[.12,1.31],[.112,1.37]],{seg:16,phi0:.4*PI,phiL:1.2*PI,z:-.02,ragged:poor?.6:.35,seed:3}); // 등 뒤 긴 머리
+  for(const s of[-1,1])lathe(M.hair,b,[[.15,1.0],[.152,1.07],[.14,1.16],[.126,1.25],[.12,1.31],[.118,1.37]],{seg:5,phi0:s>0?.15*PI:1.67*PI,phiL:.18*PI,ragged:poor?.8:.5,seed:s>0?5:6}); // 얼굴 옆 가닥
+  if(poor){strand(c,{y0:1.37,y1:1.1,r:.13,phi:.5*PI,seed:41});strand(c,{y0:1.37,y1:1.16,r:.128,phi:-.42*PI,seed:42});strand(c,{y0:1.43,y1:1.3,r:.12,phi:.08*PI,w:.06,seed:43});}};
+const DEFS={
+sohee:{name:'소희',base:1.45,skin:0xeee2d9,lip:0xb98587,rest:.12,looks:{
+ basic:{note:'주인공. 무릎 길이 잠옷 원피스, 허리까지 오는 흑발, 맨발. (목업의 소희와 같은 모델 — 목업에 넣을 때 이 정의로 바꾸면 소희에게도 색·키 기능이 생김)',
+  slots:[['gown','원피스','#e6cfc6'],['trim','띠·리본','#b27e86'],['lace','레이스·깃','#f4ebe4'],['hair','머리','#161112']],
+  make(c){const{body:b,M}=c,SK={folds:9,famp:.065,fy0:.88,fy1:.33,fwave:.012};
+    lathe(M.gown,b,[[.2,.33],[.19,.42],[.17,.55],[.15,.68],[.132,.8],[.12,.87],[.112,.9],[.124,.97],[.135,1.03],[.14,1.07],[.13,1.11],[.1,1.145],[.06,1.172],[.036,1.188]],{seg:36,sz:.8,...SK});
+    lathe(M.trim,b,[[.1915,.44],[.1878,.462]],{seg:36,sz:.8,...SK});                                   // 밑단 위 띠
+    lathe(M.lace,b,[[.24,.3],[.215,.33],[.17,.37]],{seg:48,sz:.8,folds:16,famp:.08,fy0:.37,fy1:.3,fwave:.006}); // 레이스 프릴
+    torus(M.trim,b,0,.9,0,.113,.008,.8);                                                                // 허리 리본띠
+    for(const s of[-1,1]){lathe(M.lace,b,[[.152,1.095],[.134,1.12],[.106,1.15],[.07,1.176]],{seg:8,sz:.8,phi0:s>0?.03*PI:1.57*PI,phiL:.4*PI}); // 둥근 깃
+      ball(M.trim,b,s*.025,.905,.096,.04,.028,.014);ball(M.trim,b,s*.016,.85,.097,.014,.08,.008).rotation.z=s*.25;} // 허리 리본
+    ball(M.trim,b,0,.903,.1,.016,.02,.014);
+    for(const[by,bz]of[[1.05,.112],[.995,.105],[.945,.099]])ball(M.trim,b,0,by,bz,.016,.016,.01);       // 단추
+    SOHEE_HEAD(c,false);
+    limbs(c,{hipX:.075,hipY:.56,thighL:.27,shX:.15,shY:1.09,upL:.26,
+      thigh:g=>lathe(M.skin,g,[[.04,-.27],[.046,-.2],[.058,-.08],[.06,0]],{seg:10}),
+      shin:g=>{lathe(M.skin,g,[[.025,-.25],[.03,-.21],[.044,-.12],[.04,-.03],[.038,0]],{seg:10});ball(M.skin,g,0,-.262,.032,.05,.04,.125);}, // 맨발
+      upper:g=>{lathe(M.skin,g,[[.029,-.26],[.033,-.18],[.038,-.1]],{seg:10});lathe(M.gown,g,[[.034,-.14],[.048,-.11],[.056,-.05],[.05,0],[.03,.025],[.008,.032]],{seg:12});torus(M.trim,g,0,-.14,0,.036,.007);},
+      fore:g=>{lathe(M.skin,g,[[.021,-.21],[.025,-.15],[.03,-.06],[.029,0]],{seg:10});ball(M.skin,g,0,-.255,.004,.024,.085,.044);}});}},
+ poor:{note:'가난 버전. 빛바랜 면 원피스(밑단이 해지고 천을 덧댐), 삐뚤게 자른 앞머리와 부스스한 머리, 맨발.',
+  slots:[['dress','원피스','#b8ab9b'],['patch','덧댄 천','#7c6655'],['hair','머리','#1d1716']],
+  make(c){const{body:b,M}=c;
+    lathe(M.dress,b,[[.19,.36],[.185,.45],[.165,.58],[.145,.72],[.13,.85],[.125,.95],[.132,1.03],[.138,1.07],[.13,1.11],[.1,1.145],[.06,1.172],[.036,1.188]],{seg:36,sz:.8,folds:6,famp:.04,fy0:.8,fy1:.36,fwave:.01,ragged:.08,seed:11}); // 해진 밑단
+    ball(M.patch,b,.07,.6,.118,.07,.06,.012).rotation.y=.4;ball(M.patch,b,-.05,1.0,.098,.045,.04,.01).rotation.y=-.35; // 덧댄 천
+    SOHEE_HEAD(c,true);
+    limbs(c,{hipX:.075,hipY:.56,thighL:.27,shX:.15,shY:1.09,upL:.26,
+      thigh:g=>lathe(M.skin,g,[[.04,-.27],[.046,-.2],[.058,-.08],[.06,0]],{seg:10}),
+      shin:g=>{lathe(M.skin,g,[[.025,-.25],[.03,-.21],[.044,-.12],[.04,-.03],[.038,0]],{seg:10});ball(M.skin,g,0,-.262,.032,.05,.04,.125);},
+      upper:g=>{lathe(M.skin,g,[[.029,-.26],[.033,-.18],[.038,-.1]],{seg:10});lathe(M.dress,g,[[.042,-.12],[.048,-.08],[.05,-.03],[.044,.01],[.026,.028],[.008,.034]],{seg:12});},
+      fore:g=>{lathe(M.skin,g,[[.021,-.21],[.025,-.15],[.03,-.06],[.029,0]],{seg:10});ball(M.skin,g,0,-.255,.004,.024,.085,.044);}});}}}},
+
+mihee:{name:'미희 (언니)',base:1.60,skin:0xf0e3da,lip:0xb56f78,rest:.12,looks:{
+ basic:{note:'소희의 언니. 가디건 + 블라우스(둥근 깃·목 리본) + 주름치마, 흰 무릎양말에 로퍼. 옆으로 넘긴 앞머리에 묶은 머리. (설정은 임시 — 위키에 캐릭터 문서가 생기면 맞춤)',
+  slots:[['cardi','가디건','#6d7a8c'],['blouse','블라우스·깃','#f1ece4'],['skirt','치마','#3f3a46'],['ribbon','리본·머리끈','#8e2f3a'],['socks','양말','#ebe5da'],['shoes','구두','#2a1e1b'],['hair','머리','#1b1415']],
+  make(c){const{body:b,M}=c;
+    lathe(M.skirt,b,[[.215,.55],[.2,.64],[.17,.79],[.14,.92],[.12,.99],[.113,1.025]],{seg:48,sz:.82,folds:16,famp:.07,fy0:.97,fy1:.55,fwave:.004}); // 주름치마
+    lathe(M.blouse,b,[[.128,.93],[.12,.99],[.108,1.04],[.122,1.1],[.142,1.17],[.15,1.23],[.152,1.27],[.142,1.305],[.11,1.335],[.066,1.357],[.038,1.372]],{seg:24,sz:.78});
+    lathe(M.cardi,b,[[.165,.86],[.15,.93],[.134,.99],[.125,1.04],[.135,1.1],[.155,1.17],[.163,1.23],[.165,1.27],[.155,1.305],[.124,1.335],[.085,1.356]],{seg:32,sz:.8,open:{g0:.3*PI,yTop:1.356,yBot:1.1}}); // 앞이 V로 열린 가디건
+    torus(M.cardi,b,0,.865,0,.163,.008,.8);                                                            // 가디건 밑단 고무단
+    for(const[by,bz]of[[1.07,.108],[1.0,.11],[.93,.124]])ball(FM.btnL,b,0,by,bz,.016,.016,.01);       // 가디건 단추
+    for(const s of[-1,1]){lathe(M.blouse,b,[[.168,1.29],[.152,1.315],[.124,1.342],[.09,1.362]],{seg:8,sz:.8,phi0:s>0?.05*PI:1.57*PI,phiL:.38*PI}); // 둥근 깃
+      ball(M.ribbon,b,s*.028,1.335,.108,.045,.03,.014);ball(M.ribbon,b,s*.016,1.29,.112,.016,.07,.008).rotation.z=s*.3;} // 목 리본
+    ball(M.ribbon,b,0,1.333,.112,.018,.022,.014);
+    MIHEE_HEAD(c,false);
+    limbs(c,{hipX:.08,hipY:.8,thighL:.37,shX:.165,shY:1.29,upL:.28,
+      thigh:g=>lathe(M.skin,g,[[.042,-.37],[.05,-.26],[.064,-.08],[.066,0]],{seg:10}),
+      shin:g=>{lathe(M.skin,g,[[.04,-.09],[.038,-.02],[.036,0]],{seg:10});lathe(M.socks,g,[[.027,-.39],[.031,-.33],[.046,-.2],[.042,-.09]],{seg:10});
+        torus(M.socks,g,0,-.09,0,.042,.007);ball(M.shoes,g,0,-.4,.035,.06,.048,.15);},               // 무릎양말 + 로퍼
+      upper:g=>lathe(M.cardi,g,[[.036,-.28],[.042,-.2],[.048,-.08],[.05,0],[.035,.03],[.01,.04]],{seg:12}),
+      fore:g=>{lathe(M.cardi,g,[[.031,-.22],[.033,-.18],[.037,-.08],[.039,0]],{seg:12});torus(M.cardi,g,0,-.215,0,.033,.009);ball(M.skin,g,0,-.265,.004,.025,.085,.046);}});}},
+ poor:{note:'가난 버전. 늘어난 헐렁한 스웨터(팔꿈치에 덧댄 천), 낡은 긴 치마, 발목양말에 닳은 운동화. 고무줄로 낮게 대충 묶은 머리.',
+  slots:[['sweater','스웨터','#7b7363'],['skirt','치마','#4b463f'],['patch','덧댄 천','#a08a6a'],['socks','양말','#8d8579'],['shoes','운동화','#6e6a62'],['hair','머리','#1b1415']],
+  make(c){const{body:b,M}=c;
+    lathe(M.skirt,b,[[.2,.36],[.19,.45],[.165,.62],[.14,.8],[.12,.93],[.113,1.0]],{seg:36,sz:.82,folds:7,famp:.05,fy0:.95,fy1:.36,fwave:.01,ragged:.05,seed:21});
+    lathe(M.sweater,b,[[.17,.78],[.165,.82],[.16,.9],[.155,1.0],[.16,1.1],[.168,1.18],[.172,1.25],[.168,1.29],[.14,1.325],[.09,1.35],[.06,1.365]],{seg:32,sz:.82,folds:5,famp:.03,fy0:1.2,fy1:.78}); // 늘어진 스웨터
+    torus(M.sweater,b,0,.79,0,.168,.011,.82);torus(M.sweater,b,0,1.352,0,.068,.012,.82);              // 밑단·목 고무단
+    MIHEE_HEAD(c,true);
+    limbs(c,{hipX:.08,hipY:.8,thighL:.37,shX:.165,shY:1.29,upL:.28,
+      thigh:g=>lathe(M.skin,g,[[.042,-.37],[.05,-.26],[.064,-.08],[.066,0]],{seg:10}),
+      shin:g=>{lathe(M.skin,g,[[.027,-.39],[.031,-.33],[.046,-.2],[.042,-.07],[.04,0]],{seg:10});lathe(M.socks,g,[[.03,-.39],[.032,-.34]],{seg:10});
+        ball(M.shoes,g,0,-.398,.035,.068,.05,.16);ball(FM.sole,g,0,-.418,.035,.072,.016,.166);},       // 발목양말 + 운동화
+      upper:g=>lathe(M.sweater,g,[[.04,-.28],[.046,-.2],[.052,-.08],[.055,0],[.04,.03],[.01,.045]],{seg:12}),
+      fore:g=>{lathe(M.sweater,g,[[.04,-.25],[.038,-.2],[.04,-.08],[.042,0]],{seg:12});ball(M.patch,g,0,-.03,-.04,.045,.055,.012); // 손등까지 덮는 소매 + 팔꿈치 덧댄 천
+        ball(M.skin,g,0,-.28,.004,.024,.06,.044);}});}}}},
+
+mom:{name:'엄마',base:1.62,skin:0xeedfd3,lip:0xa04a55,rest:.11,looks:{
+ basic:{note:'블라우스(둥근 깃·단추) + 벨트 + 종아리까지 오는 A라인 치마, 진주 목걸이, 굽 낮은 구두. 뒤로 묶어 올린 머리. (설정은 임시)',
+  slots:[['top','블라우스','#e9dccb'],['skirt','치마','#5c3940'],['belt','벨트','#3a2622'],['shoes','구두','#2c1d1c'],['hair','머리','#2b1d19']],
+  make(c){const{body:b,M}=c;
+    lathe(M.skirt,b,[[.25,.3],[.235,.4],[.205,.58],[.172,.76],[.145,.9],[.127,.99],[.12,1.035]],{seg:36,sz:.8,folds:8,famp:.055,fy0:.97,fy1:.3,fwave:.01});
+    lathe(M.top,b,[[.13,.93],[.122,.99],[.116,1.04],[.13,1.1],[.15,1.17],[.158,1.23],[.16,1.27],[.152,1.31],[.12,1.345],[.075,1.37],[.044,1.385]],{seg:24,sz:.78});
+    torus(M.belt,b,0,1.03,0,.121,.011,.8);ball(FM.gold,b,0,1.03,.1,.03,.025,.012);                       // 벨트 + 버클
+    for(const[by,bz]of[[1.25,.127],[1.19,.122],[1.13,.111],[1.07,.099]])ball(FM.btnL,b,0,by,bz,.012,.012,.008); // 블라우스 단추
+    for(const s of[-1,1])lathe(M.top,b,[[.16,1.3],[.145,1.325],[.118,1.352],[.08,1.376]],{seg:8,sz:.78,phi0:s>0?.05*PI:1.53*PI,phiL:.42*PI}); // 둥근 깃
+    for(let i=0;i<20;i++){const a=i/20*TAU,f=Math.pow(Math.max(0,Math.cos(a)),1.5);                    // 진주 목걸이 (앞으로 처짐)
+      ball(FM.pearl,b,(.075+.03*f)*Math.sin(a),1.38-.035*f,(.065+.04*f)*Math.cos(a),.016);}
+    MOM_HEAD(c,false);
+    limbs(c,{hipX:.085,hipY:.82,thighL:.38,shX:.175,shY:1.31,upL:.29,
+      thigh:g=>lathe(M.skin,g,[[.045,-.38],[.055,-.28],[.07,-.1],[.072,0]],{seg:10}),
+      shin:g=>{lathe(M.skin,g,[[.027,-.385],[.031,-.33],[.045,-.2],[.042,-.07],[.04,0]],{seg:10});
+        ball(M.shoes,g,0,-.41,.035,.062,.05,.155);ball(M.shoes,g,0,-.415,-.04,.03,.045,.03);},        // 구두 + 굽
+      upper:g=>lathe(M.top,g,[[.036,-.29],[.042,-.2],[.048,-.08],[.052,0],[.036,.035],[.01,.045]],{seg:12}),
+      fore:g=>{lathe(M.top,g,[[.031,-.23],[.033,-.18],[.037,-.08],[.039,0]],{seg:12});torus(M.top,g,0,-.23,0,.032,.008);ball(M.skin,g,0,-.28,.004,.026,.09,.048);}});}},
+ poor:{note:'가난 버전. 빛바랜 원피스에 앞치마, 걷어붙인 소매, 머릿수건 아래로 흘러내린 머리, 슬리퍼.',
+  slots:[['dress','원피스','#8b7b6d'],['apron','앞치마','#cbbfa9'],['scarf','머릿수건','#7d4f45'],['shoes','슬리퍼','#5a5048'],['hair','머리','#2b1d19']],
+  make(c){const{body:b,M}=c;
+    lathe(M.dress,b,[[.24,.3],[.225,.4],[.195,.58],[.165,.76],[.142,.9],[.13,1.0],[.135,1.08],[.152,1.17],[.158,1.23],[.16,1.27],[.152,1.31],[.12,1.345],[.075,1.37],[.044,1.385]],{seg:36,sz:.78,folds:7,famp:.045,fy0:.95,fy1:.3,fwave:.01,ragged:.05,seed:31});
+    lathe(M.apron,b,[[.228,.45],[.203,.6],[.17,.8],[.147,.95],[.142,1.02]],{seg:10,sz:.8,phi0:-.33*PI,phiL:.66*PI}); // 앞치마
+    torus(M.apron,b,0,1.0,0,.134,.01,.78);
+    for(const s of[-1,1]){ball(M.apron,b,s*.03,1.0,-.112,.045,.03,.014);ball(M.apron,b,s*.018,.94,-.112,.016,.09,.008).rotation.z=-s*.2;} // 등 뒤 앞치마 끈
+    MOM_HEAD(c,true);
+    limbs(c,{hipX:.085,hipY:.82,thighL:.38,shX:.175,shY:1.31,upL:.29,
+      thigh:g=>lathe(M.skin,g,[[.045,-.38],[.055,-.28],[.07,-.1],[.072,0]],{seg:10}),
+      shin:g=>{lathe(M.skin,g,[[.027,-.385],[.031,-.33],[.045,-.2],[.042,-.07],[.04,0]],{seg:10});
+        ball(M.skin,g,0,-.41,.03,.05,.035,.13);ball(M.shoes,g,0,-.425,.035,.07,.022,.16);},            // 맨발에 슬리퍼
+      upper:g=>{lathe(M.dress,g,[[.04,-.27],[.044,-.2],[.048,-.08],[.052,0],[.036,.035],[.01,.045]],{seg:12});torus(M.dress,g,0,-.27,0,.042,.014);}, // 걷어붙인 소매
+      fore:g=>{lathe(M.skin,g,[[.022,-.23],[.026,-.18],[.031,-.08],[.033,0]],{seg:10});ball(M.skin,g,0,-.28,.004,.026,.09,.048);}});}}}},
+
+dad:{name:'아빠',base:1.77,skin:0xe7d3c3,lip:0x9a6c68,rest:.1,looks:{
+ basic:{note:'셔츠 + 넥타이 + 앞이 V로 파인 조끼 + 정장 바지, 구두. 짧은 머리에 안경. (설정은 임시)',
+  slots:[['shirt','셔츠','#e4e0d7'],['vest','조끼','#4b4139'],['pants','바지','#38342f'],['tie','넥타이','#6e2b31'],['shoes','구두','#2a1d18'],['hair','머리','#241b18']],
+  make(c){const{body:b,M}=c;
+    lathe(M.pants,b,[[.15,.8],[.162,.88],[.168,.96],[.166,1.0]],{seg:18,sz:.8});                       // 바지 허리
+    lathe(M.shirt,b,[[.162,.9],[.168,.98],[.174,1.06],[.183,1.17],[.193,1.28],[.2,1.36],[.196,1.41],[.17,1.45],[.12,1.485],[.075,1.505],[.05,1.515]],{seg:24,sz:.72});
+    lathe(M.vest,b,[[.178,.86],[.178,.92],[.181,1.0],[.187,1.08],[.196,1.18],[.205,1.28],[.21,1.35],[.2,1.41],[.175,1.45]],{seg:32,sz:.76,open:{g0:.3*PI,yTop:1.45,yBot:1.14}}); // 조끼
+    for(const[by,bz]of[[1.1,.147],[1.03,.142],[.96,.14]])ball(FM.btnD,b,0,by,bz,.014,.014,.01);         // 조끼 단추
+    lathe(M.shirt,b,[[.062,1.49],[.06,1.535]],{seg:14,phi0:.14*PI,phiL:1.72*PI});                       // 셔츠 깃(목)
+    for(const s of[-1,1])ball(M.shirt,b,s*.03,1.488,.092,.035,.05,.012).rotation.z=s*.6;                // 깃 끝
+    ball(M.tie,b,0,1.475,.108,.034,.036,.024);ball(M.tie,b,0,1.36,.152,.062,.21,.012).rotation.x=-.12; // 넥타이 (매듭 + 몸통)
+    DAD_HEAD(c,false);
+    limbs(c,{hipX:.095,hipY:.9,thighL:.42,shX:.2,shY:1.43,upL:.31,
+      thigh:g=>lathe(M.pants,g,[[.06,-.42],[.066,-.3],[.078,-.12],[.084,0],[.08,.05]],{seg:12}),
+      shin:g=>{lathe(M.pants,g,[[.056,-.4],[.056,-.3],[.06,-.15],[.064,0]],{seg:12});lathe(FM.sock,g,[[.036,-.445],[.038,-.39]],{seg:8});
+        ball(M.shoes,g,0,-.45,.04,.085,.06,.21);},
+      upper:g=>lathe(M.shirt,g,[[.042,-.31],[.047,-.2],[.055,-.08],[.058,0],[.04,.03],[.01,.042]],{seg:12}),
+      fore:g=>{lathe(M.shirt,g,[[.036,-.26],[.038,-.2],[.043,-.08],[.046,0]],{seg:12});torus(M.shirt,g,0,-.255,0,.037,.009);ball(M.skin,g,0,-.31,.004,.03,.1,.056);}});}},
+ poor:{note:'가난 버전. 얼룩진 러닝셔츠에 멜빵, 헐렁하고 밑단 접은 바지, 맨발에 슬리퍼. 부스스한 머리, 수염 자국, 테이프로 붙인 안경.',
+  slots:[['shirt','러닝셔츠','#d2c9b6'],['stain','얼룩','#a8956f'],['braces','멜빵','#5b3b2c'],['pants','바지','#4d483d'],['shoes','슬리퍼','#3e4b58'],['hair','머리','#2e2622']],
+  make(c){const{body:b,M}=c,TP=[[.17,.86],[.172,.95],[.178,1.06],[.185,1.17],[.19,1.28],[.192,1.36],[.18,1.41],[.15,1.45],[.1,1.48],[.065,1.5]];
+    lathe(M.pants,b,[[.15,.8],[.158,.88],[.162,.96],[.16,1.0]],{seg:18,sz:.74});                       // 바지 허리 (러닝셔츠 밑으로 숨게)
+    lathe(M.shirt,b,TP,{seg:24,sz:.74,folds:5,famp:.02,fy0:1.2,fy1:.86});                              // 늘어난 러닝셔츠
+    ball(M.stain,b,-.05,1.15,.134,.06,.05,.01);ball(M.stain,b,.06,1.02,.13,.035,.03,.01);               // 얼룩
+    const BP=TP.filter(p=>p[1]>=.95).map(([r,y])=>[r+.007,y]);                                          // 멜빵: 몸통 곡면을 따라 붙은 띠
+    for(const a of[.13*PI,-.13*PI,PI-.13*PI,PI+.13*PI])lathe(M.braces,b,BP,{seg:2,sz:.75,phi0:a-.03*PI,phiL:.06*PI});
+    DAD_HEAD(c,true);
+    limbs(c,{hipX:.095,hipY:.9,thighL:.42,shX:.2,shY:1.43,upL:.31,
+      thigh:g=>lathe(M.pants,g,[[.065,-.42],[.072,-.3],[.082,-.12],[.088,0],[.084,.05]],{seg:12}),
+      shin:g=>{lathe(M.pants,g,[[.062,-.36],[.062,-.25],[.065,-.12],[.068,0]],{seg:12});torus(M.pants,g,0,-.36,0,.064,.014); // 접어 올린 밑단
+        lathe(M.skin,g,[[.035,-.44],[.038,-.36]],{seg:8});ball(M.skin,g,0,-.45,.035,.07,.04,.17);ball(M.shoes,g,0,-.468,.04,.09,.024,.21);},
+      upper:g=>lathe(M.skin,g,[[.04,-.31],[.045,-.2],[.052,-.08],[.056,0],[.04,.035],[.01,.05]],{seg:12}),  // 맨팔
+      fore:g=>{lathe(M.skin,g,[[.03,-.26],[.033,-.2],[.04,-.08],[.042,0]],{seg:12});ball(M.skin,g,0,-.31,.004,.03,.1,.056);}});}}}},
+};
+// 머리·얼굴은 차림이 바뀌어도 같은 사람 — 가난 버전은 머리만 흐트러짐
+function MIHEE_HEAD(c,poor){const{body:b,M}=c;
+  lathe(M.skin,b,[[.036,1.32],[.032,1.39],[.035,1.42]],{seg:10});
+  head(c,{y:1.48,r:.104,jaw:.27});face(c,{y:1.48,r:.104,eyeW:.28,eyeH:.16,brow:.05});
+  hairCap(c,{y:1.485,R:.114,thetaMax:.75*PI,line:hairline(poor?nx=>.12+.28*nx+.07*Math.sin(nx*19):nx=>.12+.28*nx,.02,-.3)}); // 한쪽으로 넘긴 앞머리
+  for(const s of[-1,1])lathe(M.hair,b,[[.112,1.4],[.116,1.45],[.115,1.5],[.113,1.53]],{seg:4,phi0:s>0?.3*PI:1.5*PI,phiL:.2*PI,ragged:.5,seed:s>0?12:13}); // 귀 앞으로 내려온 옆머리
+  if(!poor){ball(M.ribbon,b,0,1.53,-.112,.04,.04,.03);c.pony=grp(b,0,1.525,-.118);c.ponyRx=.3;}          // 높게 묶은 머리 + 리본 머리끈
+  else{ball(FM.btnD,b,0,1.43,-.098,.03,.03,.024);c.pony=grp(b,0,1.425,-.1);c.ponyRx=.12;                // 낮게 대충 묶은 머리 + 고무줄
+    strand(c,{y0:1.5,y1:1.33,r:.122,phi:.62*PI,seed:51});strand(c,{y0:1.52,y1:1.38,r:.12,phi:-.7*PI,seed:52});}
+  c.pony.rotation.x=c.ponyRx;
+  lathe(M.hair,c.pony,[[.012,-.36],[.03,-.28],[.044,-.15],[.04,-.05],[.026,0]],{seg:10,ragged:poor?.6:.3,seed:8});}
+function MOM_HEAD(c,poor){const{body:b,M}=c;
+  lathe(M.skin,b,[[.04,1.33],[.036,1.41],[.038,1.44]],{seg:10});
+  head(c,{y:1.5,r:.106,jaw:.28});face(c,{y:1.5,r:.106,eyeW:.26,eyeH:.13,brow:.05});
+  hairCap(c,{y:1.505,R:.115,line:hairline(nx=>.42-.2*nx*nx,.02,-.55)});                              // 이마를 드러낸 머리 (가운데가 높은 머리선)
+  for(const s of[-1,1])ball(M.hair,b,s*.08,1.548,.012,.05,.06,.1);                                    // 관자놀이 쪽 볼륨
+  if(!poor){ball(M.hair,b,0,1.47,-.125,.11,.1,.085);ball(M.hair,b,0,1.5,-.13,.06,.05,.05);}            // 쪽머리
+  else{hairCap(c,{y:1.508,R:.123,ys:1.12,thetaMax:.62*PI,line:hairline(.62,.25,-.2),m:M.scarf});       // 머릿수건
+    for(const s of[-1,1])ball(M.scarf,b,s*.02,1.44,-.12,.04,.03,.025);ball(M.scarf,b,.012,1.41,-.118,.02,.06,.01).rotation.z=.3; // 수건 매듭
+    ball(M.hair,b,0,1.43,-.112,.09,.08,.07);                                                          // 낮게 뭉친 머리
+    strand(c,{y0:1.56,y1:1.4,r:.118,phi:.36*PI,seed:61});strand(c,{y0:1.56,y1:1.43,r:.118,phi:-.4*PI,seed:62});strand(c,{y0:1.5,y1:1.36,r:.115,phi:.75*PI,seed:63});}}
+function DAD_HEAD(c,poor){const{body:b,M}=c,y=1.645,r=.112;
+  lathe(M.skin,b,[[.05,1.44],[.046,1.53],[.048,1.57]],{seg:10});
+  head(c,{y,r,jaw:.28,ys:1.1});face(c,{y,r,eyeW:.23,eyeH:.12,brow:.075});
+  if(poor)stubble(c,{y,r,jaw:.28,ys:1.1,col:0xd5c1b2});
+  for(const s of[-1,1]){torus(FM.frame,b,s*.04,1.65,.113,.028,.004,1,0);ball(FM.frame,b,s*.108,1.655,.05,.006,.006,.11);} // 안경
+  ball(FM.frame,b,0,1.655,.114,.022,.006,.006);
+  if(poor)ball(FM.tape,b,0,1.655,.115,.03,.018,.012);                                                 // 부러진 안경 테이프
+  hairCap(c,{y:1.652,R:poor?.123:.119,ys:1.06,z:-.006,line:hairline(poor?nx=>.5+.06*Math.sin(nx*13):.55,.12,-.5)}); // 짧은 머리
+  if(poor)for(const[x,yy,z,s,rz]of[[.03,1.772,-.05,.032,-.5],[-.045,1.762,-.07,.028,.6],[.065,1.735,-.09,.026,-.9]])ball(M.hair,b,x,yy,z,s,s*1.6,s*.8).rotation.z=rz;} // 뻗친 머리
+
+const ORDER=['sohee','mihee','mom','dad'],LOOKS={basic:'기본',poor:'가난'};
+
+// 인물 하나 만들기. opts: {look: 'basic'|'poor', height: cm, colors: {부위키: '#rrggbb'}}
+function build(id,opts={}){
+  const d=DEFS[id],look=d.looks[opts.look]?opts.look:'basic',L=d.looks[look],root=new THREE.Group(),size=grp(root);
+  const c={id,look,def:d,root,size,M:{},lipM:mat(d.lip),hips:[],knees:[],shoulders:[],elbows:[],pony:null,ponyRx:0};
+  for(const[k,,hex]of L.slots)c.M[k]=mat(new THREE.Color((opts.colors&&opts.colors[k])||hex));
+  c.M.skin=mat(d.skin);
+  c.pose=grp(size);c.body=grp(c.pose);
+  L.make(c);
+  // 이름표 (유니티로 내보냈을 때 관절·재질을 찾기 쉽게). hips[0]은 -x쪽 = +z를 보는 사람의 오른쪽
+  const Nm=id[0].toUpperCase()+id.slice(1),Lk=look[0].toUpperCase()+look.slice(1),side=k=>k?'L':'R';
+  root.name=`SP_${Nm}_${Lk}`;size.name='Size';c.pose.name='Pose';c.body.name='Body';
+  c.hips.forEach((g,k)=>g.name='Hip_'+side(k));c.knees.forEach((g,k)=>g.name='Knee_'+side(k));
+  c.shoulders.forEach((g,k)=>g.name='Shoulder_'+side(k));c.elbows.forEach((g,k)=>g.name='Elbow_'+side(k));
+  if(c.pony)c.pony.name='Ponytail';
+  for(const[k,m]of Object.entries(c.M))m.name=`SP_${Nm}_${Lk}_${k}`;c.lipM.name=`SP_${Nm}_lip`;
+  const hy=c.hips[0].position.y;c.pose.position.y=hy;c.body.position.y=-hy;                          // 눕기/앉기 회전축 = 엉덩이 높이
+  c.blob=new THREE.Mesh(new THREE.CircleGeometry(.24*d.base/1.45,16),new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.28,depthWrite:false}));
+  c.blob.rotation.x=-PI/2;c.blob.position.y=.012;c.blob.name='Shadow';root.add(c.blob);
+  c.P={tilt:0,hip:0,knee:0,armL:-d.rest,armR:d.rest};
+  c.setColor=(k,hex)=>{if(c.M[k])c.M[k].color.set(hex);};
+  c.setHeight=cm=>{c.height=cm;size.scale.setScalar(cm/100/d.base);};
+  c.setHeight(opts.height||Math.round(d.base*100));
+  // 자세 적용. w = 걸음 흔들림(-1~1). bob = 걸을 때 위아래 출렁임 (그림자는 바닥에 남김)
+  c.apply=(w=0,bob=0)=>{const P=c.P;
+    c.pose.rotation.x=P.tilt;c.body.rotation.z=w*.035;c.body.rotation.x=Math.abs(w)*.04;size.position.y=bob;
+    for(let k=0;k<2;k++){const s=k?-1:1,lg=s*w*.6,ar=-s*w*.45;
+      c.hips[k].rotation.set(P.hip+lg,0,0);c.knees[k].rotation.x=P.knee+.04+Math.max(0,lg)*1.1;
+      c.shoulders[k].rotation.set(ar,0,k?P.armR:P.armL);c.elbows[k].rotation.x=-.12-Math.max(0,-ar)*.6;}
+    if(c.pony){c.pony.rotation.z=w*.25;c.pony.rotation.x=c.ponyRx+Math.abs(w)*.12;}
+    c.blob.visible=Math.abs(P.tilt)<.3;};
+  c.apply(0);
+  return c;}
+return {DEFS,ORDER,LOOKS,build};
+})();
+// </NPC-BLOCK-COPY>
+</script>
 <script>
 (function(){
 const $=s=>document.querySelector(s);
@@ -604,6 +874,20 @@ const LIB_BY=Object.fromEntries(LIB.map(L=>[L.id,L]));
 function libObj(id,name,x,y,z,ry=0){const L=LIB_BY[id];beginObj(name);L.b();const o=endObj();o.lib=id;
   o.g.position.set(x,y,z);o.g.rotation.y=ry*D2R;o.def={p:[x,y,z],ry,s:[1,1,1]};o.orig=[x,y,z];o.g.updateMatrixWorld(true);return o;}
 
+/* ---- 가족 NPC: NPC 작업실 모델을 '물건'으로 만든다 → 물건 도구로 옮기기·돌리기, 텍스트 도구(N)로 대사 고치기, 방 모듈과 함께 이동, 부딪힘 ---- */
+const NPCS=[];let LOOK='basic'; // LOOK: 모두의 차림 (basic 기본 / poor 가난)
+const NPC_POSE={ // 서 있을 때 팔 자세 (말을 거는 동안은 팔을 내림)
+  counter:c=>{for(const k of[0,1]){c.shoulders[k].rotation.x=-.35;c.elbows[k].rotation.x=-1.0;}},   // 두 손을 조리대 위에
+  paper:c=>{for(const k of[0,1]){c.shoulders[k].rotation.x=-.5;c.elbows[k].rotation.x=-1.6;}},      // 신문을 펼쳐 든 팔
+  hands:c=>{for(const k of[0,1]){c.shoulders[k].rotation.x=-.5;c.elbows[k].rotation.x=-1.75;}}};   // 두 손을 앞에 모음
+const tPaper=T(16,16,(g,w,h)=>{g.fillStyle='#e9e4d8';g.fillRect(0,0,w,h);g.fillStyle='#6b645c';for(let y=4;y<h;y+=3)g.fillRect(2,y,w-4,1);g.fillStyle='#2a2220';g.fillRect(2,1,7,2);});
+function npcProp(o){const n=o.npc;if(n.prop){n.prop.parent.remove(n.prop);n.prop=null;}
+  if(n.propKind==='paper'){const m=new THREE.Mesh(new THREE.PlaneGeometry(.42,.3),lam({map:tPaper(),side:THREE.DoubleSide}));m.position.set(0,1.3,.42);m.rotation.x=-.45;n.c.body.add(m);n.prop=m;}} // 신문
+function npcObj(id,name,x,y,z,ry,o2={}){beginObj(name);const c=NPC.build(id,{look:LOOK});c.root.position.set(x,y,z);root.add(c.root);
+  addSolid([x-.2,z-.2,x+.2,z+.2,y-.6,y+1.6]);const o=endObj();o.def.ry=ry;o.g.rotation.y=ry*D2R;
+  o.npc={id,c,who:NPC.DEFS[id].name.replace(/ \(.+\)/,''),pose:o2.pose||null,propKind:o2.prop||null,prop:null,turn:0,ph:NPCS.length*1.7,talking:false};
+  npcProp(o);NPCS.push(o);return o;}
+
 // ---- 소희의 방: 바닥·문·카메라 ----
 walk(-4,0,4,6,0);
 walk(3.8,.6,4.4,1.6,0);                                   // 방문 문턱
@@ -682,6 +966,7 @@ for(const z of[-8,-5])boxMM(col(0x3e2820),11.3,Y1,z-.05,11.9,Y1+.2,z+.05);endObj
 beginObj('거실/탁자');boxMM(tex(tWood,1,.5),9.2,Y1+.4,-7.2,10.4,Y1+.46,-5.8);boxMM(col(0x3e2820),9.3,Y1,-7.1,10.3,Y1+.4,-5.9);solid(9.2,-7.2,10.4,-5.8,Y1);
 cyl(col(0xf6efe4),9.6,Y1+.5,-6.6,.06,.08);ball(col(0xd16f80),10,Y1+.55,-6.2,.12);endObj();
 O('거실/안락의자1',()=>armchair(8,Y1,-8.6,Math.PI*.75));O('거실/안락의자2',()=>armchair(8,Y1,-4.4,Math.PI*.25));
+npcObj('dad','NPC/아빠',8.6,Y1,-5.0,53,{pose:'paper',prop:'paper'}); // 벽난로 앞, 안락의자 사이에 서서 신문 (임시 자리)
 O('거실/화분1',()=>plant(6.6,Y1,-11.4,1.3));O('거실/화분2',()=>plant(19.4,Y1,-1.6,1.3));O('거실/화분3',()=>plant(12.6,Y1,-1.6,1.1));
 // 큰 샹들리에
 beginObj('거실/샹들리에');const bc=group(10,1.0,-6.5);boxMM(col(0x3a2a20),-.015,.2,-.015,.015,HH-1.0,.015,bc);cyl(col(0xc9a24a),0,0,0,.7,.06,bc,20);cyl(col(0xc9a24a),0,.45,0,.4,.05,bc,16);
@@ -739,6 +1024,8 @@ for(const[i,x]of[[1,8.35],[2,9],[3,9.65]])libObj('barStool','부엌/바 스툴'+
 for(const[i,x]of[[1,8.4],[2,9],[3,9.6]])libObj('pendant','부엌/펜던트 조명'+i,x,Y1+1.9,-21.9);
 libObj('wineRack','부엌/와인 장',11.77,Y1,-21.6,-90);libObj('plantBig','부엌/화분',6.45,Y1,-18.75);libObj('trashBin','부엌/휴지통',11.75,Y1,-24.2);
 pLight(0xfff0d8,1.0,8,9,Y1+2.4,-21.5);
+npcObj('mom','NPC/엄마',9,Y1,-22.95,0,{pose:'counter'});   // 아일랜드 식탁 안쪽에서 아침 준비 (임시 자리)
+npcObj('mihee','NPC/미희',11.3,Y1,-15.3,-90,{pose:'hands'}); // 식탁 동쪽 끝에 서 있음 (임시 자리)
 zone('부엌 (임시)',5.9,-25.1,12.1,-18.1,-4,-.5,{p:[11.7,Y1+2.75,-18.45],t:[7.6,Y1+.2,-23.6],fov:66});
 endMod();
 // 손님방 x14~20 z-18~-12 (거실 남쪽 오른쪽 문) — 모듈: 문 중심 x=17
@@ -822,70 +1109,30 @@ try{const mo=JSON.parse(localStorage.getItem(MOD_LS)||'{}');for(const id in mo)i
 try{const s=JSON.parse(localStorage.getItem(OBJ_LS)||'{}');for(const o of OBJS){const v=s[o.name];if(!v)continue;o.g.position.set(...v.p);o.g.rotation.y=v.ry*D2R;o.g.scale.set(...v.s);}}catch(e){}
 rebuildSol();
 
-/* ================= 소희 (곡면 모델: 무릎 길이 잠옷 원피스, 허리까지 오는 흑발, 맨발, 창백한 얼굴) ================= */
-// 도형을 이어 붙이는 대신, 옆모습 윤곽선을 돌려 깎아(Lathe) 몸통·팔다리·머리카락을 매끈한 한 덩어리 곡면으로 만든다.
-// 윤곽 = [[반지름, 높이], ...] 아래→위 순서. 머리카락 끝은 가닥마다 길이를 다르게 해서 들쭉날쭉하게.
-// 계층: girl(위치·방향) → pose(엉덩이 높이 회전축: 눕기/앉기) → body → 엉덩이/어깨 → 무릎/팔꿈치
-const girl=group();const pose=group(0,.56,0,girl);const body=group(0,-.56,0,pose);
-const cm=hex=>lam({color:hex,side:THREE.DoubleSide},'d'+hex);
-const skin=cm(0xeee2d9),hair=cm(0x161112),gown=cm(0xe6cfc6),trim=cm(0xb27e86),eye=col(0x1b1414),lip=col(0xb98587);
-// folds: 치마 주름 (fy0 높이부터 fy1까지 점점 깊어짐, fwave = 밑단이 주름 따라 오르내리는 정도)
-function lathe(m,pts,p,{seg=14,phi0=0,phiL=Math.PI*2,x=0,y=0,z=0,sz=1,ragged=0,seed=1,folds=0,famp=0,fy0=0,fy1=0,fwave=0}={}){
-  const g=new THREE.LatheGeometry(pts.map(a=>new THREE.Vector2(a[0],a[1])),seg,phi0,phiL),pa=g.attributes.position;
-  if(ragged){const n=pts.length,yt=pts[n-1][1];
-    for(let k=0;k<pa.count;k++){const i=Math.floor(k/n),f=1-k%n/(n-1);pa.setY(k,yt+(pa.getY(k)-yt)*(1+(noise(i,7,seed)-.5)*ragged*f*f));}}
-  if(folds)for(let k=0;k<pa.count;k++){const px=pa.getX(k),py=pa.getY(k),pz=pa.getZ(k),ph=Math.atan2(px,pz),t=clamp((fy0-py)/(fy0-fy1),0,1),mm=1+famp*t*Math.sin(folds*ph);
-    pa.setXYZ(k,px*mm,py+fwave*t*t*Math.cos(folds*ph),pz*mm);}
-  if(ragged||folds)g.computeVertexNormals();
-  const me=new THREE.Mesh(g,m);me.position.set(x,y,z);me.scale.z=sz;p.add(me);return me;}
-function torus(m,x,y,z,r,t,sz,p){const me=new THREE.Mesh(new THREE.TorusGeometry(r,t,5,18),m);me.position.set(x,y,z);me.rotation.x=Math.PI/2;me.scale.y=sz;p.add(me);return me;}
-// 몸통 + 원피스:가슴 아래 리본 허리선에서 주름이 잡히며 퍼지는 치마, 밑단 띠 + 레이스 프릴, 둥근 깃, 단추 3개, 허리 앞 리본
-const lace=cm(0xf4ebe4),SKIRT={folds:9,famp:.065,fy0:.88,fy1:.33,fwave:.012};
-lathe(gown,[[.2,.33],[.19,.42],[.17,.55],[.15,.68],[.132,.8],[.12,.87],[.112,.9],[.124,.97],[.135,1.03],[.14,1.07],[.13,1.11],[.1,1.145],[.06,1.172],[.036,1.188]],body,{seg:36,sz:.8,...SKIRT});
-lathe(trim,[[.1915,.44],[.1878,.462]],body,{seg:36,sz:.8,...SKIRT});                        // 밑단 위 띠
-lathe(lace,[[.24,.3],[.215,.33],[.17,.37]],body,{seg:48,sz:.8,folds:16,famp:.08,fy0:.37,fy1:.3,fwave:.006}); // 레이스 프릴
-torus(trim,0,.9,0,.113,.008,.8,body);                                                          // 허리 리본띠
-for(const s of[-1,1]){lathe(lace,[[.152,1.095],[.134,1.12],[.106,1.15],[.07,1.176]],body,{seg:8,sz:.8,phi0:s>0?.03*Math.PI:1.57*Math.PI,phiL:.4*Math.PI}); // 둥근 깃
-  ball(trim,s*.025,.905,.096,.04,.028,.014,body);ball(trim,s*.016,.85,.097,.014,.08,.008,body).rotation.z=s*.25;} // 허리 리본 고리·꼬리
-ball(trim,0,.903,.1,.016,.02,.014,body);
-for(const[by,bz]of[[1.05,.112],[.995,.105],[.945,.099]])ball(trim,0,by,bz,.016,.016,.01,body); // 단추
-lathe(skin,[[.036,1.12],[.032,1.19],[.036,1.24]],body,{seg:10}); // 목
-// 머리: 구를 갸름하게 (턱 쪽을 좁힘). 얼굴은 +z
-const hg=new THREE.SphereGeometry(.105,20,16),hp=hg.attributes.position;
-for(let k=0;k<hp.count;k++){const y=hp.getY(k),t=y<0?-y/.105:0;hp.setXYZ(k,hp.getX(k)*(1-.26*Math.pow(t,1.6)),y*1.12,hp.getZ(k)*(1-.12*t*t));}
-hg.computeVertexNormals();const head=new THREE.Mesh(hg,skin);head.position.set(0,1.33,0);body.add(head);
-for(const s of[-1,1])ball(eye,s*.036,1.332,.099,.03,.017,.012,body); // 가늘고 긴 눈
-ball(skin,0,1.307,.102,.012,.02,.014,body);ball(lip,0,1.282,.095,.022,.006,.008,body);
-// 머리카락: 정수리~일자 앞머리를 한 덩어리로(앞쪽만 눈썹 높이에서 끊음) + 등 뒤로 내려오는 긴 머리 + 얼굴 옆으로 흘러내린 두 가닥
-{const cg=new THREE.SphereGeometry(.118,20,12,0,Math.PI*2,0,.5*Math.PI),ca=cg.attributes.position;
- for(let k=0;k<ca.count;k++){const z=ca.getZ(k),f=clamp((z/.118-.15)/.3,0,1);ca.setY(k,Math.max(ca.getY(k),f*.008));}
- cg.computeVertexNormals();const cap=new THREE.Mesh(cg,hair);cap.position.set(0,1.34,-.004);cap.scale.y=1.1;body.add(cap);}
-lathe(hair,[[.115,.8],[.125,.9],[.135,1.0],[.142,1.08],[.135,1.17],[.125,1.25],[.12,1.31],[.112,1.37]],body,{seg:16,phi0:.4*Math.PI,phiL:1.2*Math.PI,z:-.02,ragged:.35,seed:3});
-for(const s of[-1,1])lathe(hair,[[.15,1.0],[.152,1.07],[.14,1.16],[.126,1.25],[.12,1.31],[.118,1.37]],body,{seg:5,phi0:s>0?.15*Math.PI:1.67*Math.PI,phiL:.18*Math.PI,ragged:.5,seed:s>0?5:6});
-// 팔다리: 관절마다 그룹 (엉덩이→무릎→발, 어깨→팔꿈치→손)
-const hips=[],knees=[],shoulders=[],elbows=[];
-for(const s of[-1,1]){
-  const hp=group(s*.075,.56,0,body);lathe(skin,[[.04,-.27],[.046,-.2],[.058,-.08],[.06,0]],hp,{seg:10});
-  const kn=group(0,-.27,0,hp);lathe(skin,[[.025,-.25],[.03,-.21],[.044,-.12],[.04,-.03],[.038,0]],kn,{seg:10});ball(skin,0,-.262,.032,.05,.04,.125,kn);
-  hips.push(hp);knees.push(kn);
-  const sh=group(s*.15,1.09,0,body);lathe(skin,[[.029,-.26],[.033,-.18],[.038,-.1]],sh,{seg:10});
-  lathe(gown,[[.034,-.14],[.048,-.11],[.056,-.05],[.05,0],[.03,.025]],sh,{seg:12});torus(trim,0,-.14,0,.036,.007,1,sh);
-  const el=group(0,-.26,0,sh);lathe(skin,[[.021,-.21],[.025,-.15],[.03,-.06],[.029,0]],el,{seg:10});ball(skin,0,-.255,.004,.024,.085,.044,el);
-  shoulders.push(sh);elbows.push(el);
-}
-// 발밑 그림자 (서 있을 때만)
-const blob=new THREE.Mesh(new THREE.CircleGeometry(.24,16),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.28,depthWrite:false}));blob.rotation.x=-Math.PI/2;girl.add(blob);
+/* ================= 소희 (NPC 작업실 모델 — 위 NPC 블록의 'sohee' 정의를 그대로 씀) ================= */
+// 계층: girl(위치·방향) → NPC root → size(키) → pose(엉덩이 높이 회전축: 눕기/앉기) → body → 엉덩이/어깨 → 무릎/팔꿈치
+// 차림(look)은 전역 LOOK(가족 NPC 도우미 옆에 선언)을 따른다 (플레이 중 L키로 기본 ↔ 가난 미리보기). 모델을 바꿔 끼워도 위치·자세(P)는 그대로.
+const girl=group();let sohee=null;
+function buildSohee(){if(sohee)girl.remove(sohee.root);sohee=NPC.build('sohee',{look:LOOK});girl.add(sohee.root);}
+buildSohee();
 const REST=.12;
 // 상태: 위치/방향(a: 라디안, 0=+z), 자세
 const P={x:-2.95,y:.14,z:3.65,a:Math.PI/2,tilt:-Math.PI/2,hip:0,armL:-REST,armR:REST,phase:0,fy:0}; // fy = 지금 서 있는 바닥 높이
-function applyPose(walkSw){
-  const w=walkSw||0;
-  girl.position.set(P.x,P.y,P.z);girl.rotation.y=P.a;pose.rotation.x=P.tilt;
-  body.rotation.z=w*.035;body.rotation.x=Math.abs(w)*.04; // 걸을 때 골반이 살짝 흔들리고 몸이 앞으로 기욺
-  for(let k=0;k<2;k++){const s=k?-1:1,lg=s*w*.6,ar=-s*w*.45;
-    hips[k].rotation.set(P.hip+lg,0,0);knees[k].rotation.x=(P.knee||0)+.04+Math.max(0,lg)*1.1; // 뒤로 간 다리는 무릎을 굽혀 끌어옴
-    shoulders[k].rotation.set(ar,0,k?P.armR:P.armL);elbows[k].rotation.x=-.12-Math.max(0,-ar)*.6;}
-  blob.visible=Math.abs(P.tilt)<.3;blob.position.y=P.fy-P.y+.012;}
+function applyPose(walkSw){const w=walkSw||0,c=sohee,q=c.P;
+  girl.position.set(P.x,P.y,P.z);girl.rotation.y=P.a;
+  q.tilt=P.tilt;q.hip=P.hip;q.knee=P.knee||0;q.armL=P.armL;q.armR=P.armR;
+  c.apply(w,0);c.blob.position.y=P.fy-P.y+.012;} // 걸을 때 몸은 출렁여도(P.y) 그림자는 바닥에
+// 가족 NPC 매 프레임: 숨쉬기, 말을 걸면 소희 쪽으로 돌아봄(끝나면 제자리), 서 있을 때의 팔 자세
+function npcFrame(dt){for(const o of NPCS){const n=o.npc,c=n.c,g=o.g;let want=0;
+  if(n.talking){const a=Math.atan2(P.x-g.position.x,P.z-g.position.z)-g.rotation.y;want=Math.atan2(Math.sin(a),Math.cos(a));}
+  n.turn+=Math.atan2(Math.sin(want-n.turn),Math.cos(want-n.turn))*Math.min(1,dt*6);c.root.rotation.y=n.turn;
+  c.apply(0,Math.sin(T0*1.1+n.ph)*.004);
+  if(n.pose&&!n.talking)NPC_POSE[n.pose](c);if(n.prop)n.prop.visible=!n.talking;}}
+function talkTo(o){o.npc.talking=true;const g=o.g;P.a=Math.atan2(g.position.x-P.x,g.position.z-P.z);} // 소희도 상대를 본다
+// 차림 바꾸기 (기본 ↔ 가난): 소희와 가족 모두 같은 차림으로. 위치·대사·색 편집값은 유지
+function setLook(look){LOOK=look;buildSohee();applyPose(0);
+  for(const o of NPCS){const n=o.npc,old=n.c,c=NPC.build(n.id,{look});c.root.position.copy(old.root.position);o.g.remove(old.root);o.g.add(c.root);n.c=c;o.meshes=null;npcProp(o);if(o.col)applyObjLook(o);}
+  toast('차림: '+NPC.LOOKS[look]+' (미리보기 · L키로 전환)');}
 
 /* ================= 카메라 구도 ================= */
 const SH={
@@ -1116,6 +1363,7 @@ function exportText(){const L=['[카메라]',...CAMS.map(c=>`${c.name}: p:[${c.r
   L.push('[방 위치 (문 중심 이동량 m)]',...(mm.length?mm.map(m=>`${m.name}: ${m.axis==='x'?'동서':'남북'} 방향으로 ${r2(m.off)} (문 중심 ${r2(m.door0+m.off)})`):['(옮긴 방 없음)']));
   const uo=userObjs();
   L.push('[보관함에서 꺼낸 물건 (이름 / 보관함 항목 → 유니티 파일 이름)]',...(uo.length?uo.map(o=>{const g=o.g;return `${o.name} / ${LIB_BY[o.lib].name} → ${LIB_BY[o.lib].file}: p:[${[g.position.x,g.position.y,g.position.z].map(r2)}], ry:${Math.round(g.rotation.y/D2R)}, s:[${[g.scale.x,g.scale.y,g.scale.z].map(r2)}]`;}):['(꺼낸 물건 없음)']));
+  L.push('[NPC (이름 → 유니티 모델 파일: 위치, 방향, 팔 자세)]',...NPCS.map(o=>{const g=o.g;return `${o.name} → ${o.npc.c.root.name}.dae: p:[${[g.position.x,g.position.y,g.position.z].map(r2)}], ry:${Math.round(g.rotation.y/D2R)}, 자세:${o.npc.pose||'-'}${o.mod?' (방 모듈 "'+MODS[o.mod].name+'" 소속)':''}`;}));
   const lk=OBJS.filter(o=>o.col||o.img);
   L.push('[색·그림]',...(lk.length?lk.map(o=>`${o.name}: ${o.col&&o.col.all?'전체 '+o.col.all:''}${o.col&&o.col.parts&&Object.keys(o.col.parts).length?' 부분 '+Object.entries(o.col.parts).map(([i,c])=>'#'+i+'='+c).join(' '):''}${o.img?' (그림 넣음 — 파일로 따로 보내 주세요)':''}`):['(바뀐 색·그림 없음)']));
   L.push('[카메라 구역]',...ZONES.map(z=>`${z.user?'(추가) ':''}${z.name}: x ${r2(z.x0)}~${r2(z.x1)}, z ${r2(z.z0)}~${r2(z.z1)}, 높이 ${r2(z.ymin)}~${r2(z.ymax)}`));
@@ -1397,6 +1645,12 @@ function objSpot(o,create){let s=spots.find(x=>x.o===o);if(s||!create)return s||
   const bb=new THREE.Box3().setFromObject(o.g),rr=r2(Math.max(bb.max.x-bb.min.x,bb.max.z-bb.min.z)/2+.7); // 범위 = 가구 크기의 절반 + 0.7m
   s={id:'obj:'+o.name,kind:'text',obj:o.name,o,off:[0,0],x:o.def.p[0],z:o.def.p[2],y:o.def.p[1]>-1.5?0:Y1,r:rr,r0:rr,seen:0,lines:[],lines0:[]};
   spots.push(s);if(spotVisReady)makeSpotVis(s);return s;}
+// 가족 NPC 대사 (임시 — 기획 확정 전. 편집 모드 텍스트 도구(N)로 NPC를 클릭해 고칠 수 있음. "이름: 대사" 형식)
+const NPC_LINES={
+ 'NPC/엄마':[{who:'엄마',t:'“소희야, 이제 일어났니? 아침은 식탁에 차려 뒀는데… 다 식었겠다.”'},{who:'엄마',t:'“괜찮아, 다시 데워 줄게. 언니는 벌써 다 먹었어.”'}],
+ 'NPC/아빠':[{who:'아빠',t:'“…늦잠 잤구나.”'},{t:'아빠는 신문에서 눈을 떼지 않는다.'},{who:'아빠',t:'“좋은 아침이다, 소희야. 오늘도 날이 참 좋아.”'}],
+ 'NPC/미희':[{who:'미희',t:'“이제 일어났어? 엄마가 몇 번이나 깨우러 올라가려는 걸 내가 말렸어.”'},{who:'미희',t:'“…너, 얼굴이 왜 그래. 어디 아파?”'},{who:'소희',t:'“아니? 멀쩡한데.”'}]};
+for(const o of NPCS){const s=objSpot(o,true);s.lines=jcopy(NPC_LINES[o.name]||[]);s.lines0=jcopy(s.lines);s.r=s.r0=o.name==='NPC/엄마'?2.4:1.2;} // 말 걸기 범위: 엄마는 아일랜드 식탁 건너편에서도
 const TEXT_LS='sp11_texts_v1';
 try{const tv=JSON.parse(localStorage.getItem(TEXT_LS)||'null');
   if(tv){for(const n of tv.objSpots||[]){const o=OBJS.find(x=>x.name===n);if(o)objSpot(o,true);}
@@ -1457,7 +1711,7 @@ $('#spotShrinkAll').addEventListener('click',()=>{pushUndo();for(const s of spot
 function inspect(s){
   if(s.kind==='door'){const d=s.door;if(d.locked){say(d.lines);return;}                           // 잠긴 문: 대사만
     if(hasText(s)){say(d.lines,()=>{d.target=1;snd.door();});return;}d.target=1;snd.door();return;} // 열리는 문: 대사가 있으면 보여 준 뒤 열기
-  if(s.kind==='text'){s.seen++;say(s.lines);return;}                                              // 가구에 붙인 텍스트
+  if(s.kind==='text'){s.seen++;const n=s.o&&s.o.npc;if(n)talkTo(s.o);say(s.lines,()=>{if(n)n.talking=false;});return;} // 가구에 붙인 텍스트 / NPC에게 말 걸기
   // 숨은 대사: 4곳을 전부 한 번씩 본 뒤 시계를 다시 조사하면
   const secret=s.secret&&s.seen>0&&allSeen();
   s.seen++;
@@ -1542,6 +1796,7 @@ addEventListener('keydown',e=>{
   if(e.code==='KeyE'||e.code==='Space'||e.code==='Enter'){e.preventDefault();action();}
 
   if(e.code==='KeyG')cycleGrad();
+  if(e.code==='KeyL')setLook(LOOK==='basic'?'poor':'basic');
   if(e.code==='KeyM')$('#mute').click();});
 addEventListener('keyup',e=>{const kc=keyCodeOf(e);if(keyMap[kc])K[keyMap[kc]]=false;EK[kc]=false;delete imeT[kc];
   if(e.key==='Shift'){EK.ShiftLeft=EK.ShiftRight=false;}});
@@ -1608,11 +1863,11 @@ function frame(dt){T0+=dt;keyWatch();
     else P.phase=lerp(P.phase,Math.round(P.phase/Math.PI)*Math.PI,.15);
     sw=Math.sin(P.phase)*(speed?Math.min(speed/2.4,1):0);
     P.y=P.fy+(speed?Math.abs(Math.cos(P.phase))*.025:Math.sin(T0*2)*.004);}
-  applyPose(sw);
+  applyPose(sw);npcFrame(dt);
   clkMesh.visible=!ringing||(T0%.5)<.3;
   for(const d of DOORS){d.open+=(d.target-d.open)*Math.min(1,dt*5);d.leaf.rotation.y=d.swing*d.open;}
   const ns=control&&!dlg?nearSpot():null;$('#prompt').hidden=!ns;
-  if(ns)$('#prompt').textContent=ns.kind==='door'?'[E] 문 열기':'[E] 조사';
+  if(ns)$('#prompt').textContent=ns.kind==='door'?'[E] 문 열기':ns.o&&ns.o.npc?'[E] 말 걸기':'[E] 조사';
   drawDlg(dt);
   updateCam(dt);updateChip();updateSpotVis();
   const tz=toneZoneNow();if(tz!==lastToneZ){lastToneZ=tz;applyTone();} // 구역이 바뀌면 (카메라 컷) 톤도 같이
@@ -1621,7 +1876,7 @@ function frame(dt){T0+=dt;keyWatch();
 // 첫 화면: 타이틀 뒤로 돌하우스가 보이게
 savedSnap=snapState();applyTone();setMode('play');changed(); // 편집 모드 초기화 (저장된 값 기준)
 applyPose(0);setView(1);updateDev();tick(); // 시점 확정: 구석 고정 카메라 (플레이어 조작 불가)
-window.__sp={P,spots,FLAG,DOORS,curZone,cam,free,floorAt,solids,WALK,frame,CAMS,OBJS,ZONES,FLY,MODS,modSel,setModOffset,setMode,setTool,get toneSel(){return toneSel},set toneSel(v){toneSel=v},toneZoneNow,objSel,spotSel,textSel,zoneSel,objSpot,say,get spotVisOn(){return spotVis.visible},jumpTo,undo,redo,saveAll,TONE,get mode(){return mode},get SOL(){return SOL},get oSel(){return oSel},get editing(){return editing},skip:skipSeq,action,setView,get dlg(){return dlg},get control(){return control},K};
+window.__sp={P,spots,FLAG,DOORS,NPCS,setLook,get LOOK(){return LOOK},curZone,cam,free,floorAt,solids,WALK,frame,CAMS,OBJS,ZONES,FLY,MODS,modSel,setModOffset,setMode,setTool,get toneSel(){return toneSel},set toneSel(v){toneSel=v},toneZoneNow,objSel,spotSel,textSel,zoneSel,objSpot,say,get spotVisOn(){return spotVis.visible},jumpTo,undo,redo,saveAll,TONE,get mode(){return mode},get SOL(){return SOL},get oSel(){return oSel},get editing(){return editing},skip:skipSeq,action,setView,get dlg(){return dlg},get control(){return control},K};
 })();
 </script>
 </body></html>
