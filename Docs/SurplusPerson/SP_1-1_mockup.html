@@ -307,6 +307,7 @@ kbd{font-family:var(--f-text);font-size:12px;color:var(--ink);border:1px solid v
 <div class="ref">480×360 렌더 → 잉크선·디더링·색 제한 화면 효과. 레퍼런스: 단면 저택 일러스트, 픽셀 어드벤처, 1비트 만화, PS2 인형의 방. 오프닝 중 E = 건너뛰기(개발용).</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="models/sp_flesh_room.js"></script><!-- 블렌더로 만든 살덩이 방 모델 (Tools/Blender/sp_flesh_room.py로 다시 뽑음) -->
 <script>
 (function(){
 const $=s=>document.querySelector(s);
@@ -433,7 +434,7 @@ const ASSET_META={
   '손님방/문':['방문','SP_Door','문·창'],'손님방/침대':['손님 침대','SP_Bed_Guest','침실'],'손님방/협탁':['협탁·스탠드 (손님방)','SP_Nightstand_Guest','침실'],
   '손님방/옷장':['옷장 (손님방)','SP_Wardrobe_Guest','침실'],'손님방/러그':['타원 러그 (손님방)','SP_Rug_Oval_Guest','거실'],'손님방/초상화':['초상화 (손님방)','SP_Painting_Portrait_Guest','벽'],
   // 따로 떨어진 공간
-  '살덩이 방/거대한 눈':['거대한 눈 (살덩이 방)','SP_Flesh_GiantEye','살덩이 방'],'살덩이 방/이빨 입':['이빨 입 (살덩이 방)','SP_Flesh_TeethMouth','살덩이 방'],
+  '살덩이 방/얼굴 문':['얼굴 문 (입·이빨·눈알, 살덩이 방)','SP_Flesh_FaceDoor','살덩이 방'],'살덩이 방/입구 문':['살에 먹힌 입구 문 (살덩이 방)','SP_Flesh_EntranceDoor','살덩이 방'],
   '연구소/컴퓨터 기둥':['거대한 컴퓨터 기둥','SP_Lab_ComputerPillar','연구소'],'연구소/계기판1':['계기판','SP_Lab_Console','연구소'],'연구소/계기판2':['계기판','SP_Lab_Console','연구소'],
   '연구소/계기판3':['계기판','SP_Lab_Console','연구소'],'연구소/계기판4':['계기판','SP_Lab_Console','연구소'],
   '연구소/의자1':['연구소 의자','SP_Lab_Chair','연구소'],'연구소/의자2':['연구소 의자','SP_Lab_Chair','연구소'],'연구소/의자3':['연구소 의자','SP_Lab_Chair','연구소']};
@@ -929,40 +930,34 @@ const porchG=new THREE.Group();S.add(porchG);
   for(const[x,z,s]of[[27,-13,1.2],[29,2,1.0]]){cyl(col(0x6a4636),x,Y1+1.2*s,z,.15*s,2.4*s);ball(col(0x6f9356),x,Y1+3*s,z,2.4*s,2.2*s,2.4*s);}
   root=pr;const l=new THREE.PointLight(0xe6f1ff,.7,9,1);l.position.set(22.5,Y1+2.6,-6.5);porchG.add(l);
   walk(19.9,-7.4,24.4,-5.6,Y1);walk(20.2,-8.2,23.6,-4.8,Y1);} // 현관문 문턱 + 포치
-// ---- 살덩이 방 (x 60~74, z -12~-1, 높이 4.2): 벽·천장이 내장으로 된 굴. 번들거리는 살덩이·창자·갈비뼈 아치, 북쪽 벽에 소희를 따라 구르는 거대한 눈과 이빨 입 ----
-const tFlesh=T(32,32,(g,w,h)=>{for(let y=0;y<h;y++)for(let x=0;x<w;x++){const n=noise(x>>1,y>>1,61),f=Math.sin((x+Math.sin(y*.4)*3)*.5)*.5+.5;
-    g.fillStyle=`rgb(${150+n*60-f*40|0},${40+n*30-f*15|0},${50+n*30-f*15|0})`;g.fillRect(x,y,1,1);}
-  g.strokeStyle='rgba(70,10,20,.7)';for(let i=0;i<5;i++){let x=noise(i,0,62)*w,y=0;g.beginPath();g.moveTo(x,y);for(let k=0;k<10;k++){x+=(noise(i,k,63)-.5)*6;y+=h/10;g.lineTo(x,y);}g.stroke();}}); // 핏줄
-{const x0=60,x1=74,z0=-12,z1=-1,h=4.2,cx=67,cz=-6.5,W=14,D=11;
-  const fl=n=>new THREE.MeshPhongMaterial({map:tFlesh(n,n),shininess:70,specular:0x6a3a3a}),fW=fl(3),fB=fl(1); // 번들거리는 젖은 살
-  const dark=new THREE.MeshPhongMaterial({color:0x2a0608,shininess:20}),bone=new THREE.MeshPhongMaterial({color:0xe8d6c0,shininess:30});
-  quad(fl(5),cx,0,cz,W,D,-Math.PI/2,0);quad(fW,cx,h,cz,W,D,Math.PI/2,0);
-  quad(fW,cx,h/2,z0,W,h,0,0);quad(fW,cx,h/2,z1,W,h,0,Math.PI);quad(fW,x0,h/2,cz,D,h,0,Math.PI/2);quad(fW,x1,h/2,cz,D,h,0,-Math.PI/2);
-  const pulse=[]; // 숨 쉬듯 부풀었다 줄어드는 혹
-  for(let i=0;i<80;i++){const side=i%4,t=noise(i,1,71),s=.5+noise(i,2,71)*1.1,y=noise(i,3,71)*h;let x,z; // 벽에 반쯤 묻힌 살덩이 혹
-    if(side===0){x=x0;z=lerp(z0,z1,t);}else if(side===1){x=x1;z=lerp(z0,z1,t);}else if(side===2){x=lerp(x0,x1,t);z=z0;}else{x=lerp(x0,x1,t);z=z1;}
-    if(side===3&&Math.abs(x-cx)<3.2)continue; // 북쪽 벽 가운데는 얼굴 자리
-    const b=ball(fB,x,y,z,s,s*(.7+noise(i,4,71)*.8),s);if(i%6===0)pulse.push({b,s0:b.scale.clone(),ph:i});}
-  for(let i=0;i<30;i++){const x=lerp(x0+.5,x1-.5,noise(i,5,72)),z=lerp(z0+.5,z1-.5,noise(i,6,72)),s=.6+noise(i,7,72)*1.2;ball(fB,x,h,z,s,s*.6,s); // 천장 혹
-    if(i%2===0){const L=.6+noise(i,8,72)*1.6;cyl(fB,x+.2,h-L/2,z,.03+noise(i,9,72)*.04,L);ball(fB,x+.2,h-L,z,.12,.18,.12);}}             // 늘어진 힘줄 + 맺힌 방울
-  for(let x=x0+1.5;x<x1-.5;x+=2.2){const r=new THREE.Mesh(new THREE.TorusGeometry(D/2-.15,.13,6,28,Math.PI),bone); // 갈비뼈 아치: 바닥에서 벽 타고 천장을 가로지름
-    r.rotation.y=Math.PI/2;r.position.set(x,0,cz);r.scale.set(1,(h-.25)/(D/2-.15),1);root.add(r);}
-  for(let k=0;k<6;k++){const wx=k<3?x0+.3:x1-.3,pts=[];for(let j=0;j<6;j++)pts.push(new THREE.Vector3(wx+(noise(k,j,73)-.5)*.3,.4+noise(k,j,74)*(h-.8),lerp(z0+.6,z1-.6,j/5)+(noise(k,j,75)-.5)));
-    root.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),48,.16+noise(k,0,76)*.1,8,false),fB));}              // 벽을 따라 늘어진 창자
-  let eye=null;
-  O('살덩이 방/거대한 눈',()=>{ball(fB,cx,3.0,z1,3.4,2.0,1.2);                                              // 눈두덩
-    eye=group(cx,3.0,z1-.3);ball(new THREE.MeshPhongMaterial({color:0xf2e6dc,shininess:90}),0,0,0,1.7,1.7,1.7,eye);
-    for(const[r,zz,c]of[[.45,.8,0x8c1a2a],[.2,.84,0x0c0203]]){const d=cyl(new THREE.MeshPhongMaterial({color:c,shininess:60}),0,0,zz,r,.05,eye,20);d.rotation.x=Math.PI/2;} // 홍채·동공
-    ball(fB,cx,3.95,z1-.4,2.5,.6,.85);ball(fB,cx,2.05,z1-.4,2.3,.5,.75);});                                  // 위·아래 눈꺼풀
-  O('살덩이 방/이빨 입',()=>{boxMM(dark,cx-2.2,0,z1-.3,cx+2.2,1.75,z1-.05);                                  // 입 안 어둠 (나중에 통로로 쓸 수 있음)
-    const lip=new THREE.Mesh(new THREE.TorusGeometry(1,.26,8,28),fB);lip.scale.set(2.4,.95,.6);lip.position.set(cx,.95,z1-.25);root.add(lip);
-    const tooth=new THREE.MeshPhongMaterial({color:0xe9dfc8,shininess:50});
-    for(let i=0;i<8;i++){const x=cx-1.75+i*.5,u=noise(i,1,77)*.25,d=noise(i,2,77)*.2; // 이빨 길이가 제각각
-      boxMM(tooth,x-.22,1.25-u,z1-.52,x+.22,1.78,z1-.25);boxMM(tooth,x-.2,.1,z1-.5,x+.2,.55+d,z1-.25);}
-    solid(cx-2.6,z1-.8,cx+2.6,z1,0);});
-  pLight(0xff8a7a,1.0,10,cx,3.2,cz);pLight(0xffb59a,.9,8,cx,1.6,z1-2.2);pLight(0x9a2030,.7,9,cx,2,z0+1.5);
-  SPACE_FX.push(()=>{if(eye)eye.lookAt(P.x,P.y+1.2,P.z);for(const p of pulse){const k=1+Math.sin(T0*1.6+p.ph)*.06;p.b.scale.copy(p.s0).multiplyScalar(k);}});
-  spaceRoom('살덩이 방',x0,x1,z0,z1,{p:[71.66,2.32,-11.43],t:[69.28,1.4,-7.13],fov:68},{sat:1.2,vig:.7});} // 2026-10-23 직접 조정 (남동쪽 구석에서 눈·입 쪽을 봄)
+// ---- 살덩이 방 (x 63.5~70.5, z -36~-1, 높이 4.4~5.6): 좌우로 좁고 앞뒤로 긴 내장 굴 (2026-11-18 블렌더 모델로 교체) ----
+//   모델: Tools/Blender/sp_flesh_room.py (블렌더로 실행) → models/sp_flesh_room.js. 모양을 고치려면 그 스크립트를 고쳐 다시 뽑는다.
+//   남쪽 끝 = 들어온 문 (식당 문이 살에 먹힘), 북쪽 끝 = 살 벽을 밀고 나온 사람 얼굴 문 (벌린 입·이빨 → 목구멍 → 연구소, 위에 소희를 따라 구르는 눈알 두 개)
+function b64u8(s){const b=atob(s),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a;}
+function bMesh(o,mat,p,ox,oz){const g=new THREE.BufferGeometry(); // 블렌더 모델 조각 하나 → 메시
+  g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(b64u8(o.v).buffer),3));
+  g.setAttribute('normal',new THREE.BufferAttribute(new Int8Array(b64u8(o.nr).buffer),3,true));
+  g.setAttribute('color',new THREE.BufferAttribute(b64u8(o.c),3,true));
+  if(o.i){const ib=b64u8(o.i).buffer;g.setIndex(new THREE.BufferAttribute(o.i32?new Uint32Array(ib):new Uint16Array(ib),1));}
+  const me=new THREE.Mesh(g,mat);me.position.set(o.p[0]+ox,o.p[1],o.p[2]+oz);p.add(me);return me;}
+const fleshG=new THREE.Group();S.add(fleshG); // 굴 벽·바닥·갈비뼈·창자·힘줄 (옮길 일 없는 구조)
+{const ox=67,oz=-1,x0=ox-3.5,x1=ox+3.5,z0=oz-35,z1=oz,M=window.SP_MODELS&&SP_MODELS.fleshRoom;
+  const ph=(shininess,specular)=>new THREE.MeshPhongMaterial({vertexColors:true,shininess,specular,side:THREE.DoubleSide}); // 번들거리는 젖은 살
+  const MAT={flesh:ph(70,0x6a3a3a),floor:ph(60,0x4a2a2a),gut:ph(80,0x7a4a50),bone:ph(25,0x332a22),skin:ph(35,0x3a2a28),tooth:ph(50,0x5a5040),eye:ph(110,0x999999),wood:new THREE.MeshLambertMaterial({vertexColors:true})};
+  const pulse=[],eyes=[]; // 숨 쉬듯 부풀었다 줄어드는 혹, 소희를 따라 구르는 눈알
+  if(!M)console.warn('살덩이 방 모델(models/sp_flesh_room.js)을 못 읽음');
+  else{const part=pre=>M.objs.filter(o=>o.n.startsWith(pre));
+    for(const o of[...part('shell_'),...part('pulse')]){const me=bMesh(o,MAT[o.m],fleshG,ox,oz);if(o.n.startsWith('pulse'))pulse.push({b:me,ph:pulse.length*1.7});}
+    O('살덩이 방/입구 문',()=>{for(const o of part('door_'))bMesh(o,MAT[o.m],root,ox,oz);}).fixed=true;
+    O('살덩이 방/얼굴 문',()=>{for(const o of part('face_'))bMesh(o,MAT[o.m],root,ox,oz);
+      for(const o of part('eye')){const e=bMesh(o,MAT.eye,root,ox,oz);e.rotation.y=Math.PI;eyes.push(e);}}).fixed=true;}
+  pLight(0xff9a8a,.7,11,ox,3.4,oz-28.5);pLight(0xff8a7a,.7,11,ox,3.6,oz-19);pLight(0xff9a86,.8,10,ox,3.6,oz-9);pLight(0xffc0a8,1.0,9,ox,1.9,oz-5); // 첫째 = 입구 문, 마지막 = 얼굴을 비추는 빛
+  SPACE_FX.push(()=>{for(const e of eyes)e.lookAt(P.x,P.y+1.2,P.z);for(const p of pulse)p.b.scale.setScalar(1+Math.sin(T0*1.6+p.ph)*.06);});
+  walk(x0+1,z0+.7,x1-1,z1-1.35,0); // 벽·창자에 안 닿는 폭 5m, 얼굴의 아랫입술 앞까지
+  const tone={sat:1.2,vig:.7};
+  zone('살덩이 방 · 입구',x0-.1,z0-.1,x1+.1,oz-24,-1,2,{p:[ox-1.4,2.7,z0+10.5],t:[ox+.3,1.1,z0],fov:62},'살덩이 방'); // 들어온 문을 돌아보는 구도 (소희가 카메라 쪽으로 걸어 나옴)ZONES[ZONES.length-1].tone=tone;
+  zone('살덩이 방 · 가운데',x0-.1,oz-24,x1+.1,oz-12,-1,2,{p:[ox-1.8,3.2,oz-26],t:[ox+.8,.9,oz-15],fov:68},'살덩이 방');ZONES[ZONES.length-1].tone=Object.assign({},tone);
+  zone('살덩이 방 · 얼굴',x0-.1,oz-12,x1+.1,z1+.1,-1,2,{p:[ox+1.6,2.2,oz-11.5],t:[ox,2.6,oz],fov:62},'살덩이 방');ZONES[ZONES.length-1].tone=Object.assign({},tone);}
 // ---- 연구소 (x 80~96, z -14~2, 높이 7): 가운데 거대한 컴퓨터 기둥, 둘레에 뚜껑 달린 인큐베이터 8개(안에 누운 사람), 벽엔 계기판, 위엔 철제 통로 (STEM 장치 느낌) ----
 let labWin=null; // 연구소 북쪽 높은 창 (엔딩에서 유리를 투명하게 바꾸고 눈을 보여 줌)
 const tLab=T(32,32,(g,w,h)=>{g.fillStyle='#4f5a55';g.fillRect(0,0,w,h);g.fillStyle='#3a433f';g.fillRect(0,0,w,1);g.fillRect(0,0,1,h);
@@ -1225,7 +1220,8 @@ function rebuildCams(){const keep=CAMS[sel]&&CAMS[sel].name;CAMS.length=0;
   ceSel.innerHTML='';CAMS.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name;ceSel.appendChild(o);});
   const k=CAMS.findIndex(c=>c.name===keep);sel=k>=0?k:0;}
 // 구역 목록 통째로 바꾸기 (불러오기·되돌리기·원래대로)
-function setZones(list){ZONES.length=0;for(const v of list){const d=!v.user&&ZONES_DEF.find(x=>x.name===v.name);
+const ZONES_GONE=new Set(['살덩이 방']); // 없어진 기본 구역 (브라우저에 저장된 옛 값이 새 구역을 가리지 않게 버림) — 살덩이 방은 2026-11-18 긴 굴로 바꾸며 구역 3개로 나눔
+function setZones(list){ZONES.length=0;for(const v of list){if(!v.user&&ZONES_GONE.has(v.name))continue;const d=!v.user&&ZONES_DEF.find(x=>x.name===v.name);
     ZONES.push(Object.assign({},v,{cam:v.cam?jcopy(v.cam):null,tone:v.tone?Object.assign({},v.tone):null,camDef:d&&d.cam?jcopy(d.cam):(v.cam?jcopy(v.cam):null)}));}
   // 저장된 뒤에 새로 생긴 기본 구역(살덩이 방·연구소·현관 밖 그리드 등)은 저장 목록에 없으므로 기본값으로 끼워 넣음 — 없으면 그 방으로 이동해도 카메라가 안 바뀜
   for(const d of ZONES_DEF)if(!ZONES.some(z=>z.name===d.name))ZONES.push(Object.assign({},d,{cam:d.cam?jcopy(d.cam):null,tone:d.tone?Object.assign({},d.tone):null,camDef:d.cam?jcopy(d.cam):null}));
@@ -1613,9 +1609,9 @@ scrEl.addEventListener('wheel',e=>{if(mode!=='edit'||onUI(e))return;
 
 /* ================= 숫자키로 구역 이동 (플레이·편집 둘 다) ================= */
 const JUMPS=[{x:-3.1,y:0,z:2.4},{x:6,y:0,z:1},{x:14.5,y:0,z:1.5},{x:13,y:Y1,z:-9.5},{x:3,y:Y1,z:-8},{x:9,y:Y1,z:-13.3},{x:17,y:Y1,z:-13.3},{x:9,y:Y1,z:-19.6},
-  {x:22,y:Y1,z:-6.5},{x:67,y:0,z:-9.5},{x:90.5,y:0,z:-1.2}]; // 1 소희방 … 7 손님방, 8 부엌 / 따로 떨어진 공간: 9 가상 공간(현관문 밖), 0 살덩이 방, - 연구소
+  {x:22,y:Y1,z:-6.5},{x:67,y:0,z:-32.8},{x:90.5,y:0,z:-1.2}]; // 1 소희방 … 7 손님방, 8 부엌 / 따로 떨어진 공간: 9 가상 공간(현관문 밖), 0 살덩이 방, - 연구소
 function jumpTo(i){
-  const n=['소희의 방','2층 복도','2층 로비','거실','서재','식당','손님방','부엌','가상 공간 (현관 밖)','살덩이 방','연구소'][i],k=CAMS.findIndex(c=>c.name===n);
+  const n=['소희의 방','2층 복도','2층 로비','거실','서재','식당','손님방','부엌','가상 공간 (현관 밖)','살덩이 방 · 입구','연구소'][i],k=CAMS.findIndex(c=>c.name===n);
   if(editing){if(k>=0){sel=k;camSync();}return;}            // 카메라 도구: 그 카메라 고르기
   if(flyTool()){if(k>=0)flyFrom(CAMS[k].ref);return;} // 자유 카메라 도구: 그 구역 카메라 자리로
   if(!started)return;if(seq)skipSeq();if(dlg){dlg=null;$('#dlg').hidden=true;control=true;}
@@ -2496,7 +2492,7 @@ function holoApply(on){if(on&&!HOLO.list){const skip=new Set([girl,EYE.g,NPCS.mi
 
 // ---- 이야기 전용 조사 지점 (살덩이 방의 입, 연구소의 엄마 아빠). 단계가 맞을 때만 켜짐 ----
 function storySpot(id,x,y,z,r,prompt){const s={id,kind:'story',x,y,z,r,r0:r,seen:0,on:false,prompt,lines:[],lines0:[]};spots.push(s);makeSpotVis(s);return s;}
-const SP_MOUTH=storySpot('mouth',67,0,-2.0,1.5,'[E] 입 안으로'),SP_PARENTS=storySpot('parents',88,0,-3.0,2.2,'[E] 말 걸기');
+const SP_MOUTH=storySpot('mouth',67,0,-2.6,1.5,'[E] 입 안으로'),SP_PARENTS=storySpot('parents',88,0,-3.0,2.2,'[E] 말 걸기');
 SPOT_NAMES.mouth='이빨 입 (살덩이 방)';SPOT_NAMES.parents='엄마 아빠 (연구소)';
 
 // ---- 단계별 연출 ----
@@ -2528,7 +2524,7 @@ function stBackrooms(){STORY.monPersist=false;
       Object.assign(P,{x:2.9,y:0,fy:0,z:1.1,a:-Math.PI/2});D_BED.target=0;D_BED.open=0;setStage('backrooms');tpSnap=true;}},{d:.5},{d:1.0,f:k=>setFade(1-k)},{d:.4},{say:LINES.bedroom}],
     ()=>{D_FRONT.locked=false;D_FRONT.lines=[];goal('집을 둘러보고 현관으로 나가자');});}
 // 그리드 세계에 있는 동안 멀리 떨어진 방(살덩이 방·연구소, x 55~)을 숨김 — 그리드 끝에 벽처럼 보이던 것. 배경·안개도 순수 검정
-function farRooms(vis){for(const o of OBJS)if(o.g.position.x>55)o.g.visible=vis&&!o.removed;S.fog.color.copy(vis?DARK:BLACK);}
+function farRooms(vis){for(const o of OBJS)if(o.g.position.x>55)o.g.visible=vis&&!o.removed;fleshG.visible=vis;S.fog.color.copy(vis?DARK:BLACK);}
 function stGrid(){setStage('grid');goal('');cs([{d:.35,f:k=>setFade(k)},{run:()=>{Object.assign(P,{x:24,z:-6.5,a:Math.PI/2});tpSnap=true;farRooms(false);}},{d:.3},{d:.6,f:k=>setFade(1-k)},{d:.4},{say:LINES.grid}],()=>goal('문 안으로 돌아가자'));} // 암전 뒤 그리드 세계 한가운데
 function stMihee(){setStage('mihee');goal('');const h=NPCS.mihee,dx=D_STUDY.cx,dz=D_STUDY.cz;
   cs([{d:.35,f:k=>setFade(k)},{run:()=>{Object.assign(P,{x:19.0,z:-6.5,a:-Math.PI/2});tpSnap=true;farRooms(true);D_FRONT.target=0;D_FRONT.open=0;D_FRONT.locked=true;D_FRONT.lines=[{t:'더는 열리지 않는다.'}];}},{d:.3},{d:.6,f:k=>setFade(1-k)}, // 암전 뒤 거실 안, 문은 닫힘
@@ -2545,7 +2541,7 @@ function evDoorB(){STORY.doneB=1;cs([{run:()=>{D_B.target=1;snd.door();Object.as
     {run:()=>{STORY.mon=true;Object.assign(mon,{x:9.5,z:2.5,y:0,a:Math.PI,state:'chase',grace:1.1,lose:9,hist:[],alert:1,cp:{x:4.9,z:1,fy:0,a:Math.PI/2}});snd.roar();}},{say:LINES.doorB},
     {run:()=>{D_B.target=0;D_B.locked=true;D_B.lines=[{t:'닫혀서 열리지 않는다.'}];}}]);}
 // 식당 문을 여는 순간 암전 → 살덩이 방 (식당 안이 잠깐 보이지 않게. 소희 방문 → 텅 빈 방과 같은 방식)
-function stFlesh(){goal('');cs([{run:()=>{D_DINING.target=1;snd.door();}},{d:.5,f:k=>setFade(k)},{run:()=>{setStage('flesh');D_DINING.target=0;D_DINING.open=0;Object.assign(P,{x:67,y:0,fy:0,z:-10.3,a:0});folAt(66,-10.8,0,0);tpSnap=true;}},{d:.4},{d:.9,f:k=>setFade(1-k)},{d:.6},{say:LINES.flesh}],
+function stFlesh(){goal('');cs([{run:()=>{D_DINING.target=1;snd.door();}},{d:.5,f:k=>setFade(k)},{run:()=>{setStage('flesh');D_DINING.target=0;D_DINING.open=0;Object.assign(P,{x:67,y:0,fy:0,z:-32.8,a:0});folAt(66.2,-33.5,0,0);tpSnap=true;}},{d:.4},{d:.9,f:k=>setFade(1-k)},{d:.6},{say:LINES.flesh}],
     ()=>{SP_MOUTH.on=true;goal('이빨 입 안으로 들어가자');});}
 function stLab(){SP_MOUTH.on=false;cs([{d:.6,f:k=>setFade(k)},{run:()=>{setStage('lab');Object.assign(P,{x:92.2,y:0,fy:0,z:-1.4,a:-Math.PI*.75});folAt(93.2,-.6,0,-Math.PI*.75);tpSnap=true;parentsPlace();}},{d:.4},{d:.9,f:k=>setFade(1-k)},{d:.5},{say:LINES.lab}],
     ()=>{SP_PARENTS.on=true;goal('엄마 아빠에게 가자');});}
@@ -2620,7 +2616,7 @@ function storyGoto(i){if(!started)start();if(seq)skipSeq();dlg=null;$('#dlg').hi
     case 'grid':at(21.4,Y1,-6.5,Math.PI/2);D_FRONT.target=D_FRONT.open=1;snd.birds(0);stGrid();break;
     case 'mihee':at(19,Y1,-6.5,-Math.PI/2);stMihee();break;
     case 'search':at(10.8,Y1,-8.0,-Math.PI/2);folAt(9.6,-8.1,Y1,Math.PI/2);setStage('search');goal('미희와 함께 문을 열어 보자 — 엄마 아빠를 찾자');break;
-    case 'flesh':at(67,0,-10.3,0);setStage('flesh');folAt(66,-10.8,0,0);cs([{say:LINES.flesh}],()=>{SP_MOUTH.on=true;goal('이빨 입 안으로 들어가자');});break;
+    case 'flesh':at(67,0,-32.8,0);setStage('flesh');folAt(66.2,-33.5,0,0);cs([{say:LINES.flesh}],()=>{SP_MOUTH.on=true;goal('이빨 입 안으로 들어가자');});break;
     case 'lab':at(92.2,0,-1.4,-Math.PI*.75);setStage('lab');folAt(93.2,-.6,0,-Math.PI*.75);parentsPlace();cs([{say:LINES.lab}],()=>{SP_PARENTS.on=true;goal('엄마 아빠에게 가자');});break;
     case 'end':at(89.2,0,-1.2,Math.PI);setStage('lab');folAt(90.4,-1,0,Math.PI);parentsPlace();stEnd();break;}}
 {const sel=$('#devStage');sel.innerHTML=ST.map((n,i)=>`<option value="${i}">${ST_KO[n]}</option>`).join('');sel.addEventListener('change',()=>{storyGoto(+sel.value);sel.blur();});}
