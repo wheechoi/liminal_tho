@@ -29,7 +29,7 @@ NPC 작업실(`Docs/SurplusPerson/SP_NPC_workshop.html`)에서 만든 모델. �
 |---|---|---|---|
 | `sp_flesh_room.js` | 살덩이 방: 길이 35m 내장 굴 + 얼굴 문(벌린 입·이빨·눈알 두 개, 유니티 이름 `SP_Flesh_FaceDoor`) + 살에 먹힌 입구 문(`SP_Flesh_EntranceDoor`) | `Tools/Blender/sp_flesh_room.py` | 2026-11-18 |
 
-- 다시 뽑기: `C:\Users\ADmiN\Tools\Blender-5.2.4\blender.exe -b --factory-startup --python Tools\Blender\sp_flesh_room.py` (뒤에 `-- --preview <폴더>`를 붙이면 확인용 그림도 그림)
+- 다시 뽑기 (블렌더 설치는 `CLAUDE.md`의 "블렌더 모델링" 참고): `<블렌더 폴더>\blender.exe -b --factory-startup --python Tools\Blender\sp_flesh_room.py` (뒤에 `-- --preview <폴더>`를 붙이면 확인용 그림도 그림)
 
 ## 그래픽 레퍼런스 — `Docs/SurplusPerson/refs/` (게임에 안 들어감)
 
